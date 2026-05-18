@@ -1,0 +1,21 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+coverage/
+.cache/
+
+# Tirocinium specific
+audio_recordings/
+session_dumps/
+*.sqlite
+*.sqlite-journal
