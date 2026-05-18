@@ -125,14 +125,17 @@ class IvVoiceClient {
 
 ---
 
-## デプロイ
+## デプロイ + Port
 
-| component | 配置 |
-|---|---|
-| `apps/server` | LUDIARS サーバ (port 17xxx、PORT-MAP.md に追加) |
-| `apps/desktop` | エンドユーザ PC (Tauri build) |
-| Postgres | infra (Mm/Cr と共有) — schema は別 schema 名 `tirocinium` |
-| Redis | (任意) slot lock + WS pubsub に使う検討 |
+| component | 配置 | Host port |
+|---|---|---|
+| `apps/server` | LUDIARS サーバ | **8084** (Cernere 8080 / Actio 8888 系の隣) |
+| `apps/desktop` Vite dev | エンドユーザ PC | **5178** (frontend dev) |
+| Postgres | infra (Mm/Cr と共有) — schema 名 `tirocinium` | 5432 (共有) |
+| Redis | (任意) slot lock + WS pubsub に使う検討 | 6379 (共有) |
+
+> infra/PORT-MAP.md の正本反映は別 PR で行う (別作業並行中のため保留)。
+> 環境変数: `TIROCINIUM_PORT=8084`, `TIROCINIUM_VITE_PORT=5178`。
 
 ---
 
