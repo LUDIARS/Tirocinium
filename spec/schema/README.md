@@ -15,7 +15,8 @@ DB 系: **PostgreSQL** (LUDIARS 共通 infra 流用、port 5432)。
 | `sessions` | 面接セッションのメタ情報 |
 | `session_turns` | 各 turn の {STT 結果、応答 ref、評価 snapshot} |
 | `evaluations` | 終了後 / 中間のペルソナ評価集計 |
-| `training_data_refs` | 教師データへの参照 (本体は Memoria) |
+| `training_data_refs` | 教師データへの参照 (本体 + embedding は Memoria) |
+| `weakness_profiles` | user 単位の弱点プロファイル (Opus 評価の EMA 集約) |
 | `reservation_slots` | 30 分単位の予約枠 |
 | `reservations` | ユーザの予約レコード |
 | `users` | Cernere user_id mirror (FK 用、PII は持たない) |
@@ -87,20 +88,48 @@ CREATE INDEX idx_eval_session ON evaluations(session_id, scored_at);
 
 ## training_data_refs
 
+embedding 本体は **Memoria** 側で保持する (Memoria の RAG 基盤を流用)。
+本テーブルは「Memoria のどの doc/embedding を参照しているか」 のメタだけ。
+
 ```sql
 CREATE TABLE training_data_refs (
-  id          UUID PRIMARY KEY,
-  user_id     UUID NOT NULL REFERENCES users(id),
-  kind        TEXT NOT NULL CHECK (kind IN ('es','portfolio','past_qa','self_intro')),
-  memoria_uri TEXT NOT NULL,          -- 本体は Memoria
-  tags        TEXT[] NOT NULL DEFAULT '{}',
-  added_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  embedding   VECTOR(1536)            -- pgvector
+  id            UUID PRIMARY KEY,
+  user_id       UUID NOT NULL REFERENCES users(id),
+  kind          TEXT NOT NULL CHECK (kind IN ('es','portfolio','past_qa','self_intro')),
+  memoria_uri   TEXT NOT NULL,          -- 本文の URI
+  embedding_id  TEXT,                   -- Memoria 側 embedding の id (vector search 引数)
+  tags          TEXT[] NOT NULL DEFAULT '{}',
+  added_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_tdr_user_kind ON training_data_refs(user_id, kind);
-CREATE INDEX idx_tdr_embedding ON training_data_refs USING ivfflat (embedding vector_cosine_ops);
 ```
+
+---
+
+## weakness_profiles
+
+user 単位の 「鍛えるべき軸」。 Opus 評価 (§3.3) のたびに EMA で更新。
+session 開始時に Sonnet system prompt + GPT-5.5 補正の両方に食わせる。
+
+```sql
+CREATE TABLE weakness_profiles (
+  user_id        UUID PRIMARY KEY REFERENCES users(id),
+  axes_ema       JSONB NOT NULL,        -- {consistency: 3.2, clarity: 2.4, ...} 6軸の指数移動平均
+  axes_variance  JSONB NOT NULL,        -- 同上 分散 (安定度)
+  weak_top3      TEXT[] NOT NULL,       -- 直近の弱軸 top3 (system prompt 注入用)
+  hint_history   JSONB NOT NULL DEFAULT '[]',  -- 過去の改善 hint (重複回避用)
+  session_count  INT NOT NULL DEFAULT 0,
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+更新ルール:
+
+- EMA 係数 α = 0.3 (新しい評価を 30% 重みで反映)
+- 6 軸の score を `axes_ema[axis] = α * new + (1-α) * old`
+- `weak_top3` は `axes_ema` の昇順 top-3 を再計算
+- `hint_history` は 直近 N=50 件まで FIFO で保持
 
 ---
 
@@ -159,6 +188,7 @@ CREATE TABLE users (
 - `sessions` (mode='local')
 - `session_turns` (text_uri は file:// パス)
 - `evaluations`
-- `training_data_refs` (memoria_uri は file:// パスでも可)
+- `training_data_refs` (memoria_uri は file:// パスでも可。 embedding はローカル sqlite-vec / Memoria local の検討)
+- `weakness_profiles` (ローカルでも 1 行だけ持つ、 サーバーと同期はしない)
 
 = `reservation_*` / `users` は持たない。

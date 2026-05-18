@@ -22,13 +22,19 @@ DESIGN.md §3.3 / §3.4 の実装視点。
 
 ## システムプロンプト構造
 
-3 段重ね:
+4 段重ね:
 
 1. **静的 root** (どの session も共通) — 面接官ロール、態度、評価軸の説明、安全策
-2. **session 開始時 RAG** — 志望企業 tag + ES embed top-k + 過去面接弱点
-3. **GPT-5.5 補正** — 5-10 turn ごとに上書きされる「次に深掘りすべき論点」
+2. **弱点プロファイル** — `weakness_profiles.weak_top3` を「今回特に問う軸」 として明示
+3. **session 開始時 RAG** — Memoria の vector search で取得した本人素材 top-N
+   query = `(志望企業 tag + 弱点プロファイル top3)`
+4. **GPT-5.5 補正** — 5-10 turn ごとに上書きされる「次に深掘りすべき論点」
 
-= Sonnet の system prompt は `(1) + (2) + (3)` の concat、(3) のみ揺れる。
+= Sonnet の system prompt は `(1) + (2) + (3) + (4)` の concat、(4) のみ session 中に揺れる。
+(2) と (3) は session 開始時に固定。
+
+prompt cache 観点では `(1) + (2) + (3)` をキャッシュ単位とし、 (4) との境目に
+cache_control breakpoint を置く (Anthropic ephemeral 5min)。
 
 ---
 
@@ -92,6 +98,36 @@ async evaluate(history: Turn[]): Promise<Evaluation> {
 - 出力は `axes: { consistency:0-5, clarity:0-5, ... } + comment + hints[]`
 - WS で `eval` フレームとしてクライアントへ push
 - DB の `evaluations` に永続化
+- **弱点プロファイル更新も同時に実行** (下記)
+
+---
+
+## 弱点プロファイル更新サイクル
+
+評価が出るたびに `weakness_profiles` を EMA で更新:
+
+```ts
+async updateWeaknessProfile(userId: string, evalResult: Evaluation) {
+  const ALPHA = 0.3;
+  const cur = await db.getProfile(userId);  // 無ければ初期化
+  const next = {
+    axes_ema: mapAxes(cur.axes_ema, (axis, v) =>
+      ALPHA * evalResult.axes[axis] + (1 - ALPHA) * v
+    ),
+    axes_variance: ...,                      // online variance も同時更新
+    weak_top3: topNAxes(next.axes_ema, 3, 'asc'),  // 弱い軸 = score 低い
+    hint_history: [...cur.hint_history.slice(-49), ...evalResult.hints],
+    session_count: cur.session_count + 1,
+  };
+  await db.saveProfile(userId, next);
+}
+```
+
+注意:
+- session 中に複数回 evaluate される (5-7 turn ごと)。 各回で `axes_ema` が動く。
+- session が終わるまで `weak_top3` は **同 session の system prompt には反映しない**
+  (混乱を避ける)。 次回 session の (2) スロットに反映される。
+- 例外: 著しく低スコア (< 1.5) が出たら、 即時に GPT-5.5 補正 (4) に「今すぐこの軸を深掘り」 を投入。
 
 ---
 
