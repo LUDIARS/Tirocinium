@@ -17,6 +17,11 @@ DB 系: **PostgreSQL** (LUDIARS 共通 infra 流用、port 5432)。
 | `evaluations` | 終了後 / 中間のペルソナ評価集計 |
 | `training_data_refs` | 教師データへの参照 (本体 + embedding は Memoria) |
 | `weakness_profiles` | user 単位の弱点プロファイル (Opus 評価の EMA 集約) |
+| `interviewer_personas` | 面接官ペルソナ (§3.5) |
+| `examinee_personas` | 受験者ペルソナ (テスト/FT loop 用、 §3.6) |
+| `interview_summaries` | session 終了時の構造化サマリ (§3.7) |
+| `human_feedback` | サマリ / hint / 教師データ参照に対する人間フィードバック (§3.8) |
+| `ft_loop_runs` | FT-like loop の実行ログ (§3.9) |
 | `reservation_slots` | 30 分単位の予約枠 |
 | `reservations` | ユーザの予約レコード |
 | `users` | Cernere user_id mirror (FK 用、PII は持たない) |
@@ -177,6 +182,115 @@ CREATE TABLE users (
   id          UUID PRIMARY KEY,         -- = Cernere user_id
   first_seen  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+```
+
+---
+
+## interviewer_personas
+
+```sql
+CREATE TABLE interviewer_personas (
+  id              TEXT PRIMARY KEY,           -- 'hr-warm-40f' 等
+  display_name    TEXT NOT NULL,
+  stage           TEXT NOT NULL CHECK (stage IN ('hr','peer-tech','lead-tech','final')),
+  role_lens       TEXT NOT NULL DEFAULT 'any', -- 'planner'/'programmer'/'designer'/'sound'/'any'
+  temperament     TEXT NOT NULL,               -- 'warm'/'neutral'/'strict'/'sharp'/'nurturing'
+  pressure        SMALLINT NOT NULL CHECK (pressure BETWEEN 1 AND 5),
+  tics            TEXT[] NOT NULL DEFAULT '{}',
+  bio             TEXT NOT NULL,
+  evaluation_bias JSONB NOT NULL DEFAULT '{}', -- {clarity: 1.2, demeanor: 0.9, ...}
+  is_seed         BOOLEAN NOT NULL DEFAULT false,  -- LUDIARS 提供の seed か user 追加か
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_persona_stage_role ON interviewer_personas(stage, role_lens);
+```
+
+---
+
+## examinee_personas
+
+```sql
+CREATE TABLE examinee_personas (
+  id                 TEXT PRIMARY KEY,         -- 'examinee-newgrad-programmer-shy' 等
+  display_name       TEXT NOT NULL,
+  background         TEXT NOT NULL,            -- '大学新卒/独学2年/中途3年' 等
+  target_role        TEXT NOT NULL,
+  weakness_axes      JSONB NOT NULL DEFAULT '{}', -- {clarity: 3, depth_resilience: 4, ...}
+  strengths          TEXT[] NOT NULL DEFAULT '{}',
+  speech_style       TEXT NOT NULL,            -- 'formal'/'casual'/'nervous'/'verbose'
+  intentional_flaws  TEXT[] NOT NULL DEFAULT '{}',
+  bio                TEXT NOT NULL,
+  is_seed            BOOLEAN NOT NULL DEFAULT false,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_examinee_role ON examinee_personas(target_role);
+```
+
+---
+
+## interview_summaries
+
+session 終了時の Opus 出力。 構造化された JSONB で保存。
+
+```sql
+CREATE TABLE interview_summaries (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id      UUID NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
+  generated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  headline        TEXT NOT NULL,
+  highlights      JSONB NOT NULL DEFAULT '[]',    -- [{turn_no, comment}, ...]
+  axes_summary    JSONB NOT NULL DEFAULT '{}',    -- {final: {axis: score}, ema_delta: {...}}
+  growth_points   JSONB NOT NULL DEFAULT '[]',    -- string[]
+  carry_over      JSONB NOT NULL DEFAULT '[]',    -- string[]
+  interviewer_note TEXT,                          -- 面接官ペルソナの総評
+  model           TEXT NOT NULL                   -- 'opus-x.y'
+);
+```
+
+---
+
+## human_feedback
+
+サマリ / hint / 教師データに対する人間判断の履歴。 取消可能性のため append-only。
+
+```sql
+CREATE TABLE human_feedback (
+  id            BIGSERIAL PRIMARY KEY,
+  user_id       UUID NOT NULL REFERENCES users(id),
+  target_kind   TEXT NOT NULL CHECK (target_kind IN
+    ('summary_block','growth_hint','rag_ref','ai_critique','evaluation_axis')),
+  target_id     TEXT NOT NULL,                 -- summary id + block name / hint hash 等
+  action        TEXT NOT NULL CHECK (action IN ('accept','reject','edit','skip')),
+  edit_payload  JSONB,                         -- edit 時の差し替え値
+  reason        TEXT,                          -- 任意の理由メモ
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_hf_user_target ON human_feedback(user_id, target_kind, target_id);
+```
+
+---
+
+## ft_loop_runs
+
+FT-like loop (§3.9) の実行記録。 1 行 = 1 session run。
+
+```sql
+CREATE TABLE ft_loop_runs (
+  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  interviewer_id      TEXT NOT NULL REFERENCES interviewer_personas(id),
+  examinee_id         TEXT NOT NULL REFERENCES examinee_personas(id),
+  session_id          UUID NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  started_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ended_at            TIMESTAMPTZ,
+  status              TEXT NOT NULL CHECK (status IN ('running','completed','aborted')),
+  human_review_done   BOOLEAN NOT NULL DEFAULT false,
+  metadata            JSONB NOT NULL DEFAULT '{}'  -- critique model, turn count 等
+);
+
+CREATE INDEX idx_ft_status ON ft_loop_runs(status, started_at);
 ```
 
 ---
