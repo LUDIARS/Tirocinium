@@ -19,10 +19,12 @@
     "gray-matter": "^4.0.3",
     "hono": "^4.6.0",
     "paseto": "^3.1.4",
-    "postgres": "^3.4.4"
+    "postgres": "^3.4.4",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.0",
+    "@types/ws": "^8.5.13",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
