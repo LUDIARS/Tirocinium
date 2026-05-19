@@ -10,7 +10,11 @@ Tirocinium クライアントは **Tauri 2 (デスクトップ)** を主、
 | Route | 画面 | 説明 |
 |---|---|---|
 | `/` | Dashboard | 直近セッション、予約状況、未消化評価 |
-| `/start` | Session Start | モード選択 + 志望タグ + LLM プロファイル確認 |
+| `/start` | Session Start | モード選択 + 志望タグ + **面接官ペルソナ選択** + LLM プロファイル確認 |
+| `/personas` | Persona Catalog | 面接官 / 受験者 (admin) ペルソナ一覧 + 自作追加 |
+| `/sessions/:id/summary` | Session Summary | §3.7 サマリ表示 + ブロック別フィードバック UI |
+| `/feedback/history` | Feedback History | 過去フィードバックの一覧、 取消 / 編集 |
+| `/admin/ft-runs` | FT loop runs (admin) | FT-like loop の起動・進捗・結果閲覧 |
 | `/session/:id` | Session Live | 音声対話画面 + リアルタイム評価 panel |
 | `/sessions` | History | 過去面接の一覧 + 評価推移 grad |
 | `/training` | Training Data | ES / ポートフォリオ / 過去 Q&A 登録 (実体は Memoria へ POST) |
@@ -28,6 +32,10 @@ Tirocinium クライアントは **Tauri 2 (デスクトップ)** を主、
 | `<EvalPanel>` | 6 軸のリアルタイムスコア + コメント |
 | `<ReservationCalendar>` | 30 分 slot grid、混雑 heatmap |
 | `<ModelBadge>` | 現在使用中の LLM 3 機種を示す pill |
+| `<PersonaPicker>` | 面接官ペルソナ選択 (stage × role × temperament で絞り込み) |
+| `<SummaryView>` | サマリ表示 (headline / highlights / axes / growth / carry-over) |
+| `<FeedbackBlock>` | サマリ各ブロック横に accept / reject / edit のアクションバー |
+| `<FtRunMonitor>` | FT loop 実行中の turn ごと進捗 + 完了後の critique 比較 |
 
 ---
 
