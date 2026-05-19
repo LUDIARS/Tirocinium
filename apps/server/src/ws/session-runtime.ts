@@ -11,6 +11,7 @@ import {
 } from '@tirocinium/llm';
 import { sql } from '../db/index.js';
 import { getInterviewer } from '../persona/repo.js';
+import { applyEvaluation } from '../feedback/weakness-updater.js';
 import type { ClientFrame, ServerFrame } from './frames.js';
 
 const EVAL_EVERY_N_TURNS = 5;
@@ -253,6 +254,16 @@ export class SessionRuntime {
         )
       `;
       this.send({ kind: 'eval', evaluation: ev });
+
+      // 弱点プロファイルを EMA で更新 (task C)
+      try {
+        const updated = await applyEvaluation(this.userId, ev.axes, ev.hints);
+        // 同 session の system prompt には反映しない (DESIGN §3.2.2)。
+        // 次回 session で (2) スロットに反映される。 同 session 内の表示更新だけ:
+        this.weakTop3 = updated.weak_top3;
+      } catch (err) {
+        console.error('[ws] weakness profile update error', err);
+      }
     } catch (err) {
       // 評価失敗は session を止めない (ログのみ)
       console.error('[ws] evaluation error', err);
