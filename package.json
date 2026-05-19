@@ -1,0 +1,19 @@
+{
+  "name": "tirocinium",
+  "private": true,
+  "version": "0.0.1",
+  "description": "面接練習アプリ (ES/portfolio学習AI + 音声対話 + 複合LLM評価)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "npm --workspace apps/server run dev",
+    "build:server": "npm --workspace apps/server run build",
+    "migrate": "npm --workspace apps/server run migrate"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "UNLICENSED"
+}
