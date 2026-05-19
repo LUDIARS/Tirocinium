@@ -111,6 +111,143 @@ v1 では採用しない。 蓄積データが十分溜まり、 ユーザがリ
 
 ---
 
+### 3.5 面接官ペルソナ
+
+面接官は **同じ「AI Sonnet」 でも会話の質が変わる存在** として扱う。
+ペルソナはユーザが session 開始時に選ぶ (or 自動推薦)。
+
+#### 3.5.1 ペルソナ属性
+
+| 属性 | 例 | 用途 |
+|---|---|---|
+| `id` | `hr-warm-40f` | 識別子 |
+| `display_name` | 田中 (人事) | UI 表示 |
+| `stage` | `hr` / `peer-tech` / `lead-tech` / `final` | RAG 検索 + system prompt 構造 |
+| `role_lens` | `planner` / `programmer` / `designer` / `sound` / `any` | 質問題材の絞り込み |
+| `temperament` | `warm` / `neutral` / `strict` / `sharp` / `nurturing` | 会話のトーン |
+| `pressure` | 1-5 (圧の強さ) | 深掘りの粘り、 沈黙の使い方 |
+| `tics` | string[] (口癖 / 質問の癖) | system prompt に埋め込み |
+| `bio` | 短い経歴 | 自己紹介の自然さ |
+| `evaluation_bias` | JSONB (軸ごとの重み 0.5-1.5) | Opus 評価への重み付け |
+
+#### 3.5.2 system prompt への注入
+
+§3.2 の 4 段重ねに **`(2.5) 面接官ペルソナ`** を挿入し、 5 段重ねへ拡張:
+
+1. 静的 root
+2. **面接官ペルソナ** (NEW)
+2.5. 弱点プロファイル
+3. session 開始時 RAG (role + stage tag を query に追加)
+4. GPT-5.5 補正
+
+ペルソナの `pressure` は Sonnet の "聞き返しの粘り" と "沈黙挿入" のパラメータに
+変換。 `tics` はそのままシステムプロンプトに転記。
+
+---
+
+### 3.6 受験者ペルソナ (テスト用 / FT loop 用)
+
+**実ユーザではなく**、 想定受験者を AI で模擬する仕組み。
+目的: フィードバック loop (§3.8) の駆動 + 一般解 QA seed の調整。
+
+#### 3.6.1 ペルソナ属性
+
+| 属性 | 例 | 用途 |
+|---|---|---|
+| `id` | `examinee-newgrad-programmer-shy` | 識別子 |
+| `display_name` | 中村 (新卒・プログラマ志望) | UI 表示 |
+| `background` | 大学/専門/独学/中途 + 経験年数 | 回答の質感 |
+| `target_role` | `programmer` 等 | role tag |
+| `weakness_axes` | 想定弱点軸 + 弱さ度 0-5 | 模擬回答にバイアスを付与 |
+| `strengths` | string[] | 浅い質問は得意な傾向を再現 |
+| `speech_style` | `formal` / `casual` / `nervous` / `verbose` | 発話の癖 |
+| `intentional_flaws` | string[] (例: 沈黙が長い / 結論先出しが弱い) | テストデータの多様性確保 |
+
+#### 3.6.2 模擬応答
+
+受験者ペルソナを system prompt にした Sonnet/Haiku で「受験者役」 を演じる。
+**面接官ペルソナと別 LLM プロセス** で対話させてもよい (cost trade-off で
+Haiku 推奨)。 出力は `session_turns.role='user'` として保存される
+(local 評価用なので production の reservation_slot は消費しない)。
+
+---
+
+### 3.7 面接サマリ (session 終了時の構造化レポート)
+
+session が `ended` になったタイミング (or 手動 trigger) で Opus に依頼:
+
+| ブロック | 内容 |
+|---|---|
+| `headline` | 一行サマリ (40 字以内) |
+| `highlights` | 印象に残った turn 3-5 個 (turn_no + 1 行コメント) |
+| `axes_summary` | 6 軸の最終スコア + EMA との比較 |
+| `growth_points` | 改善 hint 3 個 (具体的 / 行動可能) |
+| `carry_over` | 次回 session で深掘るべきテーマ 1-2 個 |
+| `interviewer_note` | 面接官ペルソナの「総評」 (人格込み) |
+
+サマリは `interview_summaries` 表に保存し、 UI で表示 + 人間フィードバック (§3.8) の
+対象になる。
+
+---
+
+### 3.8 人間フィードバック loop
+
+ユーザが **サマリの各ブロックに対して accept / reject / edit** を返す。
+これを学習信号として 2 ヶ所に反映:
+
+1. **`weakness_profiles`** の `hint_history` に accept/reject ラベル付き格納
+   → 次回以降の Opus に「同じ hint を出さない」 「accept された方向で深掘り」 を伝える
+2. **`training_data_refs` の `weight`** を局所的に調整
+   → RAG で「accept された頃に引いていた素材」 の score を微増、 reject された
+   素材を微減 (係数 ±0.1 程度、 EMA でならす)
+
+フィードバック行為そのものは `human_feedback` 表で履歴を持つ (取消可能性のため)。
+
+> 注: fine-tune は行わない。 これは **prompt + RAG の重み調整による疑似学習** で、
+> モデル重みは触らない (§3.2.3 と整合)。
+
+---
+
+### 3.9 FT-like loop (テスト用 / データ生成用)
+
+「fine-tune っぽいループ」 だが、 実体は **半自動の教師データ拡張ループ**:
+
+```
+①受験者ペルソナ (§3.6) × 面接官ペルソナ (§3.5) で会話シミュレーション
+   ↓
+②Opus が turn ごと評価 + 終了時にサマリ (§3.7)
+   ↓
+③Opus セルフ critique: 「もっと良い答え方を 1 つ」 を生成
+   ↓
+④人間が最終評価 (各 turn に accept/reject/edit + サマリに同じく)
+   ↓
+⑤蓄積データ:
+   - 受験者ペルソナ単位の rolling weakness baseline
+   - 一般解 QA seed の弱点リファクタ候補
+   - 弱点プロファイル更新 EMA 係数のチューニング素材
+```
+
+CLI: `scripts/ft-loop` で 1 ペルソナ対 = 1 session を起こせる。
+人間フィードバックは GUI でやってもよいし、 sample-sessions/ の JSON を手で編集
+してもよい。
+
+蓄積データは `data/training/sample-sessions/<date>/<session-id>/` に格納:
+
+```
+session-id/
+├── conversation.jsonl     # 全 turn
+├── opus-evaluations.jsonl # 各評価
+├── summary.md             # §3.7 出力
+├── ai-critique.md         # §3.9 step③
+└── human-feedback.json    # §3.9 step④
+```
+
+これにより **学習データセット** が育つ。 直接的な fine-tune はしないが、
+Memoria 側 embedding seed の更新や、 一般解 QA seed (data/general/) の改稿に
+食わせる。
+
+---
+
 ## 4. 音声対話フロー
 
 ```

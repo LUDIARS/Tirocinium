@@ -14,15 +14,24 @@ tirocinium/
 │       │   ├── ws/           # session live WS
 │       │   ├── llm/          # LLM proxy + orchestrator
 │       │   ├── reservation/  # 予約 slot 管理
+│       │   ├── persona/      # 面接官 / 受験者ペルソナ CRUD + prompt 合成 (§3.5/§3.6)
+│       │   ├── summary/      # サマリ生成 + interview_summaries CRUD (§3.7)
+│       │   ├── feedback/     # human_feedback CRUD + 反映ロジック (§3.8)
+│       │   ├── ft_loop/      # FT-like loop orchestration (§3.9)
 │       │   ├── auth/         # Cernere verify
 │       │   └── db/           # postgres client + migration runner
 │       └── migrations/   # *.sql (immutable, 後置追加のみ)
 ├── packages/
 │   ├── voice/            # Iv 連携 + VAD (client/server 両用)
-│   ├── llm/              # 複合 LLM orchestrator (server 専用)
+│   ├── llm/              # 複合 LLM orchestrator (server 専用) + Examinee simulator
 │   ├── training/         # 教師データの embedding + RAG
 │   ├── reservation/      # slot 計算 (server 専用)
-│   └── shared/           # 型 + WS frame schema
+│   └── shared/           # 型 + WS frame schema (Persona / Summary / Feedback 含む)
+├── scripts/
+│   └── ft-loop/          # FT-like loop CLI (§3.9)
+├── data/
+│   ├── general/          # 一般解 QA seed (by-role, by-stage, persona)
+│   └── training/         # FT-like loop の蓄積 (sample-sessions/<date>/<id>/)
 └── spec/                 # AIFormat 構造化仕様
 ```
 
