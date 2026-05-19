@@ -9,6 +9,7 @@ import { summary } from './routes/summary.js';
 import { feedback } from './routes/feedback.js';
 import { ftRuns } from './routes/ft_runs.js';
 import { attachSessionWs } from './ws/handler.js';
+import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
 
 const app = new Hono();
 
@@ -35,9 +36,11 @@ const server = serve(
 );
 
 attachSessionWs(server as unknown as Parameters<typeof attachSessionWs>[0]);
+startTickScheduler();
 
 const shutdown = () => {
   console.log('shutting down');
+  stopTickScheduler();
   server.close();
   process.exit(0);
 };
