@@ -1,0 +1,42 @@
+{
+  "session_id": "session-001-shy-grilled",
+  "reviewed_by": "kazmit (sample)",
+  "reviewed_at": "2026-05-19T10:30:00Z",
+  "summary_blocks": {
+    "headline":         { "action": "accept" },
+    "highlights":       {
+      "action": "edit",
+      "per_item": [
+        { "turn_no": 4, "action": "accept" },
+        { "turn_no": 8, "action": "accept" },
+        { "turn_no": 12, "action": "edit", "edit_payload": { "comment": "前置きは適切。 ただし『先輩に口頭で』 で止まっており具体性が弱い。 次回は数値の出し方まで触れたい。" } }
+      ]
+    },
+    "axes_summary":     { "action": "accept" },
+    "growth_points":    {
+      "action": "edit",
+      "per_item": [
+        { "action": "accept", "note": "結論先出しは最優先。" },
+        { "action": "accept" },
+        { "action": "reject", "note": "『計測 → 判断のサイクル』 は本人がすでに認識しているので、 次回 hint としては不要。 別軸 (報告フロー) を出してほしい。" }
+      ]
+    },
+    "carry_over":       {
+      "action": "edit",
+      "per_item": [
+        { "action": "accept" },
+        { "action": "reject", "note": "A* の話を引きずるより、 別の質問題材で demeanor 改善を測る方が良い。" }
+      ]
+    },
+    "interviewer_note": { "action": "accept" }
+  },
+  "ai_critique": {
+    "action": "edit",
+    "per_turn": [
+      { "turn_no": 4, "action": "edit", "note": "仮の数字 (5ms) を入れるのは現実問題として喋れない。 critique 側で『正直に計測してないと答えた上で』 のパターンに差し替えて。" },
+      { "turn_no": 8, "action": "accept" },
+      { "turn_no": 12, "action": "accept" }
+    ]
+  },
+  "notes": "全体として有用。 critique の turn 4 だけ要修正 (実値を喋れない問題)。 同じ受験者ペルソナで demeanor 改善を狙うセッションをもう 1 回欲しい。"
+}

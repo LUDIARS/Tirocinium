@@ -1,0 +1,43 @@
+{
+  "session_id": "session-002-overconfident-warm",
+  "reviewed_by": "kazmit (sample)",
+  "reviewed_at": "2026-05-19T14:30:00Z",
+  "summary_blocks": {
+    "headline":         { "action": "accept" },
+    "highlights":       {
+      "action": "accept",
+      "per_item": [
+        { "turn_no": 2, "action": "accept" },
+        { "turn_no": 8, "action": "accept" },
+        { "turn_no": 11, "action": "accept" }
+      ]
+    },
+    "axes_summary":     { "action": "accept" },
+    "growth_points":    {
+      "action": "edit",
+      "per_item": [
+        { "action": "accept" },
+        { "action": "accept", "note": "短所の選び方は最重要。" },
+        { "action": "edit", "edit_payload": "矛盾指摘への応答は『今気付きました』 だけでなく、 『どちらが本当の自分か』 を 1 文で再宣言する練習も加える。" }
+      ]
+    },
+    "carry_over":       {
+      "action": "accept",
+      "per_item": [
+        { "action": "accept" },
+        { "action": "accept", "note": "lead-tech-grilling-40f は良い相手選択。" }
+      ]
+    },
+    "interviewer_note": { "action": "accept" }
+  },
+  "ai_critique": {
+    "action": "accept",
+    "per_turn": [
+      { "turn_no": 2, "action": "accept" },
+      { "turn_no": 8, "action": "accept", "note": "『奨励賞』 を素直に出す案は秀逸。 大賞との差を分析する姿勢で挽回する流れは取り入れたい。" },
+      { "turn_no": 10, "action": "accept" },
+      { "turn_no": 12, "action": "accept" }
+    ]
+  },
+  "notes": "受験者の伸びしろが見える session。 critique の品質も高く、 改善 hint がそのまま次回練習スクリプトに落とせる。 ただし『大賞との差を分析中』 が嘘っぽくならないように、 実際にやっている場合のみ採用する旨を critique 本文に添えたい。"
+}
