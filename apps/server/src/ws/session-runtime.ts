@@ -10,6 +10,7 @@ import {
   type InterviewerPersonaInput,
 } from '@tirocinium/llm';
 import { createMemoriaClient, renderRagBlock, type TrainingDocKind } from '@tirocinium/training';
+import { AsyncQueue, createIvClient, type ImperativusClient } from '@tirocinium/voice';
 import { sql } from '../db/index.js';
 import { getInterviewer } from '../persona/repo.js';
 import { applyEvaluation } from '../feedback/weakness-updater.js';
@@ -29,6 +30,9 @@ export class SessionRuntime {
   private closed = false;
   private llmEnabled: boolean;
   private refineEnabled: boolean;
+  private ivClient: ImperativusClient | null = null;
+  private audioQueue: AsyncQueue<Uint8Array> | null = null;
+  private sttPipeRunning = false;
 
   constructor(
     private readonly ws: WebSocket,
@@ -37,6 +41,7 @@ export class SessionRuntime {
   ) {
     this.llmEnabled = Boolean(process.env['ANTHROPIC_API_KEY']);
     this.refineEnabled = Boolean(process.env['OPENAI_API_KEY']);
+    this.ivClient = createIvClient();
   }
 
   async init(): Promise<void> {
@@ -144,7 +149,7 @@ export class SessionRuntime {
         await this.handleEnd();
         break;
       case 'audio_chunk':
-        // STT 経路は Iv 連携 PR (E) で実装。 今は ack のみ。
+        this.handleAudioChunk(frame.pcm);
         break;
       case 'pong':
         // keepalive
@@ -254,6 +259,39 @@ export class SessionRuntime {
     }
   }
 
+  private handleAudioChunk(pcm: number[]): void {
+    // Iv が無い場合 → ack のみ (クライアントは stt_final を別途送る前提)
+    if (!this.ivClient) return;
+    // 初回 chunk で STT pipe を起動
+    if (!this.audioQueue) {
+      this.audioQueue = new AsyncQueue<Uint8Array>();
+      void this.runSttPipe();
+    }
+    const buf = new Uint8Array(pcm);
+    this.audioQueue.push(buf);
+  }
+
+  /** Iv の STT stream を受けて partial/final を WS に流す。 close されるまで継続 */
+  private async runSttPipe(): Promise<void> {
+    if (!this.ivClient || !this.audioQueue || this.sttPipeRunning) return;
+    this.sttPipeRunning = true;
+    try {
+      for await (const evt of this.ivClient.stt(this.audioQueue)) {
+        if (this.closed) break;
+        if (evt.kind === 'partial') {
+          this.send({ kind: 'stt_partial', text: evt.text });
+        } else if (evt.kind === 'final') {
+          // final は handleUserTurn に渡し、 Sonnet 応答まで起動する
+          await this.handleUserTurn(evt.text);
+        }
+      }
+    } catch (err) {
+      console.warn('[ws] stt pipe error', (err as Error).message);
+    } finally {
+      this.sttPipeRunning = false;
+    }
+  }
+
   private async handleEnd(): Promise<void> {
     this.closed = true;
     await sql`
@@ -322,5 +360,9 @@ export class SessionRuntime {
   async close(): Promise<void> {
     this.closed = true;
     if (this.currentAbort) this.currentAbort.abort();
+    if (this.audioQueue) {
+      this.audioQueue.close();
+      this.audioQueue = null;
+    }
   }
 }
