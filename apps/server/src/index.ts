@@ -4,12 +4,20 @@ import { config } from './config.js';
 import { health } from './routes/health.js';
 import { reservations } from './routes/reservations.js';
 import { sessions } from './routes/sessions.js';
+import { personas } from './routes/personas.js';
+import { summary } from './routes/summary.js';
+import { feedback } from './routes/feedback.js';
+import { ftRuns } from './routes/ft_runs.js';
 
 const app = new Hono();
 
 app.route('/health', health);
 app.route('/api/v1/reservations', reservations);
 app.route('/api/v1/sessions', sessions);
+app.route('/api/v1/sessions', summary);
+app.route('/api/v1/personas', personas);
+app.route('/api/v1/feedback', feedback);
+app.route('/api/v1/ft-runs', ftRuns);
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404));
 
