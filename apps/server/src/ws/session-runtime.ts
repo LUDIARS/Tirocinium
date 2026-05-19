@@ -2,7 +2,9 @@ import type { WebSocket } from 'ws';
 import {
   buildSystemPrompt,
   createAnthropicClient,
+  createOpenAIClient,
   evaluate,
+  refine,
   streamResponse,
   type Turn,
   type InterviewerPersonaInput,
@@ -12,6 +14,7 @@ import { getInterviewer } from '../persona/repo.js';
 import type { ClientFrame, ServerFrame } from './frames.js';
 
 const EVAL_EVERY_N_TURNS = 5;
+const REFINE_EVERY_N_TURNS = 10;
 
 export class SessionRuntime {
   private turns: Turn[] = [];
@@ -19,8 +22,10 @@ export class SessionRuntime {
   private currentAbort: AbortController | null = null;
   private interviewer: InterviewerPersonaInput | null = null;
   private weakTop3: string[] = [];
+  private refineBlock = '';
   private closed = false;
   private llmEnabled: boolean;
+  private refineEnabled: boolean;
 
   constructor(
     private readonly ws: WebSocket,
@@ -28,6 +33,7 @@ export class SessionRuntime {
     private readonly userId: string,
   ) {
     this.llmEnabled = Boolean(process.env['ANTHROPIC_API_KEY']);
+    this.refineEnabled = Boolean(process.env['OPENAI_API_KEY']);
   }
 
   async init(): Promise<void> {
@@ -145,6 +151,7 @@ export class SessionRuntime {
     const systemPrompt = buildSystemPrompt({
       interviewer: this.interviewer,
       weakTop3: this.weakTop3,
+      refineBlock: this.refineBlock || undefined,
     });
 
     let acc = '';
@@ -192,6 +199,20 @@ export class SessionRuntime {
     // 5 turn ごとに Opus 評価 (バックグラウンド)
     if (interviewerTurnNo > 0 && interviewerTurnNo % EVAL_EVERY_N_TURNS === 0) {
       void this.runEvaluationBackground(interviewerTurnNo);
+    }
+    // 10 turn ごとに GPT-5.5 補正 (バックグラウンド)
+    if (this.refineEnabled && interviewerTurnNo > 0 && interviewerTurnNo % REFINE_EVERY_N_TURNS === 0) {
+      void this.runRefineBackground();
+    }
+  }
+
+  private async runRefineBackground(): Promise<void> {
+    try {
+      const oai = createOpenAIClient();
+      const block = await refine(oai, { turns: this.turns });
+      if (block) this.refineBlock = block;
+    } catch (err) {
+      console.error('[ws] refine error', err);
     }
   }
 
