@@ -8,6 +8,7 @@ import { personas } from './routes/personas.js';
 import { summary } from './routes/summary.js';
 import { feedback } from './routes/feedback.js';
 import { ftRuns } from './routes/ft_runs.js';
+import { attachSessionWs } from './ws/handler.js';
 
 const app = new Hono();
 
@@ -32,6 +33,8 @@ const server = serve(
     console.log(`tirocinium server listening on ${info.address}:${info.port}`);
   },
 );
+
+attachSessionWs(server as unknown as Parameters<typeof attachSessionWs>[0]);
 
 const shutdown = () => {
   console.log('shutting down');
