@@ -9,6 +9,7 @@ import {
   type Turn,
   type InterviewerPersonaInput,
 } from '@tirocinium/llm';
+import { createMemoriaClient, renderRagBlock, type TrainingDocKind } from '@tirocinium/training';
 import { sql } from '../db/index.js';
 import { getInterviewer } from '../persona/repo.js';
 import { applyEvaluation } from '../feedback/weakness-updater.js';
@@ -23,6 +24,7 @@ export class SessionRuntime {
   private currentAbort: AbortController | null = null;
   private interviewer: InterviewerPersonaInput | null = null;
   private weakTop3: string[] = [];
+  private ragBlock = '';
   private refineBlock = '';
   private closed = false;
   private llmEnabled: boolean;
@@ -42,8 +44,11 @@ export class SessionRuntime {
     const sessionRows = await sql<{
       metadata: { interviewer_id?: string };
       llm_profile: Record<string, unknown>;
+      target_company: string | null;
+      target_role: string | null;
     }[]>`
-      SELECT metadata, llm_profile FROM sessions WHERE id = ${this.sessionId}
+      SELECT metadata, llm_profile, target_company, target_role
+      FROM sessions WHERE id = ${this.sessionId}
     `;
     const sess = sessionRows[0];
     if (!sess) {
@@ -86,6 +91,31 @@ export class SessionRuntime {
       SELECT weak_top3 FROM weakness_profiles WHERE user_id = ${this.userId}
     `;
     this.weakTop3 = weakRows[0]?.weak_top3 ?? [];
+
+    // Memoria RAG fetch (MEMORIA_URL 未設定なら skip)
+    const memoria = createMemoriaClient();
+    if (memoria) {
+      try {
+        const queryParts = [
+          sess.target_company,
+          sess.target_role,
+          ...this.weakTop3,
+          this.interviewer?.stage,
+        ].filter(Boolean);
+        const query = queryParts.join(' ') || '面接練習';
+        const filterTags = this.interviewer?.stage ? [this.interviewer.stage] : undefined;
+        const filterKinds: TrainingDocKind[] = ['es', 'portfolio', 'past_qa', 'self_intro'];
+        const result = await memoria.rag({
+          user_id: this.userId,
+          query,
+          filter: { kinds: filterKinds, tags: filterTags },
+          topK: 6,
+        });
+        this.ragBlock = renderRagBlock(result);
+      } catch (err) {
+        console.warn('[ws] memoria rag failed', (err as Error).message);
+      }
+    }
 
     this.send({
       kind: 'session_ready',
@@ -152,6 +182,7 @@ export class SessionRuntime {
     const systemPrompt = buildSystemPrompt({
       interviewer: this.interviewer,
       weakTop3: this.weakTop3,
+      ragBlock: this.ragBlock || undefined,
       refineBlock: this.refineBlock || undefined,
     });
 
