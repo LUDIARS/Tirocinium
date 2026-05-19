@@ -1,0 +1,90 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+body {
+  margin: 0;
+  background: #f7f7f8;
+  color: #1a1a1a;
+}
+@media (prefers-color-scheme: dark) {
+  body { background: #161618; color: #e8e8ea; }
+}
+
+.app-shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 24px;
+  gap: 24px;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+@media (prefers-color-scheme: dark) {
+  .app-header { border-bottom-color: rgba(255,255,255,0.08); }
+}
+
+.brand {
+  font-size: 18px;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.app-nav {
+  display: flex;
+  gap: 16px;
+}
+
+.nav-link {
+  text-decoration: none;
+  color: inherit;
+  opacity: 0.65;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.nav-link:hover { opacity: 1; }
+.nav-link.active { opacity: 1; background: rgba(0,0,0,0.05); font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+  .nav-link.active { background: rgba(255,255,255,0.08); }
+}
+
+.app-main {
+  padding: 24px;
+  max-width: 1024px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+h2 { margin-top: 0; }
+
+.card {
+  background: white;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  .card { background: #1e1e22; border-color: rgba(255,255,255,0.08); }
+}
+
+.todo-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(255, 184, 0, 0.18);
+  color: rgba(140, 80, 0, 1);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+@media (prefers-color-scheme: dark) {
+  .todo-tag { background: rgba(255, 190, 80, 0.16); color: rgba(255, 210, 140, 1); }
+}
