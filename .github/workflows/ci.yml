@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: build + test (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build packages/llm
+        run: npm --workspace packages/llm run build
+
+      - name: Build packages/voice
+        run: npm --workspace packages/voice run build
+
+      - name: Build packages/training
+        run: npm --workspace packages/training run build
+
+      - name: Build apps/server
+        run: npm --workspace apps/server run build
+
+      - name: Build apps/desktop
+        run: npm --workspace apps/desktop run build
+
+      - name: Test packages/llm
+        run: npm --workspace packages/llm test
+
+      - name: Test packages/voice
+        run: npm --workspace packages/voice test
+
+      - name: Test packages/training
+        run: npm --workspace packages/training test
+
+      - name: Test apps/server
+        run: npm --workspace apps/server test
+
+  ft-loop-dry-run:
+    name: ft-loop dry-run (no LLM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: dry-run with each interviewer × first examinee
+        run: |
+          for f in data/general/persona/interviewer/*.md; do
+            iv=$(basename "$f" .md)
+            npm --workspace apps/server run ft-loop -- \
+              --interviewer "$iv" \
+              --examinee examinee-newgrad-programmer-shy \
+              --dry-run
+          done
