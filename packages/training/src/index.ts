@@ -1,2 +1,3 @@
 export * from './types.js';
 export { MemoriaClient, createMemoriaClient, renderRagBlock } from './memoria-client.js';
+export * from './analyze.js';
