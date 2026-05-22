@@ -10,14 +10,15 @@ import {
   createOpenAIClient,
   critique,
   evaluate,
+  examineeSystemPrompt,
   refine,
-  respondAsExaminee,
-  streamResponse,
+  serializeHistory,
   summarize,
   type ExamineePersonaInput,
   type InterviewerPersonaInput,
   type Turn,
 } from '@tirocinium/llm';
+import { runClaudeCli } from './claude-cli.js';
 import type {
   AiCritiqueDoc,
   EvaluationRecord,
@@ -113,13 +114,6 @@ function coldOpenForStage(stage: string): string {
   }
 }
 
-/** stream を全部受けて連結 */
-async function consumeStream(gen: AsyncGenerator<string, void, unknown>): Promise<string> {
-  let acc = '';
-  for await (const token of gen) acc += token;
-  return acc.trim();
-}
-
 /** jsonl 書き出し helper */
 async function writeJsonl(path: string, items: unknown[]): Promise<void> {
   const body = items.map((x) => JSON.stringify(x)).join('\n') + '\n';
@@ -159,8 +153,8 @@ async function main() {
     turns_requested: args.turns,
     turns_completed: 0,
     models: {
-      interviewer: 'claude-sonnet-4-6',
-      examinee: 'claude-haiku-4-5-20251001',
+      interviewer: 'claude-cli (sonnet)',
+      examinee: 'claude-cli (haiku)',
       evaluator: 'claude-opus-4-7',
       summarizer: 'claude-opus-4-7',
       critic: 'claude-opus-4-7',
@@ -192,12 +186,19 @@ async function main() {
 
   // 2. 交互に turn を回す
   while (turnNo < args.turns) {
-    // examinee 応答
-    const examineeText = await respondAsExaminee(anthropic, {
-      persona: examineeFm,
-      question: turns[turns.length - 1]!.text,
-      history: turns,
-    });
+    // examinee 応答 (Claude Code CLI 経由)
+    const examineePrompt = [
+      examineeSystemPrompt(examineeFm),
+      '',
+      '## これまでの面接',
+      serializeHistory(turns),
+      '',
+      '## 面接官の最新質問',
+      turns[turns.length - 1]!.text,
+      '',
+      '上記の質問に、 ペルソナの癖を反映した形で答えてください。 回答文のみを出力してください。',
+    ].join('\n');
+    const examineeText = await runClaudeCli(examineePrompt, 'haiku');
     turnNo += 1;
     const u: Turn = {
       turn_no: turnNo,
@@ -210,14 +211,20 @@ async function main() {
 
     if (turnNo >= args.turns) break;
 
-    // interviewer 応答 (Sonnet stream)
+    // interviewer 応答 (Claude Code CLI 経由)
     const systemPrompt = buildSystemPrompt({
       interviewer: interviewerFm,
       refineBlock: refineBlock || undefined,
     });
-    const interviewerText = await consumeStream(
-      streamResponse(anthropic, { systemPrompt, turns }),
-    );
+    const interviewerPrompt = [
+      systemPrompt,
+      '',
+      '## これまでの面接',
+      serializeHistory(turns),
+      '',
+      '面接官として、 次の発話 (質問) を 1 つだけ出力してください。 発話文のみを出力してください。',
+    ].join('\n');
+    const interviewerText = await runClaudeCli(interviewerPrompt, 'sonnet');
     turnNo += 1;
     const i: Turn = {
       turn_no: turnNo,
