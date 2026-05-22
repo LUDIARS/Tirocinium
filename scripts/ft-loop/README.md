@@ -4,8 +4,9 @@ DESIGN §3.9 / spec/feedback の FT-like loop を 1 回起こす CLI。
 受験者ペルソナ × 面接官ペルソナで会話シミュ → サマリ → AI critique → 人間評価待ち、
 までを生成する。
 
-> 現状は **scaffold (TODO 付き skeleton)**。 LLM 呼び出しは別 PR で実装する。
-> 出力ディレクトリの構造とコマンド I/F だけを固定する目的。
+> examinee / interviewer の応答は **Claude Code CLI** (`claude -p`) で生成する。
+> 評価・サマリ・critique (Opus) は Anthropic API。 実行には `claude` CLI の
+> インストールとログインが必要 (環境により `CLAUDE_CODE_GIT_BASH_PATH` も)。
 
 ---
 
