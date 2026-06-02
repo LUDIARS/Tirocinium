@@ -1,7 +1,16 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { extractText, MODEL } from './anthropic.js';
 import { EVAL_INSTRUCTION } from './prompts.js';
-import type { Evaluation, Turn } from './types.js';
+import type { Axes, Evaluation, Turn } from './types.js';
+
+export const AXIS_KEYS: (keyof Axes)[] = [
+  'consistency',
+  'clarity',
+  'demeanor',
+  'self_understanding',
+  'target_fit',
+  'depth_resilience',
+];
 
 export function serializeHistory(turns: Turn[]): string {
   return turns
@@ -9,48 +18,105 @@ export function serializeHistory(turns: Turn[]): string {
     .join('\n');
 }
 
+/** 6 軸を必ず埋め、各値を 0-5 の整数に丸める (欠損は 0)。 */
+export function clampAxes(raw: unknown): Axes {
+  const src = (raw ?? {}) as Record<string, unknown>;
+  const out = {} as Axes;
+  for (const k of AXIS_KEYS) {
+    const v = Number(src[k]);
+    out[k] = Number.isFinite(v) ? Math.max(0, Math.min(5, Math.round(v))) : 0;
+  }
+  return out;
+}
+
 export type EvaluateInput = {
   turns: Turn[];
   turnRange: [number, number];
 };
 
-export async function evaluate(
+export type EvaluateOptions = {
+  /** self-consistency サンプル数。>1 で複数評価を平均する (既定 1 / env EVAL_SAMPLES) */
+  samples?: number;
+};
+
+async function evaluateOnce(
   client: Anthropic,
   input: EvaluateInput,
-): Promise<Evaluation> {
+): Promise<{ axes: Axes; comment: string; hints: string[] }> {
   const res = await client.messages.create({
     model: MODEL.EVALUATOR,
     max_tokens: 1024,
     system: EVAL_INSTRUCTION,
     messages: [{ role: 'user', content: serializeHistory(input.turns) }],
   });
-  const text = extractText(res.content);
-  const parsed = parseEvaluation(text);
+  return parseEvaluation(extractText(res.content));
+}
+
+export async function evaluate(
+  client: Anthropic,
+  input: EvaluateInput,
+  opts: EvaluateOptions = {},
+): Promise<Evaluation> {
+  const envN = Number.parseInt(process.env['EVAL_SAMPLES'] ?? '', 10);
+  const samples = Math.max(1, opts.samples ?? (Number.isFinite(envN) ? envN : 1));
+
+  const results: { axes: Axes; comment: string; hints: string[] }[] = [];
+  for (let i = 0; i < samples; i++) {
+    results.push(await evaluateOnce(client, input));
+  }
+
   return {
     turn_range: input.turnRange,
-    axes: parsed.axes,
-    comment: parsed.comment,
-    hints: parsed.hints,
+    axes: averageAxes(results.map((r) => r.axes)),
+    comment: results.find((r) => r.comment.length > 0)?.comment ?? results[0]!.comment,
+    hints: dedupHints(results.flatMap((r) => r.hints)).slice(0, 3),
     model: MODEL.EVALUATOR,
   };
 }
 
-/** Opus が返した text 内の JSON を厳格にパース。 失敗時は throw */
+/** 複数サンプルの軸を平均して 0-5 整数に丸める。 */
+export function averageAxes(samples: Axes[]): Axes {
+  if (samples.length === 0) return clampAxes({});
+  const out = {} as Axes;
+  for (const k of AXIS_KEYS) {
+    const mean = samples.reduce((s, a) => s + a[k], 0) / samples.length;
+    out[k] = Math.max(0, Math.min(5, Math.round(mean)));
+  }
+  return out;
+}
+
+function dedupHints(hints: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const h of hints) {
+    const t = h.trim();
+    if (t.length > 0 && !seen.has(t)) {
+      seen.add(t);
+      out.push(t);
+    }
+  }
+  return out;
+}
+
+/** Opus が返した text 内の JSON をパースし、軸を clamp・hints を正規化する。 失敗時は throw */
 export function parseEvaluation(text: string): {
-  axes: Evaluation['axes'];
+  axes: Axes;
   comment: string;
   hints: string[];
 } {
   const json = extractJsonBlock(text);
-  const obj = JSON.parse(json) as {
-    axes?: Evaluation['axes'];
-    comment?: string;
-    hints?: string[];
-  };
-  if (!obj.axes || typeof obj.comment !== 'string' || !Array.isArray(obj.hints)) {
-    throw new Error('evaluator output schema mismatch');
+  const obj = JSON.parse(json) as { axes?: unknown; comment?: unknown; hints?: unknown };
+  if (obj.axes == null) {
+    throw new Error('evaluator output missing axes');
   }
-  return { axes: obj.axes, comment: obj.comment, hints: obj.hints };
+  const hints = Array.isArray(obj.hints)
+    ? obj.hints.filter((h): h is string => typeof h === 'string' && h.trim().length > 0).slice(0, 3)
+    : [];
+  return {
+    axes: clampAxes(obj.axes),
+    comment: typeof obj.comment === 'string' ? obj.comment : '',
+    hints,
+  };
 }
 
 /** Opus が ```json で囲んだり前置き付けたりすることを考慮 */
