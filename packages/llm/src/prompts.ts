@@ -50,6 +50,12 @@ export const EVAL_INSTRUCTION = `
 - self_understanding: 強み・弱みを具体例で語れているか
 - target_fit: 志望企業 tag との接続度
 - depth_resilience: "なぜ?" 連打への持ち堪え
+
+各軸の 0-5 アンカー (3 を標準点とし、過大評価しない):
+- 0: 該当行動がほぼ見られない / 1-2: 部分的だが弱い / 3: 標準的 / 4: 良好 / 5: 卓越
+
+採点の根拠を comment に必ず turn 番号で 1 つ以上引用する (例: 「turn 5 で結論が後出し」)。
+hints は具体的・行動可能なものを最大 3 個。
 `.trim();
 
 export const SUMMARY_INSTRUCTION = `
