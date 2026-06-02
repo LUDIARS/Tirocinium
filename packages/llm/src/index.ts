@@ -1,5 +1,5 @@
 export * from './types.js';
-export { createAnthropicClient, MODEL } from './anthropic.js';
+export { createAnthropicClient, MODEL, resolveModels, type ModelRole } from './anthropic.js';
 export {
   evaluate,
   parseEvaluation,
