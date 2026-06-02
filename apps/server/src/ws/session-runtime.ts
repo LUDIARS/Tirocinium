@@ -9,7 +9,10 @@ import {
   streamResponseCli,
   initialPhaseState,
   nextPhase,
+  assessAnswer,
+  DEFAULT_SIGNALS,
   type PhaseState,
+  type PhaseSignals,
   type Turn,
   type InterviewerPersonaInput,
 } from '@tirocinium/llm';
@@ -32,9 +35,11 @@ export class SessionRuntime {
   private ragBlock = '';
   private refineBlock = '';
   private phaseState: PhaseState | null = null;
+  private latestSignals: PhaseSignals = DEFAULT_SIGNALS;
   private closed = false;
   private llmEnabled: boolean;
   private evalEnabled: boolean;
+  private judgeEnabled: boolean;
   private refineEnabled: boolean;
   private ivClient: ImperativusClient | null = null;
   private audioQueue: AsyncQueue<Uint8Array> | null = null;
@@ -47,8 +52,9 @@ export class SessionRuntime {
   ) {
     // cli バックエンドは API キー不要。api バックエンドは ANTHROPIC_API_KEY が要る。
     this.llmEnabled = config.llmBackend === 'cli' || Boolean(process.env['ANTHROPIC_API_KEY']);
-    // 評価 (Opus) / 補正 (GPT) は API バックエンドが前提。鍵が無ければ静かに skip。
+    // 評価 (Opus) / judge (Haiku) は ANTHROPIC_API_KEY 前提。鍵が無ければ静かに skip。
     this.evalEnabled = Boolean(process.env['ANTHROPIC_API_KEY']);
+    this.judgeEnabled = Boolean(process.env['ANTHROPIC_API_KEY']);
     this.refineEnabled = Boolean(process.env['OPENAI_API_KEY']);
     this.ivClient = createIvClient();
   }
@@ -172,6 +178,9 @@ export class SessionRuntime {
   }
 
   private async handleUserTurn(text: string): Promise<void> {
+    // この回答が応じている直前の面接官質問 (judge 用)。push する前に取得。
+    const lastQuestion = [...this.turns].reverse().find((t) => t.role === 'interviewer')?.text ?? '';
+
     this.currentTurnNo += 1;
     const userTurnNo = this.currentTurnNo;
     const userTurn: Turn = { turn_no: userTurnNo, role: 'user', text };
@@ -256,11 +265,32 @@ export class SessionRuntime {
       this.currentTurnNo -= 1;
     }
 
-    // フェーズ遷移 (interviewer turn を 1 つ消費した後)。
+    // 非同期 judge: 直前の受験者回答を軽量モデルで評価し phase 信号を更新する。
+    // 面接官応答は既に送信済みなので知覚レイテンシは増えない (spec §4.2 (c))。
+    // 鍵が無い dev では skip → DEFAULT_SIGNALS (time-box 駆動) のまま。
+    if (this.judgeEnabled && acc.trim().length > 0) {
+      try {
+        const signals = await assessAnswer(createAnthropicClient(), {
+          question: lastQuestion,
+          answer: text,
+          recent: this.turns.slice(-4),
+        });
+        this.latestSignals = {
+          synthesisReached: signals.synthesisReached,
+          contradictionOpen: signals.contradictionOpen,
+        };
+        // followup hint があれば「次に深掘るべき論点」スロットに反映 (reactive 深掘り)
+        if (signals.followupHint) this.refineBlock = signals.followupHint;
+      } catch (err) {
+        console.warn('[ws] judge failed', (err as Error).message);
+      }
+    }
+
+    // フェーズ遷移 (interviewer turn を 1 つ消費した後)。judge 信号で駆動。
     // phase が変わった瞬間に GPT refine をトリガ駆動 (旧: 10 turn 固定周期)。
     if (this.phaseState && acc.trim().length > 0) {
       const prevPhase = this.phaseState.phase;
-      this.phaseState = nextPhase(this.phaseState);
+      this.phaseState = nextPhase(this.phaseState, this.latestSignals);
       if (this.refineEnabled && this.phaseState.phase !== prevPhase) {
         void this.runRefineBackground();
       }
