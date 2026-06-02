@@ -28,3 +28,4 @@ export {
   DEFAULT_SIGNALS,
 } from './phase.js';
 export { PHASE_GUIDANCE, DIALECTIC_PROBE } from './prompts.js';
+export { assessAnswer, parseAnswerSignals, type AnswerSignals, type AssessInput } from './judge.js';

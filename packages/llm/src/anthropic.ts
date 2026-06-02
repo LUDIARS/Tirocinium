@@ -18,6 +18,7 @@ export const MODEL = {
   SUMMARIZER: 'claude-opus-4-7',
   CRITIC: 'claude-opus-4-7',
   EXAMINEE: 'claude-haiku-4-5-20251001',
+  JUDGE: 'claude-haiku-4-5-20251001',
 } as const;
 
 export function extractText(content: Anthropic.Messages.ContentBlock[]): string {
