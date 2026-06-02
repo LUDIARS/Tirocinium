@@ -14,7 +14,9 @@
     "dev:desktop": "npm --workspace apps/desktop run dev",
     "build:server": "npm --workspace apps/server run build",
     "migrate": "npm --workspace apps/server run migrate",
-    "seed-personas": "npm --workspace apps/server run seed-personas"
+    "seed-personas": "npm --workspace apps/server run seed-personas",
+    "gen-qa-seed": "tsx scripts/gen-qa-seed/index.ts",
+    "ft-loop": "tsx scripts/ft-loop/index.ts"
   },
   "engines": {
     "node": ">=22"
