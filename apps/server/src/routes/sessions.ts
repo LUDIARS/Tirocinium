@@ -11,6 +11,11 @@ sessions.use('*', cernereAuth);
 /** POST /api/v1/sessions — 即時開始 or 予約 offer */
 sessions.post('/', async (c) => {
   const user = c.get('user');
+  const body = (await c.req.json().catch(() => ({}))) as {
+    interviewer_id?: string;
+    target_company?: string;
+    target_role?: string;
+  };
 
   // users 行を遅延作成 (Cernere user_id mirror)
   await sql`
@@ -20,6 +25,16 @@ sessions.post('/', async (c) => {
 
   const decision = await tryStart(user.id);
   if (decision.kind === 'start') {
+    // 選択された面接官 / 志望情報を session に反映 (session-runtime が persona を読む)
+    if (body.interviewer_id || body.target_company || body.target_role) {
+      await sql`
+        UPDATE sessions SET
+          metadata = metadata || ${sql.json({ interviewer_id: body.interviewer_id ?? null })},
+          target_company = COALESCE(${body.target_company ?? null}, target_company),
+          target_role = COALESCE(${body.target_role ?? null}, target_role)
+        WHERE id = ${decision.sessionId}
+      `;
+    }
     const wsUrl = `/api/v1/ws/session/${decision.sessionId}`;
     return c.json({ session_id: decision.sessionId, ws_url: wsUrl });
   }

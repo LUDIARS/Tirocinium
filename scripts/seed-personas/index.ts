@@ -38,7 +38,7 @@ type ExamineeFrontmatter = {
   strengths?: string[];
   speech_style: string;
   intentional_flaws?: string[];
-  bio: string;
+  bio?: string;
 };
 
 async function loadDir<T>(subdir: 'interviewer' | 'examinee'): Promise<T[]> {
@@ -102,7 +102,7 @@ async function main() {
         VALUES (
           ${p.id}, ${p.display_name}, ${p.background}, ${p.target_role},
           ${sql.json(p.weakness_axes ?? {})}, ${p.strengths ?? []},
-          ${p.speech_style}, ${p.intentional_flaws ?? []}, ${p.bio}, true
+          ${p.speech_style}, ${p.intentional_flaws ?? []}, ${p.bio ?? ''}, true
         )
         ON CONFLICT (id) DO UPDATE SET
           display_name = EXCLUDED.display_name,
