@@ -7,6 +7,9 @@ import {
   refine,
   streamResponse,
   streamResponseCli,
+  initialPhaseState,
+  nextPhase,
+  type PhaseState,
   type Turn,
   type InterviewerPersonaInput,
 } from '@tirocinium/llm';
@@ -19,7 +22,6 @@ import { applyEvaluation } from '../feedback/weakness-updater.js';
 import type { ClientFrame, ServerFrame } from './frames.js';
 
 const EVAL_EVERY_N_TURNS = 5;
-const REFINE_EVERY_N_TURNS = 10;
 
 export class SessionRuntime {
   private turns: Turn[] = [];
@@ -29,6 +31,7 @@ export class SessionRuntime {
   private weakTop3: string[] = [];
   private ragBlock = '';
   private refineBlock = '';
+  private phaseState: PhaseState | null = null;
   private closed = false;
   private llmEnabled: boolean;
   private evalEnabled: boolean;
@@ -128,6 +131,9 @@ export class SessionRuntime {
       }
     }
 
+    // フェーズ状態機を初期化 (面接官ペルソナの圧で pressure phase の有無が決まる)
+    this.phaseState = initialPhaseState(this.interviewer?.pressure ?? 3);
+
     this.send({
       kind: 'session_ready',
       session_id: this.sessionId,
@@ -194,6 +200,7 @@ export class SessionRuntime {
       weakTop3: this.weakTop3,
       ragBlock: this.ragBlock || undefined,
       refineBlock: this.refineBlock || undefined,
+      phase: this.phaseState?.phase,
     });
 
     // バックエンド選択: cli (claude CLI, 鍵不要) / api (Anthropic SDK ストリーム)
@@ -249,13 +256,19 @@ export class SessionRuntime {
       this.currentTurnNo -= 1;
     }
 
+    // フェーズ遷移 (interviewer turn を 1 つ消費した後)。
+    // phase が変わった瞬間に GPT refine をトリガ駆動 (旧: 10 turn 固定周期)。
+    if (this.phaseState && acc.trim().length > 0) {
+      const prevPhase = this.phaseState.phase;
+      this.phaseState = nextPhase(this.phaseState);
+      if (this.refineEnabled && this.phaseState.phase !== prevPhase) {
+        void this.runRefineBackground();
+      }
+    }
+
     // 5 turn ごとに Opus 評価 (バックグラウンド)。鍵が無い dev では skip。
     if (this.evalEnabled && interviewerTurnNo > 0 && interviewerTurnNo % EVAL_EVERY_N_TURNS === 0) {
       void this.runEvaluationBackground(interviewerTurnNo);
-    }
-    // 10 turn ごとに GPT-5.5 補正 (バックグラウンド)
-    if (this.refineEnabled && interviewerTurnNo > 0 && interviewerTurnNo % REFINE_EVERY_N_TURNS === 0) {
-      void this.runRefineBackground();
     }
   }
 

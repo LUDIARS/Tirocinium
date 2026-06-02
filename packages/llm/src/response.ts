@@ -1,6 +1,8 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { MODEL } from './anthropic.js';
 import type { ExamineePersonaInput, InterviewerPersonaInput, Turn } from './types.js';
+import type { Phase } from './phase.js';
+import { PHASE_GUIDANCE, DIALECTIC_PROBE } from './prompts.js';
 
 const STAGE_LABEL: Record<string, string> = {
   hr: '人事 (1次)',
@@ -52,9 +54,15 @@ export function buildSystemPrompt(opts: {
   weakTop3?: string[];
   ragBlock?: string;
   refineBlock?: string;
+  /** 面接内の進行フェーズ。指定すると phase ガイダンス + 弁証法サイクルを注入する */
+  phase?: Phase;
 }): string {
+  // probe / pressure では弁証法サイクル (Micro 深掘り) を有効化
+  const dialectic = opts.phase === 'probe' || opts.phase === 'pressure';
   return [
     STATIC_ROOT,
+    opts.phase ? '\n## 進行フェーズ\n' + PHASE_GUIDANCE[opts.phase] : '',
+    dialectic ? '\n## 深掘りの型\n' + DIALECTIC_PROBE : '',
     '',
     buildInterviewerPromptBlock(opts.interviewer),
     opts.weakTop3 && opts.weakTop3.length ? '\n' + buildWeaknessBlock(opts.weakTop3) : '',
