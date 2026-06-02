@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useAuth } from './AuthContext.js';
+import { DEV_AUTH } from '../config.js';
 
 export function LoginGate({ children }: { children: ReactNode }) {
   const { isAuthed } = useAuth();
@@ -69,6 +70,28 @@ function LoginScreen() {
               ログイン
             </button>
           </form>
+          {DEV_AUTH && (
+            <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px dashed rgba(0,0,0,0.18)' }}>
+              <p style={{ fontSize: 12, opacity: 0.8 }}>
+                <strong>Dev モード</strong>: server が <code>TIROCINIUM_DEV_AUTH=1</code> のとき、
+                Cernere 無しで固定 dev ユーザとして開始できます。
+              </p>
+              <button
+                type="button"
+                onClick={() => setToken('dev')}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: 8,
+                  border: '1px solid #2b5cff',
+                  background: 'white',
+                  color: '#2b5cff',
+                  cursor: 'pointer',
+                }}
+              >
+                Dev ログイン (Cernere バイパス)
+              </button>
+            </div>
+          )}
         </div>
       </main>
     </div>

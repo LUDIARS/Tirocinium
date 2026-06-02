@@ -1,0 +1,28 @@
+# Tirocinium Windows Local / dev 用の Postgres。
+# host port は 15432 (Windows の Docker は 5432 を host から取り回せない事例があるため、
+# LUDIARS 慣行に倣って衝突しない高位 port に退避。spec/setup/windows-local-dev.md 参照)。
+#
+#   docker compose up -d db     # 起動
+#   docker compose down         # 停止 (データは volume に残る)
+#   docker compose down -v      # 停止 + データ破棄
+
+services:
+  db:
+    image: postgres:16
+    container_name: tirocinium-db
+    environment:
+      POSTGRES_USER: tirocinium
+      POSTGRES_PASSWORD: tirocinium
+      POSTGRES_DB: tirocinium
+    ports:
+      - "15432:5432"
+    volumes:
+      - tirocinium_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tirocinium -d tirocinium"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  tirocinium_pgdata:

@@ -1,4 +1,9 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+
+// .env.local (dev プロファイル) を優先し、無い値だけ .env で補完する。
+// dotenv は既存 process.env を上書きしないため、先に読んだ .env.local が勝つ。
+dotenv.config({ path: '.env.local' });
+dotenv.config();
 
 function req(name: string): string {
   const v = process.env[name];
@@ -11,12 +16,23 @@ function num(name: string, fallback: number): number {
   return v ? Number.parseInt(v, 10) : fallback;
 }
 
+function bool(name: string): boolean {
+  return process.env[name] === '1' || process.env[name]?.toLowerCase() === 'true';
+}
+
 export const config = {
   port: num('TIROCINIUM_PORT', 8084),
   host: process.env.TIROCINIUM_HOST ?? '0.0.0.0',
   databaseUrl: req('DATABASE_URL'),
   cernerePublicKey: process.env.CERNERE_PUBLIC_KEY ?? '',
   cernereAudience: process.env.CERNERE_AUDIENCE ?? 'tirocinium',
+  // --- Windows Local / dev プロファイル ---
+  // 鍵を持たない 1 台環境で面接を一周させるための開発専用バイパス。
+  // 本番では必ず未設定 (0) にすること。spec/setup/windows-local-dev.md 参照。
+  devAuth: bool('TIROCINIUM_DEV_AUTH'),
+  devUserId: process.env.TIROCINIUM_DEV_USER_ID ?? '00000000-0000-0000-0000-000000000001',
+  // 'api' = Anthropic SDK 直叩き (ANTHROPIC_API_KEY 必須) / 'cli' = claude CLI 経由 (鍵不要)
+  llmBackend: (process.env.TIROCINIUM_LLM_BACKEND ?? 'api') as 'api' | 'cli',
   slotDurationMin: num('SLOT_DURATION_MIN', 30),
   slotCapacity: num('SLOT_CAPACITY', 4),
   noShowTimeoutMin: num('NO_SHOW_TIMEOUT_MIN', 5),

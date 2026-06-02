@@ -38,6 +38,9 @@ export function attachSessionWs(server: Server): void {
 }
 
 async function authenticate(req: IncomingMessage): Promise<{ userId: string } | null> {
+  // dev プロファイル: token 検証を飛ばして固定 dev ユーザを返す (cernereAuth と対)。
+  if (config.devAuth) return { userId: config.devUserId };
+
   // Bearer header or ?token=... を許容 (WS では Authorization が乗らない場合あり)
   const auth = req.headers['authorization'];
   let token: string | null = null;
