@@ -8,6 +8,7 @@ import { personas } from './routes/personas.js';
 import { summary } from './routes/summary.js';
 import { feedback } from './routes/feedback.js';
 import { ftRuns } from './routes/ft_runs.js';
+import { training } from './routes/training.js';
 import { attachSessionWs } from './ws/handler.js';
 import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
 
@@ -20,6 +21,7 @@ app.route('/api/v1/sessions', summary);
 app.route('/api/v1/personas', personas);
 app.route('/api/v1/feedback', feedback);
 app.route('/api/v1/ft-runs', ftRuns);
+app.route('/api/v1/training', training);
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404));
 
