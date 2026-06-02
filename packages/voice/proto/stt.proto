@@ -1,0 +1,24 @@
+// Imperativus stt-service の gRPC 契約 (vendored copy)。
+// 正本: LUDIARS/Imperativus stt-service/proto/stt.proto。
+// cross-repo path 参照を避けるため Tr に複製している。Iv 側を変更したら追従すること。
+
+syntax = "proto3";
+
+package imperativus.stt;
+
+service SpeechToText {
+  // ストリーミング音声認識: PCM チャンクを送り、認識結果を逐次受け取る。
+  rpc StreamingRecognize(stream AudioChunk) returns (stream TranscriptResult);
+}
+
+message AudioChunk {
+  bytes audio_data = 1;    // PCM 16-bit, 16kHz, mono
+  string session_id = 2;
+}
+
+message TranscriptResult {
+  string text = 1;
+  float confidence = 2;
+  bool is_final = 3;       // 確定済みか (現状の stt-service は常に true)
+  string session_id = 4;
+}
