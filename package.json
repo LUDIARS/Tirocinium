@@ -16,7 +16,9 @@
     "migrate": "npm --workspace apps/server run migrate",
     "seed-personas": "npm --workspace apps/server run seed-personas",
     "gen-qa-seed": "tsx scripts/gen-qa-seed/index.ts",
-    "ft-loop": "tsx scripts/ft-loop/index.ts"
+    "ft-loop": "tsx scripts/ft-loop/index.ts",
+    "sim-loop": "tsx scripts/sim-loop/index.ts",
+    "sim-batch": "tsx scripts/sim-batch/index.ts"
   },
   "engines": {
     "node": ">=22"
