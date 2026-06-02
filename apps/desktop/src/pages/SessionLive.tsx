@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.js';
 import { SessionWebSocket, type ServerFrame } from '../ws/SessionWebSocket.js';
 import { useSessionApi } from '../api/sessions.js';
+import { MicCapture } from '../audio/mic-capture.js';
 
 type Turn = { turn_no: number; role: 'interviewer' | 'user'; text: string };
 
@@ -18,6 +19,10 @@ export function SessionLive() {
   const [currentTurnNo, setCurrentTurnNo] = useState(0);
   const [draft, setDraft] = useState('');
   const [latestEval, setLatestEval] = useState<unknown>(null);
+  const micRef = useRef<MicCapture | null>(null);
+  const seqRef = useRef(0);
+  const [recording, setRecording] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id || !token) return;
@@ -50,13 +55,39 @@ export function SessionLive() {
     return () => ws.close();
   }, [id, token]);
 
+  // マイク取得は session 終了/離脱時に必ず止める
+  useEffect(() => () => { void micRef.current?.stop(); }, []);
+
   const send = () => {
     if (!draft.trim() || !wsRef.current) return;
     wsRef.current.sendSttFinal(draft.trim());
     setDraft('');
   };
 
+  const toggleMic = async () => {
+    if (recording) {
+      await micRef.current?.stop();
+      micRef.current = null;
+      setRecording(false);
+      return;
+    }
+    try {
+      setMicError(null);
+      const mic = new MicCapture();
+      await mic.start((bytes) => {
+        wsRef.current?.sendAudioChunk(bytes, seqRef.current++);
+      });
+      micRef.current = mic;
+      setRecording(true);
+    } catch (e) {
+      setMicError(e instanceof Error ? e.message : 'マイク取得に失敗しました');
+    }
+  };
+
   const end = async () => {
+    await micRef.current?.stop();
+    micRef.current = null;
+    setRecording(false);
     wsRef.current?.sendEndSession();
     try {
       await api.end(id);
@@ -86,7 +117,7 @@ export function SessionLive() {
       </div>
       <div className="card">
         <label>
-          発言テキスト (音声は別途 audio_chunk):
+          発言テキスト (またはマイクで音声入力):
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -94,13 +125,22 @@ export function SessionLive() {
             style={{ width: '100%', padding: 8 }}
           />
         </label>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={toggleMic}
+            disabled={!connected}
+            style={recording ? { background: '#c62828', color: 'white' } : undefined}
+          >
+            {recording ? '⏹ 録音停止' : '🎤 録音開始'}
+          </button>
           <button onClick={send} disabled={!connected || !draft.trim()}>送信</button>
           <button onClick={() => wsRef.current?.sendBargeIn()} disabled={!connected}>
             割り込み
           </button>
           <button onClick={end} disabled={!connected}>終了 → サマリ</button>
+          {recording && <span style={{ color: '#c62828', fontSize: 12 }}>● 録音中</span>}
         </div>
+        {micError && <p style={{ color: '#c62828', fontSize: 12 }}>マイク: {micError}</p>}
       </div>
       {latestEval != null ? (
         <div className="card">
