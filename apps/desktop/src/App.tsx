@@ -4,6 +4,7 @@ const navItems: { to: string; label: string }[] = [
   { to: '/', label: 'Dashboard' },
   { to: '/start', label: 'Session Start' },
   { to: '/personas', label: 'Personas' },
+  { to: '/training', label: '学習データ' },
   { to: '/reservation', label: 'Reservation' },
   { to: '/settings', label: 'Settings' },
 ];
