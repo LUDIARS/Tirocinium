@@ -36,5 +36,11 @@ export {
   DEFAULT_TURN_BUDGET,
   DEFAULT_SIGNALS,
 } from './phase.js';
-export { PHASE_GUIDANCE, DIALECTIC_PROBE } from './prompts.js';
+export {
+  PHASE_GUIDANCE,
+  DIALECTIC_PROBE,
+  EVAL_INSTRUCTION,
+  SUMMARY_INSTRUCTION,
+  CRITIC_INSTRUCTION,
+} from './prompts.js';
 export { assessAnswer, parseAnswerSignals, type AnswerSignals, type AssessInput } from './judge.js';
