@@ -8,9 +8,13 @@
     "packages/*"
   ],
   "scripts": {
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
     "dev:server": "npm --workspace apps/server run dev",
+    "dev:desktop": "npm --workspace apps/desktop run dev",
     "build:server": "npm --workspace apps/server run build",
-    "migrate": "npm --workspace apps/server run migrate"
+    "migrate": "npm --workspace apps/server run migrate",
+    "seed-personas": "npm --workspace apps/server run seed-personas"
   },
   "engines": {
     "node": ">=22"
