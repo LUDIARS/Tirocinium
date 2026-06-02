@@ -14,3 +14,17 @@ export {
 export { createOpenAIClient, OPENAI_MODEL } from './openai.js';
 export { refine } from './refine.js';
 export { runClaudeCli, streamResponseCli, type ClaudeCliModel } from './cli.js';
+export {
+  type Phase,
+  type PhaseState,
+  type PhaseSignals,
+  type PhaseSpec,
+  type AntithesisStrength,
+  initialPhaseState,
+  nextPhase,
+  pressureEnabled,
+  PHASE_SPECS,
+  DEFAULT_TURN_BUDGET,
+  DEFAULT_SIGNALS,
+} from './phase.js';
+export { PHASE_GUIDANCE, DIALECTIC_PROBE } from './prompts.js';
