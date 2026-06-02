@@ -6,11 +6,13 @@ import {
   evaluate,
   refine,
   streamResponse,
+  streamResponseCli,
   type Turn,
   type InterviewerPersonaInput,
 } from '@tirocinium/llm';
 import { createMemoriaClient, renderRagBlock, type TrainingDocKind } from '@tirocinium/training';
 import { AsyncQueue, createIvClient, type ImperativusClient } from '@tirocinium/voice';
+import { config } from '../config.js';
 import { sql } from '../db/index.js';
 import { getInterviewer } from '../persona/repo.js';
 import { applyEvaluation } from '../feedback/weakness-updater.js';
@@ -29,6 +31,7 @@ export class SessionRuntime {
   private refineBlock = '';
   private closed = false;
   private llmEnabled: boolean;
+  private evalEnabled: boolean;
   private refineEnabled: boolean;
   private ivClient: ImperativusClient | null = null;
   private audioQueue: AsyncQueue<Uint8Array> | null = null;
@@ -39,7 +42,10 @@ export class SessionRuntime {
     private readonly sessionId: string,
     private readonly userId: string,
   ) {
-    this.llmEnabled = Boolean(process.env['ANTHROPIC_API_KEY']);
+    // cli バックエンドは API キー不要。api バックエンドは ANTHROPIC_API_KEY が要る。
+    this.llmEnabled = config.llmBackend === 'cli' || Boolean(process.env['ANTHROPIC_API_KEY']);
+    // 評価 (Opus) / 補正 (GPT) は API バックエンドが前提。鍵が無ければ静かに skip。
+    this.evalEnabled = Boolean(process.env['ANTHROPIC_API_KEY']);
     this.refineEnabled = Boolean(process.env['OPENAI_API_KEY']);
     this.ivClient = createIvClient();
   }
@@ -183,7 +189,6 @@ export class SessionRuntime {
     const aborter = new AbortController();
     this.currentAbort = aborter;
 
-    const client = createAnthropicClient();
     const systemPrompt = buildSystemPrompt({
       interviewer: this.interviewer,
       weakTop3: this.weakTop3,
@@ -191,13 +196,24 @@ export class SessionRuntime {
       refineBlock: this.refineBlock || undefined,
     });
 
+    // バックエンド選択: cli (claude CLI, 鍵不要) / api (Anthropic SDK ストリーム)
+    const tokenStream =
+      config.llmBackend === 'cli'
+        ? streamResponseCli({
+            systemPrompt,
+            turns: this.turns,
+            signal: aborter.signal,
+            model: 'sonnet',
+          })
+        : streamResponse(createAnthropicClient(), {
+            systemPrompt,
+            turns: this.turns,
+            signal: aborter.signal,
+          });
+
     let acc = '';
     try {
-      for await (const token of streamResponse(client, {
-        systemPrompt,
-        turns: this.turns,
-        signal: aborter.signal,
-      })) {
+      for await (const token of tokenStream) {
         acc += token;
         this.send({ kind: 'response_token', token, turn_no: interviewerTurnNo });
         if (this.closed) {
@@ -233,8 +249,8 @@ export class SessionRuntime {
       this.currentTurnNo -= 1;
     }
 
-    // 5 turn ごとに Opus 評価 (バックグラウンド)
-    if (interviewerTurnNo > 0 && interviewerTurnNo % EVAL_EVERY_N_TURNS === 0) {
+    // 5 turn ごとに Opus 評価 (バックグラウンド)。鍵が無い dev では skip。
+    if (this.evalEnabled && interviewerTurnNo > 0 && interviewerTurnNo % EVAL_EVERY_N_TURNS === 0) {
       void this.runEvaluationBackground(interviewerTurnNo);
     }
     // 10 turn ごとに GPT-5.5 補正 (バックグラウンド)

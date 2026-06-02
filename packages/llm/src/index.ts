@@ -13,3 +13,4 @@ export {
 } from './response.js';
 export { createOpenAIClient, OPENAI_MODEL } from './openai.js';
 export { refine } from './refine.js';
+export { runClaudeCli, streamResponseCli, type ClaudeCliModel } from './cli.js';

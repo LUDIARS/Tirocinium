@@ -19,6 +19,14 @@ declare module 'hono' {
 }
 
 export const cernereAuth: MiddlewareHandler = async (c, next) => {
+  // dev プロファイル: Cernere を持たない 1 台環境用に固定 dev ユーザで素通し。
+  // TIROCINIUM_DEV_AUTH=1 のときのみ。本番では必ず off。
+  if (config.devAuth) {
+    c.set('user', { id: config.devUserId });
+    await next();
+    return;
+  }
+
   const header = c.req.header('authorization');
   if (!header || !header.toLowerCase().startsWith('bearer ')) {
     return c.json({ error: 'unauthorized' }, 401);
