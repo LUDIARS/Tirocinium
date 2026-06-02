@@ -39,7 +39,10 @@ function parseArgs(argv: string[]): Args {
     i++;
   }
   if (!a['interviewer'] || !a['examinee']) throw new Error('Required: --interviewer <id> --examinee <id>');
-  const date = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  // ラン毎にユニークな dir (同ペアの再実行で上書きしない: HHMMSS + 乱数3桁)
+  const stamp = now.toISOString().slice(11, 19).replace(/:/g, '') + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
   return {
     interviewer: a['interviewer'],
     examinee: a['examinee'],
@@ -47,7 +50,7 @@ function parseArgs(argv: string[]): Args {
     turns: Number.parseInt(a['turns'] ?? '6', 10),
     output:
       a['output'] ||
-      join(REPO_ROOT, 'data/training/sim-sessions', date, `${a['interviewer']}__${a['examinee']}`),
+      join(REPO_ROOT, 'data/training/sim-sessions', date, `${a['interviewer']}__${a['examinee']}__${stamp}`),
   };
 }
 
