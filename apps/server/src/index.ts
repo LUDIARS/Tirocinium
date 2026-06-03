@@ -26,8 +26,10 @@ app.route('/api/v1/training', training);
 app.notFound((c) => c.json({ error: 'not_found' }, 404));
 
 app.onError((err, c) => {
+  // 内部エラー詳細 (err.message: stack/内部状態を含み得る) はレスポンスに出さず stderr のみに留める。
+  // クライアントには汎用コードのみ返し、情報漏洩を防ぐ。
   console.error(err);
-  return c.json({ error: 'internal', message: err.message }, 500);
+  return c.json({ error: 'internal' }, 500);
 });
 
 const server = serve(
