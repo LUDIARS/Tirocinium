@@ -133,6 +133,8 @@ export class SessionRuntime {
         });
         this.ragBlock = renderRagBlock(result);
       } catch (err) {
+        // Memoria 不達時は RAG ブロック無しで継続する best-effort 縮退 (面接は止めない)。
+        // 本人特化は弱まるが session 進行を優先 (RULE_CODE §7)。
         console.warn('[ws] memoria rag failed', (err as Error).message);
       }
     }
@@ -282,6 +284,8 @@ export class SessionRuntime {
         // followup hint があれば「次に深掘るべき論点」スロットに反映 (reactive 深掘り)
         if (signals.followupHint) this.refineBlock = signals.followupHint;
       } catch (err) {
+        // judge 失敗時は latestSignals を更新せず前ターンの信号を維持する best-effort 縮退。
+        // phase 遷移は time-box (DEFAULT_SIGNALS) で fallback する (RULE_CODE §7)。
         console.warn('[ws] judge failed', (err as Error).message);
       }
     }
