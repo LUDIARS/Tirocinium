@@ -54,6 +54,11 @@ jobs:
       - name: Test apps/server
         run: npm --workspace apps/server test
 
+      # インプロセスのリクエスト処理レイテンシ退行ガード (DB/LLM 非依存)。
+      # 端から端までの SLO 検証は standalone プロファイルで別途 (spec/web/performance.md)。
+      - name: Perf bench (apps/server)
+        run: npm --workspace apps/server run bench
+
   ft-loop-dry-run:
     name: ft-loop dry-run (no LLM)
     runs-on: ubuntu-latest

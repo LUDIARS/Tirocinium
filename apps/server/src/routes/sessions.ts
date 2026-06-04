@@ -3,13 +3,21 @@ import { cernereAuth } from '../auth/cernere.js';
 import { tryStart } from '../reservation/coordinator.js';
 import { sql } from '../db/index.js';
 import { config } from '../config.js';
+import { rateLimit } from '../middleware/rate-limit.js';
 
 export const sessions = new Hono();
 
 sessions.use('*', cernereAuth);
 
+// セッション作成は per-user レート制限を掛ける (cernereAuth が先に user を set 済)。
+const sessionCreateLimiter = rateLimit({
+  windowMs: config.sessionRateLimit.windowMs,
+  max: config.sessionRateLimit.max,
+  keyFn: (c) => c.get('user').id,
+});
+
 /** POST /api/v1/sessions — 即時開始 or 予約 offer */
-sessions.post('/', async (c) => {
+sessions.post('/', sessionCreateLimiter, async (c) => {
   const user = c.get('user');
   const body = (await c.req.json().catch(() => ({}))) as {
     interviewer_id?: string;

@@ -11,7 +11,8 @@
     "migrate": "tsx src/db/migrate.ts",
     "seed-personas": "tsx ../../scripts/seed-personas/index.ts",
     "ft-loop": "tsx ../../scripts/ft-loop/index.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bench": "tsx bench/request-latency.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",
