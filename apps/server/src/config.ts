@@ -39,4 +39,10 @@ export const config = {
   notifyLeadMin: num('NOTIFY_LEAD_MIN', 15),
   nuntiusUrl: process.env.NUNTIUS_URL ?? '',
   nuntiusApiKey: process.env.NUNTIUS_API_KEY ?? '',
+  // セッション作成 (POST /api/v1/sessions) の per-user レート制限。
+  // 乱用 / 暴走クライアントによる予約枠・LLM コストの食い潰しを防ぐ。
+  sessionRateLimit: {
+    windowMs: num('SESSION_RATELIMIT_WINDOW_MS', 60_000),
+    max: num('SESSION_RATELIMIT_MAX', 10),
+  },
 } as const;
