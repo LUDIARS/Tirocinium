@@ -11,6 +11,7 @@ import { ftRuns } from './routes/ft_runs.js';
 import { training } from './routes/training.js';
 import { attachSessionWs } from './ws/handler.js';
 import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
+import { startDiscordBridge } from './discord/bridge.js';
 
 const app = new Hono();
 
@@ -41,9 +42,16 @@ const server = serve(
 
 attachSessionWs(server as unknown as Parameters<typeof attachSessionWs>[0]);
 startTickScheduler();
+let stopDiscordBridge: (() => void) | null = null;
+void startDiscordBridge()
+  .then((stop) => {
+    stopDiscordBridge = stop;
+  })
+  .catch((err) => console.error('[discord] start failed', err));
 
 const shutdown = () => {
   console.log('shutting down');
+  stopDiscordBridge?.();
   stopTickScheduler();
   server.close();
   process.exit(0);

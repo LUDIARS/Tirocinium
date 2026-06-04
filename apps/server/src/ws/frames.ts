@@ -4,6 +4,7 @@ import type { Evaluation } from '@tirocinium/llm';
 
 export type ClientFrame =
   | { kind: 'audio_chunk'; pcm: number[]; seq: number }
+  | { kind: 'start_interview' }
   | { kind: 'stt_final'; text: string }
   | { kind: 'barge_in' }
   | { kind: 'end_session' }
@@ -23,6 +24,7 @@ export function isClientFrame(x: unknown): x is ClientFrame {
   const k = (x as { kind?: string }).kind;
   return [
     'audio_chunk',
+    'start_interview',
     'stt_final',
     'barge_in',
     'end_session',

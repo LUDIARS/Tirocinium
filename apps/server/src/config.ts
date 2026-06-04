@@ -39,6 +39,16 @@ export const config = {
   notifyLeadMin: num('NOTIFY_LEAD_MIN', 15),
   nuntiusUrl: process.env.NUNTIUS_URL ?? '',
   nuntiusApiKey: process.env.NUNTIUS_API_KEY ?? '',
+  discord: {
+    botToken: process.env.TIROCINIUM_DISCORD_BOT_TOKEN ?? '',
+    guildId: process.env.TIROCINIUM_DISCORD_GUILD_ID ?? '',
+    categoryId: process.env.TIROCINIUM_DISCORD_CATEGORY_ID ?? '',
+    allowedChannelIds: (process.env.TIROCINIUM_DISCORD_TEXT_CHANNEL_IDS ?? '')
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean),
+    commandPrefix: process.env.TIROCINIUM_DISCORD_COMMAND_PREFIX ?? '!tr',
+  },
   // セッション作成 (POST /api/v1/sessions) の per-user レート制限。
   // 乱用 / 暴走クライアントによる予約枠・LLM コストの食い潰しを防ぐ。
   sessionRateLimit: {

@@ -1,4 +1,4 @@
-import type { WebSocket } from 'ws';
+﻿import type { WebSocket } from 'ws';
 import {
   buildSystemPrompt,
   createAnthropicClient,
@@ -50,9 +50,9 @@ export class SessionRuntime {
     private readonly sessionId: string,
     private readonly userId: string,
   ) {
-    // cli バックエンドは API キー不要。api バックエンドは ANTHROPIC_API_KEY が要る。
+    // cli 繝舌ャ繧ｯ繧ｨ繝ｳ繝峨・ API 繧ｭ繝ｼ荳崎ｦ√Ｂpi 繝舌ャ繧ｯ繧ｨ繝ｳ繝峨・ ANTHROPIC_API_KEY 縺瑚ｦ√ｋ縲・
     this.llmEnabled = config.llmBackend === 'cli' || Boolean(process.env['ANTHROPIC_API_KEY']);
-    // 評価 (Opus) / judge (Haiku) は ANTHROPIC_API_KEY 前提。鍵が無ければ静かに skip。
+    // 隧穂ｾ｡ (Opus) / judge (Haiku) 縺ｯ ANTHROPIC_API_KEY 蜑肴署縲る嵯縺檎┌縺代ｌ縺ｰ髱吶°縺ｫ skip縲・
     this.evalEnabled = Boolean(process.env['ANTHROPIC_API_KEY']);
     this.judgeEnabled = Boolean(process.env['ANTHROPIC_API_KEY']);
     this.refineEnabled = Boolean(process.env['OPENAI_API_KEY']);
@@ -60,7 +60,7 @@ export class SessionRuntime {
   }
 
   async init(): Promise<void> {
-    // session メタ + persona id を取得
+    // session 繝｡繧ｿ + persona id 繧貞叙蠕・
     const sessionRows = await sql<{
       metadata: { interviewer_id?: string };
       llm_profile: Record<string, unknown>;
@@ -94,7 +94,7 @@ export class SessionRuntime {
       }
     }
 
-    // 既存 turn を読み込み
+    // 譌｢蟄・turn 繧定ｪｭ縺ｿ霎ｼ縺ｿ
     const turnRows = await sql<{ turn_no: number; role: 'interviewer' | 'user'; stt_text: string | null; text_uri: string }[]>`
       SELECT turn_no, role, stt_text, text_uri FROM session_turns
       WHERE session_id = ${this.sessionId} ORDER BY turn_no ASC
@@ -106,13 +106,13 @@ export class SessionRuntime {
     }));
     this.currentTurnNo = this.turns.length;
 
-    // 弱点プロファイル top3
+    // 蠑ｱ轤ｹ繝励Ο繝輔ぃ繧､繝ｫ top3
     const weakRows = await sql<{ weak_top3: string[] }[]>`
       SELECT weak_top3 FROM weakness_profiles WHERE user_id = ${this.userId}
     `;
     this.weakTop3 = weakRows[0]?.weak_top3 ?? [];
 
-    // Memoria RAG fetch (MEMORIA_URL 未設定なら skip)
+    // Memoria RAG fetch (MEMORIA_URL 譛ｪ險ｭ螳壹↑繧・skip)
     const memoria = createMemoriaClient();
     if (memoria) {
       try {
@@ -122,7 +122,7 @@ export class SessionRuntime {
           ...this.weakTop3,
           this.interviewer?.stage,
         ].filter(Boolean);
-        const query = queryParts.join(' ') || '面接練習';
+        const query = queryParts.join(' ') || 'interview practice';
         const filterTags = this.interviewer?.stage ? [this.interviewer.stage] : undefined;
         const filterKinds: TrainingDocKind[] = ['es', 'portfolio', 'past_qa', 'self_intro'];
         const result = await memoria.rag({
@@ -133,13 +133,13 @@ export class SessionRuntime {
         });
         this.ragBlock = renderRagBlock(result);
       } catch (err) {
-        // Memoria 不達時は RAG ブロック無しで継続する best-effort 縮退 (面接は止めない)。
-        // 本人特化は弱まるが session 進行を優先 (RULE_CODE §7)。
+        // Memoria 荳埼＃譎ゅ・ RAG 繝悶Ο繝・け辟｡縺励〒邯咏ｶ壹☆繧・best-effort 邵ｮ騾 (髱｢謗･縺ｯ豁｢繧√↑縺・縲・
+        // 譛ｬ莠ｺ迚ｹ蛹悶・蠑ｱ縺ｾ繧九′ session 騾ｲ陦後ｒ蜆ｪ蜈・(RULE_CODE ﾂｧ7)縲・
         console.warn('[ws] memoria rag failed', (err as Error).message);
       }
     }
 
-    // フェーズ状態機を初期化 (面接官ペルソナの圧で pressure phase の有無が決まる)
+    // 繝輔ぉ繝ｼ繧ｺ迥ｶ諷区ｩ溘ｒ蛻晄悄蛹・(髱｢謗･螳倥・繝ｫ繧ｽ繝翫・蝨ｧ縺ｧ pressure phase 縺ｮ譛臥┌縺梧ｱｺ縺ｾ繧・
     this.phaseState = initialPhaseState(this.interviewer?.pressure ?? 3);
 
     this.send({
@@ -159,6 +159,9 @@ export class SessionRuntime {
     }
 
     switch (frame.kind) {
+      case 'start_interview':
+        await this.handleStartInterview();
+        break;
       case 'stt_final':
         await this.handleUserTurn(frame.text);
         break;
@@ -180,7 +183,7 @@ export class SessionRuntime {
   }
 
   private async handleUserTurn(text: string): Promise<void> {
-    // この回答が応じている直前の面接官質問 (judge 用)。push する前に取得。
+    // 縺薙・蝗樒ｭ斐′蠢懊§縺ｦ縺・ｋ逶ｴ蜑阪・髱｢謗･螳倩ｳｪ蝠・(judge 逕ｨ)縲Ｑush 縺吶ｋ蜑阪↓蜿門ｾ励・
     const lastQuestion = [...this.turns].reverse().find((t) => t.role === 'interviewer')?.text ?? '';
 
     this.currentTurnNo += 1;
@@ -191,14 +194,50 @@ export class SessionRuntime {
 
     this.send({ kind: 'stt_final', text, turn_no: userTurnNo });
 
-    // Sonnet stream → interviewer 応答
+    const response = await this.generateInterviewerTurn();
+    if (!response) return;
+    const { turnNo: interviewerTurnNo, text: acc } = response;
+
+    // 髱槫酔譛・judge: 逶ｴ蜑阪・蜿鈴ｨ楢・屓遲斐ｒ霆ｽ驥上Δ繝・Ν縺ｧ隧穂ｾ｡縺・phase 菫｡蜿ｷ繧呈峩譁ｰ縺吶ｋ縲・
+    // 髱｢謗･螳伜ｿ懃ｭ斐・譌｢縺ｫ騾∽ｿ｡貂医∩縺ｪ縺ｮ縺ｧ遏･隕壹Ξ繧､繝・Φ繧ｷ縺ｯ蠅励∴縺ｪ縺・(spec ﾂｧ4.2 (c))縲・
+    // 骰ｵ縺檎┌縺・dev 縺ｧ縺ｯ skip 竊・DEFAULT_SIGNALS (time-box 鬧・虚) 縺ｮ縺ｾ縺ｾ縲・
+    if (this.judgeEnabled && acc.trim().length > 0) {
+      try {
+        const signals = await assessAnswer(createAnthropicClient(), {
+          question: lastQuestion,
+          answer: text,
+          recent: this.turns.slice(-4),
+        });
+        this.latestSignals = {
+          synthesisReached: signals.synthesisReached,
+          contradictionOpen: signals.contradictionOpen,
+        };
+        // followup hint 縺後≠繧後・縲梧ｬ｡縺ｫ豺ｱ謗倥ｋ縺ｹ縺崎ｫ也せ縲阪せ繝ｭ繝・ヨ縺ｫ蜿肴丐 (reactive 豺ｱ謗倥ｊ)
+        if (signals.followupHint) this.refineBlock = signals.followupHint;
+      } catch (err) {
+        // judge 螟ｱ謨玲凾縺ｯ latestSignals 繧呈峩譁ｰ縺帙★蜑阪ち繝ｼ繝ｳ縺ｮ菫｡蜿ｷ繧堤ｶｭ謖√☆繧・best-effort 邵ｮ騾縲・
+        // phase 驕ｷ遘ｻ縺ｯ time-box (DEFAULT_SIGNALS) 縺ｧ fallback 縺吶ｋ (RULE_CODE ﾂｧ7)縲・
+        console.warn('[ws] judge failed', (err as Error).message);
+      }
+    }
+
+    await this.advanceInterviewerPhase(interviewerTurnNo);
+  }
+
+  private async handleStartInterview(): Promise<void> {
+    const response = await this.generateInterviewerTurn();
+    if (!response) return;
+    await this.advanceInterviewerPhase(response.turnNo);
+  }
+
+  private async generateInterviewerTurn(): Promise<{ turnNo: number; text: string } | null> {
     if (!this.llmEnabled) {
       this.send({ kind: 'system', code: 'error', message: 'llm not configured' });
-      return;
+      return null;
     }
     if (!this.interviewer) {
       this.send({ kind: 'system', code: 'error', message: 'interviewer persona missing' });
-      return;
+      return null;
     }
 
     this.currentTurnNo += 1;
@@ -214,7 +253,6 @@ export class SessionRuntime {
       phase: this.phaseState?.phase,
     });
 
-    // バックエンド選択: cli (claude CLI, 鍵不要) / api (Anthropic SDK ストリーム)
     const tokenStream =
       config.llmBackend === 'cli'
         ? streamResponseCli({
@@ -240,9 +278,7 @@ export class SessionRuntime {
         }
       }
     } catch (err) {
-      if ((err as { name?: string }).name === 'AbortError') {
-        // barge-in による中断、 既に蓄積 acc を確定保存
-      } else {
+      if ((err as { name?: string }).name !== 'AbortError') {
         this.send({
           kind: 'system',
           code: 'error',
@@ -253,46 +289,24 @@ export class SessionRuntime {
       this.currentAbort = null;
     }
 
-    if (acc.trim().length > 0) {
-      const turn: Turn = { turn_no: interviewerTurnNo, role: 'interviewer', text: acc };
-      this.turns.push(turn);
-      await this.persistTurn(interviewerTurnNo, 'interviewer', acc);
-      this.send({
-        kind: 'response_end',
-        turn_no: interviewerTurnNo,
-        text_uri: `local:turn:${interviewerTurnNo}`,
-      });
-    } else {
-      // 何も生成できなかった (barge-in 即時 abort 等) → ロールバック
+    if (acc.trim().length === 0) {
       this.currentTurnNo -= 1;
+      return null;
     }
 
-    // 非同期 judge: 直前の受験者回答を軽量モデルで評価し phase 信号を更新する。
-    // 面接官応答は既に送信済みなので知覚レイテンシは増えない (spec §4.2 (c))。
-    // 鍵が無い dev では skip → DEFAULT_SIGNALS (time-box 駆動) のまま。
-    if (this.judgeEnabled && acc.trim().length > 0) {
-      try {
-        const signals = await assessAnswer(createAnthropicClient(), {
-          question: lastQuestion,
-          answer: text,
-          recent: this.turns.slice(-4),
-        });
-        this.latestSignals = {
-          synthesisReached: signals.synthesisReached,
-          contradictionOpen: signals.contradictionOpen,
-        };
-        // followup hint があれば「次に深掘るべき論点」スロットに反映 (reactive 深掘り)
-        if (signals.followupHint) this.refineBlock = signals.followupHint;
-      } catch (err) {
-        // judge 失敗時は latestSignals を更新せず前ターンの信号を維持する best-effort 縮退。
-        // phase 遷移は time-box (DEFAULT_SIGNALS) で fallback する (RULE_CODE §7)。
-        console.warn('[ws] judge failed', (err as Error).message);
-      }
-    }
+    const turn: Turn = { turn_no: interviewerTurnNo, role: 'interviewer', text: acc };
+    this.turns.push(turn);
+    await this.persistTurn(interviewerTurnNo, 'interviewer', acc);
+    this.send({
+      kind: 'response_end',
+      turn_no: interviewerTurnNo,
+      text_uri: `local:turn:${interviewerTurnNo}`,
+    });
+    return { turnNo: interviewerTurnNo, text: acc };
+  }
 
-    // フェーズ遷移 (interviewer turn を 1 つ消費した後)。judge 信号で駆動。
-    // phase が変わった瞬間に GPT refine をトリガ駆動 (旧: 10 turn 固定周期)。
-    if (this.phaseState && acc.trim().length > 0) {
+  private async advanceInterviewerPhase(interviewerTurnNo: number): Promise<void> {
+    if (this.phaseState) {
       const prevPhase = this.phaseState.phase;
       this.phaseState = nextPhase(this.phaseState, this.latestSignals);
       if (this.refineEnabled && this.phaseState.phase !== prevPhase) {
@@ -300,7 +314,6 @@ export class SessionRuntime {
       }
     }
 
-    // 5 turn ごとに Opus 評価 (バックグラウンド)。鍵が無い dev では skip。
     if (this.evalEnabled && interviewerTurnNo > 0 && interviewerTurnNo % EVAL_EVERY_N_TURNS === 0) {
       void this.runEvaluationBackground(interviewerTurnNo);
     }
@@ -323,9 +336,9 @@ export class SessionRuntime {
   }
 
   private handleAudioChunk(pcm: number[]): void {
-    // Iv が無い場合 → ack のみ (クライアントは stt_final を別途送る前提)
+    // Iv 縺檎┌縺・ｴ蜷・竊・ack 縺ｮ縺ｿ (繧ｯ繝ｩ繧､繧｢繝ｳ繝医・ stt_final 繧貞挨騾秘√ｋ蜑肴署)
     if (!this.ivClient) return;
-    // 初回 chunk で STT pipe を起動
+    // 蛻晏屓 chunk 縺ｧ STT pipe 繧定ｵｷ蜍・
     if (!this.audioQueue) {
       this.audioQueue = new AsyncQueue<Uint8Array>();
       void this.runSttPipe();
@@ -334,7 +347,7 @@ export class SessionRuntime {
     this.audioQueue.push(buf);
   }
 
-  /** Iv の STT stream を受けて partial/final を WS に流す。 close されるまで継続 */
+  /** Iv 縺ｮ STT stream 繧貞女縺代※ partial/final 繧・WS 縺ｫ豬√☆縲・close 縺輔ｌ繧九∪縺ｧ邯咏ｶ・*/
   private async runSttPipe(): Promise<void> {
     if (!this.ivClient || !this.audioQueue || this.sttPipeRunning) return;
     this.sttPipeRunning = true;
@@ -344,7 +357,7 @@ export class SessionRuntime {
         if (evt.kind === 'partial') {
           this.send({ kind: 'stt_partial', text: evt.text });
         } else if (evt.kind === 'final') {
-          // final は handleUserTurn に渡し、 Sonnet 応答まで起動する
+          // final 縺ｯ handleUserTurn 縺ｫ貂｡縺励・Sonnet 蠢懃ｭ斐∪縺ｧ襍ｷ蜍輔☆繧・
           await this.handleUserTurn(evt.text);
         }
       }
@@ -387,17 +400,17 @@ export class SessionRuntime {
       `;
       this.send({ kind: 'eval', evaluation: ev });
 
-      // 弱点プロファイルを EMA で更新 (task C)
+      // 蠑ｱ轤ｹ繝励Ο繝輔ぃ繧､繝ｫ繧・EMA 縺ｧ譖ｴ譁ｰ (task C)
       try {
         const updated = await applyEvaluation(this.userId, ev.axes, ev.hints);
-        // 同 session の system prompt には反映しない (DESIGN §3.2.2)。
-        // 次回 session で (2) スロットに反映される。 同 session 内の表示更新だけ:
+        // 蜷・session 縺ｮ system prompt 縺ｫ縺ｯ蜿肴丐縺励↑縺・(DESIGN ﾂｧ3.2.2)縲・
+        // 谺｡蝗・session 縺ｧ (2) 繧ｹ繝ｭ繝・ヨ縺ｫ蜿肴丐縺輔ｌ繧九・蜷・session 蜀・・陦ｨ遉ｺ譖ｴ譁ｰ縺縺・
         this.weakTop3 = updated.weak_top3;
       } catch (err) {
         console.error('[ws] weakness profile update error', err);
       }
     } catch (err) {
-      // 評価失敗は session を止めない (ログのみ)
+      // 隧穂ｾ｡螟ｱ謨励・ session 繧呈ｭ｢繧√↑縺・(繝ｭ繧ｰ縺ｮ縺ｿ)
       console.error('[ws] evaluation error', err);
     }
   }
