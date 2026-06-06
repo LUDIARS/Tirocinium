@@ -35,3 +35,17 @@ export {
   recommend,
   type RecommendOptions,
 } from './recommend.js';
+export {
+  classifyFromText,
+  classifyListingEntry,
+  shouldStock,
+  stockReason,
+} from './classify.js';
+export { parseRobots, isAllowed, pathOf } from './robots.js';
+export {
+  extractAnchors,
+  selectEnrichmentLinks,
+  enrichmentFetchList,
+} from './links.js';
+export { LISTING_INSTRUCTION, parseListing, extractListing } from './listing.js';
+export { PROFILE_INSTRUCTION, parseProfile, extractProfile } from './profile.js';

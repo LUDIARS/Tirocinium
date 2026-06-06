@@ -334,6 +334,10 @@ ES から **おすすめ企業** を返す機能 (①) と、 企業ページを
   Sonnet で rerank + 理由づけ (鍵なし時は heuristic)。 結果は `company_recommendations` に履歴化。
 - ② は `manual` (URL 指定) / `seed-file` (data/companies/seeds.json) ソースで fetch → 抽出
   (Haiku、 失敗時 heuristic) → 正規化 → upsert。 礼節 UA + maxPages 上限 + 逐次。
+- ②' **listing クロール** (新卒/ゲーム企業の発見): 設定ソース (job-aggregator/game/seed-list/newgrad-nav、
+  newgrad-nav は ToS のため opt-in) の一覧ページを LLM 抽出 → 分類 → `新卒採用あり OR (ゲーム企業 AND 募集あり)`
+  のみストック。 **robots.txt 遵守 + 1ドメイン逐次 + Crawl-delay**。
+- ②'' **enrichment**: 企業サイトを巡回し IR / 企業理念 / 会社概要 を抽出して `company_profiles` に格納。
 - 企業情報は公開情報のため保持可。 ES 本文は保持しない (§6 と整合)。
 
 ---

@@ -318,11 +318,31 @@ CREATE TABLE companies (
   source_url      TEXT NOT NULL DEFAULT '',
   crawled_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  -- migration 004 で追加: is_newgrad / is_game / has_opening / recruit_url / stock_reason
 );
--- GIN(roles), GIN(tags), industry
+-- GIN(roles), GIN(tags), industry, partial(is_newgrad), partial(is_game)
 ```
 
 upsert は空でない値だけ更新し、 クロール毎の劣化 (新規取得が薄い場合) を防ぐ。
+発見フラグ (is_newgrad/is_game/has_opening) は OR でマージし、 一度立ったら温存する。
+
+---
+
+## company_profiles (migration 004)
+
+企業サイト巡回で得た IR / 企業理念 等。 `companies` と 1:1。
+
+```sql
+CREATE TABLE company_profiles (
+  company_id   UUID PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
+  philosophy   TEXT NOT NULL DEFAULT '',
+  values       JSONB NOT NULL DEFAULT '[]',  -- string[]
+  ir_summary   TEXT NOT NULL DEFAULT '',
+  business     TEXT NOT NULL DEFAULT '',
+  sources      JSONB NOT NULL DEFAULT '[]',  -- 巡回 URL string[]
+  fetched_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
 
 ---
 

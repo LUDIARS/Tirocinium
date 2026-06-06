@@ -64,13 +64,55 @@ upsertCompany (normalized_name で UPSERT、 空値は既存を温存)
 | method | path | 説明 |
 |---|---|---|
 | GET | `/api/v1/companies` | 一覧 (`role` / `tag` / `industry` / `q` / `limit` / `offset`) |
-| GET | `/api/v1/companies/sources` | 利用可能ソース一覧 |
+| GET | `/api/v1/companies/sources` | 単体取得ソース一覧 (manual/seed-file) |
+| GET | `/api/v1/companies/listing-sources` | listing ソース一覧 (有効可否つき) |
 | GET | `/api/v1/companies/:id` | 詳細 |
-| POST | `/api/v1/companies/crawl` | クロール起動 `{source, urls?, maxPages?}` → `CrawlSummary` |
+| GET | `/api/v1/companies/:id/profile` | IR/理念 profile |
+| POST | `/api/v1/companies/crawl` | 単体取得クロール `{source, urls?, maxPages?}` → `CrawlSummary` |
+| POST | `/api/v1/companies/crawl-listing` | listing 発見クロール `{source?}` → `ListingCrawlSummary` |
+| POST | `/api/v1/companies/enrich` | 企業サイト巡回で IR/理念取得 `{company_id?, limit?}` → `EnrichSummary` |
 
 - 認証は Cernere (dev は `TIROCINIUM_DEV_AUTH`)。
 - クロールは `COMPANY_CRAWL_ADMIN_IDS` 設定時はその user のみ (未設定なら全 authed user 可)。
 - v1 は同期実行 + `maxPages` 上限。 大規模化したらバックグラウンドジョブへ (将来)。
+
+---
+
+## 3.5 listing クロール (新卒/ゲーム企業の発見) + enrichment
+
+要件: ①新卒採用企業をストック / ②新卒でなくてもゲーム企業で募集があればストック / ③企業サイトを巡回して IR・企業理念を取得。
+
+### 3.5.1 listing ソース (設定駆動)
+
+`data/companies/listing-sources.json` に `{id, kind, urls[], enabled, note}` を列挙。
+サイト固有のセレクタは持たず、 ページ本文を **LLM (EXTRACTOR=Haiku) で企業リスト抽出** する (`extractListing`)。
+
+| kind | 用途 | 既定 |
+|---|---|---|
+| `job-aggregator` | 汎用求人 aggregator の新卒一覧 | disabled (実URL差替で有効化) |
+| `game` | ゲーム業界特化の企業/求人一覧 | disabled |
+| `seed-list` | 用意した企業リスト由来 | disabled |
+| `newgrad-nav` | 大手新卒ナビ (ToS 厳しめ) | **disabled + 明示 opt-in 必須** |
+
+- `enabled=false` でも `COMPANY_LISTING_OPTIN_SOURCES` に id があれば起動 (ToS リスク源の安全弁)。
+- 全ソースで **robots.txt 遵守 + 1ドメイン逐次 + Crawl-delay/最小間隔 + 礼節UA** (`PoliteFetcher`)。
+
+### 3.5.2 分類 + ストック判定 (`classify.ts`, 純粋)
+
+listing エントリ + ページ語彙から keyword + LLM ヒントで `CompanyFlags{isNewgrad,isGame,hasOpening}` を判定。
+
+```
+shouldStock = isNewgrad || (isGame && hasOpening)
+```
+
+満たした企業のみ `companies` に upsert。 フラグは OR でマージ (一度立った新卒/ゲーム/募集は温存)。
+`stock_reason` にストック理由 (例「新卒採用あり」) を記録。
+
+### 3.5.3 enrichment (③ 企業サイト → IR / 理念)
+
+`companies.url` を起点に、 **同一ホスト**の理念/IR/会社概要/採用リンクを `selectEnrichmentLinks` で選定 (語彙ベース、純粋)。
+優先順 (理念 > IR > about > recruit) で `enrichMaxPages` まで巡回 → 本文結合 → **LLM で profile 抽出** (`extractProfile`) → `company_profiles` に upsert。
+robots で弾かれたページは skip。 何も取れなければ保存しない。
 
 ---
 
@@ -120,8 +162,12 @@ company_recommendations に保存 (履歴)
 |---|---|---|
 | `COMPANY_CRAWL_MAX_PAGES` | 20 | 1 回のクロール取得上限 |
 | `COMPANY_CRAWL_FETCH_TIMEOUT_MS` | 15000 | fetch タイムアウト |
+| `COMPANY_CRAWL_MIN_INTERVAL_MS` | 2000 | 同一ドメイン最小間隔 (Crawl-delay と長い方) |
+| `COMPANY_CRAWL_RESPECT_ROBOTS` | 1 | robots.txt 遵守 (0 で無効化、 UA/レート制限は維持) |
+| `COMPANY_ENRICH_MAX_PAGES` | 5 | enrichment で 1 社あたり巡回ページ数上限 |
 | `COMPANY_CRAWL_USER_AGENT` | `TirociniumBot/0.1 …` | 礼節 UA |
 | `COMPANY_CRAWL_ADMIN_IDS` | (空) | クロール可能な user_id (カンマ区切り)。空なら全 authed user |
+| `COMPANY_LISTING_OPTIN_SOURCES` | (空) | enabled=false の listing source を明示有効化する id (例 `newgrad-nav`) |
 | `TIROCINIUM_MODEL_EXTRACTOR` | Haiku | 抽出モデル上書き |
 | `TIROCINIUM_MODEL_RECOMMENDER` | Sonnet | recommend モデル上書き |
 | `MEMORIA_URL` / `MEMORIA_PROJECT_TOKEN` | (空) | ES 素材の RAG 取得 (既存) |
