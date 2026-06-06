@@ -5,6 +5,10 @@ import { config } from '../config.js';
 import { listCompanies, getCompany, countCompanies } from '../companies/repo.js';
 import { runCrawl } from '../companies/crawler.js';
 import { loadSeedRecords } from '../companies/seeds.js';
+import { runListingCrawl } from '../companies/listing-crawler.js';
+import { runEnrichment } from '../companies/enrich.js';
+import { loadListingSources, selectActiveSources } from '../companies/listing-config.js';
+import { getProfile } from '../companies/profile-repo.js';
 
 /**
  * 企業プール (companies) の参照とクロール起動。
@@ -34,8 +38,23 @@ companies.get('/', async (c) => {
   return c.json({ companies: rows, total: await countCompanies() });
 });
 
-/** GET /api/v1/companies/sources — 利用可能なクロールソース一覧 */
+/** GET /api/v1/companies/sources — 単体取得 (manual/seed-file) クロールソース一覧 */
 companies.get('/sources', (c) => c.json({ sources: listSourceIds() }));
+
+/** GET /api/v1/companies/listing-sources — listing クロールの設定済ソース (有効可否つき) */
+companies.get('/listing-sources', async (c) => {
+  const all = await loadListingSources();
+  const active = new Set(selectActiveSources(all).map((s) => s.id));
+  return c.json({
+    sources: all.map((s) => ({ id: s.id, kind: s.kind, urls: s.urls.length, active: active.has(s.id), note: s.note })),
+  });
+});
+
+/** GET /api/v1/companies/:id/profile — 企業の IR/理念 profile */
+companies.get('/:id/profile', async (c) => {
+  const profile = await getProfile(c.req.param('id'));
+  return profile ? c.json({ profile }) : c.json({ error: 'not_found' }, 404);
+});
 
 /** GET /api/v1/companies/:id — 企業詳細 */
 companies.get('/:id', async (c) => {
@@ -72,5 +91,31 @@ companies.post('/crawl', async (c) => {
     return c.json({ summary }, 200);
   } catch (err) {
     return c.json({ error: 'crawl_failed', detail: (err as Error).message }, 502);
+  }
+});
+
+/** POST /api/v1/companies/crawl-listing — 新卒/ゲーム企業を listing から発見してストック { source? } */
+companies.post('/crawl-listing', async (c) => {
+  const user = c.get('user');
+  if (!canCrawl(user.id)) return c.json({ error: 'forbidden' }, 403);
+  const body = (await c.req.json().catch(() => null)) as { source?: string } | null;
+  try {
+    const summary = await runListingCrawl(body?.source);
+    return c.json({ summary }, 200);
+  } catch (err) {
+    return c.json({ error: 'listing_crawl_failed', detail: (err as Error).message }, 502);
+  }
+});
+
+/** POST /api/v1/companies/enrich — 企業サイトを巡回し IR/理念を取得 { company_id?, limit? } */
+companies.post('/enrich', async (c) => {
+  const user = c.get('user');
+  if (!canCrawl(user.id)) return c.json({ error: 'forbidden' }, 403);
+  const body = (await c.req.json().catch(() => null)) as { company_id?: string; limit?: number } | null;
+  try {
+    const summary = await runEnrichment({ companyId: body?.company_id, limit: body?.limit });
+    return c.json({ summary }, 200);
+  } catch (err) {
+    return c.json({ error: 'enrich_failed', detail: (err as Error).message }, 502);
   }
 });
