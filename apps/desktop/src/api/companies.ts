@@ -13,8 +13,50 @@ export type Company = {
   size: string;
   source: string;
   source_url: string;
+  is_newgrad: boolean;
+  is_game: boolean;
+  has_opening: boolean;
+  recruit_url: string;
+  stock_reason: string;
   crawled_at: string;
   updated_at: string;
+};
+
+export type ListingSource = {
+  id: string;
+  kind: string;
+  urls: number;
+  active: boolean;
+  note?: string;
+};
+
+export type CompanyProfile = {
+  company_id: string;
+  philosophy: string;
+  values: string[];
+  ir_summary: string;
+  business: string;
+  sources: string[];
+  fetched_at: string;
+};
+
+export type ListingCrawlSummary = {
+  sources: string[];
+  pagesFetched: number;
+  discovered: number;
+  stocked: number;
+  skipped: number;
+  robotsBlocked: number;
+  errors: { url: string; message: string }[];
+};
+
+export type EnrichSummary = {
+  targets: number;
+  enriched: number;
+  skipped: number;
+  pagesFetched: number;
+  robotsBlocked: number;
+  errors: { company: string; message: string }[];
 };
 
 export type CrawlSummary = {
@@ -52,6 +94,26 @@ export function useCompaniesApi() {
         method: 'POST',
         body: JSON.stringify(input),
       });
+    },
+    async listingSources(): Promise<{ sources: ListingSource[] }> {
+      return fetchJson('/api/v1/companies/listing-sources', token);
+    },
+    async crawlListing(input: { source?: string } = {}): Promise<{ summary: ListingCrawlSummary }> {
+      return fetchJson('/api/v1/companies/crawl-listing', token, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      });
+    },
+    async enrich(input: { company_id?: string; limit?: number } = {}): Promise<{
+      summary: EnrichSummary;
+    }> {
+      return fetchJson('/api/v1/companies/enrich', token, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      });
+    },
+    async profile(id: string): Promise<{ profile: CompanyProfile }> {
+      return fetchJson(`/api/v1/companies/${id}/profile`, token);
     },
   };
 }

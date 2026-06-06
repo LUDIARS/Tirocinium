@@ -4,6 +4,7 @@ import type { Company, NormalizedCompany } from '@tirocinium/companies';
 const SELECT_COLS = sql`
   id, name, normalized_name, url, industry, description,
   roles, tags, location, size, source, source_url,
+  is_newgrad, is_game, has_opening, recruit_url, stock_reason,
   crawled_at, updated_at
 `;
 
@@ -51,17 +52,37 @@ export async function countCompanies(): Promise<number> {
   return Number(rows[0]?.count ?? 0);
 }
 
+/** listing 由来の発見シグナル (任意)。 既存の true は OR で温存 (sticky)。 */
+export type DiscoverySignals = {
+  isNewgrad?: boolean;
+  isGame?: boolean;
+  hasOpening?: boolean;
+  recruitUrl?: string;
+  stockReason?: string;
+};
+
 /**
  * normalized_name で upsert する。 既存なら空でない値だけ更新 (クロール毎の劣化を防ぐ)。
+ * フラグは OR でマージし、 一度立った新卒/ゲーム/募集は温存する。
  * @returns 'inserted' | 'updated'
  */
-export async function upsertCompany(c: NormalizedCompany): Promise<'inserted' | 'updated'> {
+export async function upsertCompany(
+  c: NormalizedCompany,
+  signals: DiscoverySignals = {},
+): Promise<'inserted' | 'updated'> {
+  const isNewgrad = signals.isNewgrad ?? false;
+  const isGame = signals.isGame ?? false;
+  const hasOpening = signals.hasOpening ?? false;
+  const recruitUrl = signals.recruitUrl ?? '';
+  const stockReason = signals.stockReason ?? '';
   const rows = await sql<{ inserted: boolean }[]>`
     INSERT INTO companies
-      (name, normalized_name, url, industry, description, roles, tags, location, size, source, source_url)
+      (name, normalized_name, url, industry, description, roles, tags, location, size, source, source_url,
+       is_newgrad, is_game, has_opening, recruit_url, stock_reason)
     VALUES (
       ${c.name}, ${c.normalized_name}, ${c.url}, ${c.industry}, ${c.description},
-      ${c.roles}, ${c.tags}, ${c.location}, ${c.size}, ${c.source}, ${c.source_url}
+      ${c.roles}, ${c.tags}, ${c.location}, ${c.size}, ${c.source}, ${c.source_url},
+      ${isNewgrad}, ${isGame}, ${hasOpening}, ${recruitUrl}, ${stockReason}
     )
     ON CONFLICT (normalized_name) DO UPDATE SET
       name        = EXCLUDED.name,
@@ -74,8 +95,24 @@ export async function upsertCompany(c: NormalizedCompany): Promise<'inserted' | 
       size        = COALESCE(NULLIF(EXCLUDED.size, ''), companies.size),
       source      = EXCLUDED.source,
       source_url  = COALESCE(NULLIF(EXCLUDED.source_url, ''), companies.source_url),
+      is_newgrad  = companies.is_newgrad OR EXCLUDED.is_newgrad,
+      is_game     = companies.is_game OR EXCLUDED.is_game,
+      has_opening = companies.has_opening OR EXCLUDED.has_opening,
+      recruit_url = COALESCE(NULLIF(EXCLUDED.recruit_url, ''), companies.recruit_url),
+      stock_reason= COALESCE(NULLIF(EXCLUDED.stock_reason, ''), companies.stock_reason),
       updated_at  = now()
     RETURNING (xmax = 0) AS inserted
   `;
   return rows[0]?.inserted ? 'inserted' : 'updated';
+}
+
+/** enrichment 対象 (url を持ち profile 未取得) の企業を返す。 */
+export async function companiesNeedingEnrichment(limit = 50): Promise<Company[]> {
+  return sql<Company[]>`
+    SELECT ${SELECT_COLS} FROM companies c
+    WHERE c.url <> ''
+      AND NOT EXISTS (SELECT 1 FROM company_profiles p WHERE p.company_id = c.id)
+    ORDER BY c.updated_at DESC
+    LIMIT ${Math.min(Math.max(limit, 1), 200)}
+  `;
 }

@@ -1,5 +1,12 @@
-import { useEffect, useState } from 'react';
-import { useCompaniesApi, type Company, type CrawlSummary } from '../api/companies.js';
+import { useEffect, useState, type ReactNode } from 'react';
+import {
+  useCompaniesApi,
+  type Company,
+  type CrawlSummary,
+  type ListingSource,
+  type ListingCrawlSummary,
+  type CompanyProfile,
+} from '../api/companies.js';
 
 export function Companies() {
   const api = useCompaniesApi();
@@ -7,12 +14,19 @@ export function Companies() {
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
   const [sources, setSources] = useState<string[]>([]);
   const [source, setSource] = useState('manual');
   const [urls, setUrls] = useState('');
-  const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState<CrawlSummary | null>(null);
+
+  const [listingSources, setListingSources] = useState<ListingSource[]>([]);
+  const [listingSource, setListingSource] = useState('');
+  const [listingSummary, setListingSummary] = useState<ListingCrawlSummary | null>(null);
+
+  const [profiles, setProfiles] = useState<Record<string, CompanyProfile>>({});
 
   const reload = async () => {
     try {
@@ -30,36 +44,103 @@ export function Companies() {
       setSources(r.sources);
       if (r.sources[0]) setSource(r.sources[0]);
     });
+    void api.listingSources().then((r) => {
+      setListingSources(r.sources);
+      const first = r.sources.find((s) => s.active) ?? r.sources[0];
+      if (first) setListingSource(first.id);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const crawl = async () => {
-    setBusy(true);
+  const wrap = async (key: string, fn: () => Promise<void>) => {
+    setBusy(key);
     setError(null);
-    setSummary(null);
+    setNote(null);
     try {
+      await fn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '失敗しました');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const crawl = () =>
+    wrap('crawl', async () => {
       const urlList = urls.split(/[\n,]/).map((u) => u.trim()).filter(Boolean);
       const res = await api.crawl({ source, urls: urlList });
       setSummary(res.summary);
       setUrls('');
       await reload();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'クロール失敗');
-    } finally {
-      setBusy(false);
-    }
-  };
+    });
+
+  const crawlListing = () =>
+    wrap('listing', async () => {
+      const res = await api.crawlListing({ source: listingSource || undefined });
+      setListingSummary(res.summary);
+      await reload();
+    });
+
+  const enrichAll = () =>
+    wrap('enrich-all', async () => {
+      const res = await api.enrich({ limit: 20 });
+      setNote(`IR/理念取得: ${res.summary.enriched}/${res.summary.targets} 社`);
+      await reload();
+    });
+
+  const enrichOne = (id: string) =>
+    wrap(`enrich-${id}`, async () => {
+      await api.enrich({ company_id: id });
+      const p = await api.profile(id).catch(() => null);
+      if (p) setProfiles((m) => ({ ...m, [id]: p.profile }));
+      else setNote('このサイトからは IR/理念を取得できませんでした');
+    });
+
+  const loadProfile = (id: string) =>
+    wrap(`profile-${id}`, async () => {
+      const p = await api.profile(id);
+      setProfiles((m) => ({ ...m, [id]: p.profile }));
+    });
 
   return (
     <div>
       <h2>企業プール</h2>
       <p style={{ fontSize: 13, opacity: 0.8 }}>
-        企業ページをクロールして基礎情報を自動収集します。収集した企業は「おすすめ企業」のマッチング対象になります。
-        企業情報は公開情報のみを保持します。
+        新卒採用企業・ゲーム企業(募集あり)を listing からクロールしてストックし、各社サイトを巡回して IR/企業理念を取得します。
+        robots.txt 遵守・低速・礼節UA で実行します。公開情報のみ保持します。
       </p>
 
+      {/* listing クロール */}
       <div className="foundation-form card">
-        <h3 style={{ marginTop: 0 }}>クロール</h3>
+        <h3 style={{ marginTop: 0 }}>新卒/ゲーム企業を発見 (listing)</h3>
+        <p style={{ fontSize: 12, opacity: 0.7, margin: 0 }}>
+          条件: 新卒採用あり、または ゲーム企業かつ募集あり。ソースは data/companies/listing-sources.json で設定。
+        </p>
+        <label>
+          ソース
+          <select value={listingSource} onChange={(e) => setListingSource(e.target.value)}>
+            {listingSources.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.id} ({s.kind}){s.active ? '' : ' [無効]'}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button onClick={crawlListing} disabled={busy !== null}>
+          {busy === 'listing' ? '発見中…' : 'listing クロール'}
+        </button>
+        {listingSummary && (
+          <p style={{ fontSize: 13 }}>
+            発見 {listingSummary.discovered} / ストック {listingSummary.stocked} / 除外 {listingSummary.skipped}
+            {listingSummary.robotsBlocked > 0 && ` / robots遮断 ${listingSummary.robotsBlocked}`}
+            {listingSummary.errors.length > 0 && ` / エラー ${listingSummary.errors.length}`}
+          </p>
+        )}
+      </div>
+
+      {/* 手動 URL クロール */}
+      <div className="foundation-form card">
+        <h3 style={{ marginTop: 0 }}>URL 指定クロール</h3>
         <label>
           ソース
           <select value={source} onChange={(e) => setSource(e.target.value)}>
@@ -71,58 +152,80 @@ export function Companies() {
         {source === 'manual' && (
           <label>
             URL (改行 / カンマ区切り)
-            <textarea
-              value={urls}
-              onChange={(e) => setUrls(e.target.value)}
-              rows={4}
-              placeholder="https://example.com/recruit&#10;https://other.co.jp/about"
-            />
+            <textarea value={urls} onChange={(e) => setUrls(e.target.value)} rows={3} placeholder="https://example.com/recruit" />
           </label>
         )}
-        {source === 'seed-file' && (
-          <p style={{ fontSize: 12, opacity: 0.7 }}>
-            サーバー側の data/companies/seeds.json を読み込んでクロールします。
-          </p>
-        )}
-        <button onClick={crawl} disabled={busy}>
-          {busy ? 'クロール中…' : 'クロール実行'}
+        <button onClick={crawl} disabled={busy !== null}>
+          {busy === 'crawl' ? 'クロール中…' : 'クロール実行'}
         </button>
-        {error && <p style={{ color: '#c62828' }}>{error}</p>}
         {summary && (
-          <p style={{ fontSize: 13 }}>
-            取得 {summary.fetched} / 抽出 {summary.extracted} / 登録 {summary.upserted}
-            {summary.skipped > 0 && ` / スキップ ${summary.skipped}`}
-            {summary.errors.length > 0 && ` / エラー ${summary.errors.length}`}
-          </p>
+          <p style={{ fontSize: 13 }}>取得 {summary.fetched} / 登録 {summary.upserted}</p>
         )}
       </div>
+
+      {error && <p style={{ color: '#c62828' }}>{error}</p>}
+      {note && <p style={{ color: '#2e7d32' }}>{note}</p>}
 
       <div className="card">
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
           <h3 style={{ margin: 0, flex: 1 }}>登録済み ({total})</h3>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && void reload()}
-            placeholder="検索"
-          />
+          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void reload()} placeholder="検索" />
           <button onClick={() => void reload()}>検索</button>
+          <button onClick={enrichAll} disabled={busy !== null}>
+            {busy === 'enrich-all' ? 'IR/理念取得中…' : '未取得をIR/理念取得'}
+          </button>
         </div>
         {companies.length === 0 && <p>まだ企業がありません</p>}
         {companies.map((c) => (
           <div key={c.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
               <strong>{c.name}</strong>
-              {c.industry && <span style={{ fontSize: 12, opacity: 0.7 }}>{c.industry}</span>}
+              <span style={{ fontSize: 11, display: 'flex', gap: 4 }}>
+                {c.is_newgrad && <Badge color="#1565c0">新卒</Badge>}
+                {c.is_game && <Badge color="#6a1b9a">ゲーム</Badge>}
+                {c.has_opening && <Badge color="#2e7d32">募集</Badge>}
+              </span>
             </div>
             {c.description && <div style={{ fontSize: 13, opacity: 0.85 }}>{c.description}</div>}
             <div style={{ fontSize: 12, opacity: 0.7 }}>
+              {c.industry && <span>{c.industry} · </span>}
               {c.roles.length > 0 && <span>職種: {c.roles.join(', ')} </span>}
-              {c.tags.length > 0 && <span>· {c.tags.join(', ')}</span>}
+              {c.stock_reason && <span>· {c.stock_reason}</span>}
             </div>
+            <div style={{ fontSize: 12, marginTop: 2, display: 'flex', gap: 10, alignItems: 'center' }}>
+              {c.url && <a href={c.url} target="_blank" rel="noreferrer">サイト</a>}
+              {c.recruit_url && <a href={c.recruit_url} target="_blank" rel="noreferrer">採用</a>}
+              <button onClick={() => (profiles[c.id] ? loadProfile(c.id) : enrichOne(c.id))} disabled={busy !== null}>
+                {busy === `enrich-${c.id}` ? '取得中…' : profiles[c.id] ? 'IR/理念を再取得しない' : 'IR/理念取得'}
+              </button>
+              {!profiles[c.id] && (
+                <button onClick={() => loadProfile(c.id)} disabled={busy !== null} style={{ fontSize: 11 }}>
+                  保存済を表示
+                </button>
+              )}
+            </div>
+            {profiles[c.id] && <ProfileView p={profiles[c.id]!} />}
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function Badge({ color, children }: { color: string; children: ReactNode }) {
+  return (
+    <span style={{ background: color, color: '#fff', borderRadius: 4, padding: '1px 6px' }}>{children}</span>
+  );
+}
+
+function ProfileView({ p }: { p: CompanyProfile }) {
+  return (
+    <div style={{ marginTop: 6, padding: 8, background: 'rgba(0,0,0,0.03)', borderRadius: 6, fontSize: 13 }}>
+      {p.philosophy && <div><strong>理念:</strong> {p.philosophy}</div>}
+      {p.values.length > 0 && <div><strong>バリュー:</strong> {p.values.join(' / ')}</div>}
+      {p.business && <div><strong>事業:</strong> {p.business}</div>}
+      {p.ir_summary && <div><strong>IR:</strong> {p.ir_summary}</div>}
+      {!p.philosophy && !p.business && !p.ir_summary && p.values.length === 0 && <div style={{ opacity: 0.6 }}>情報が取得できていません</div>}
     </div>
   );
 }

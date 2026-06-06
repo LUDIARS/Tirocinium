@@ -1,0 +1,23 @@
+[
+  {
+    "id": "job-aggregator",
+    "kind": "job-aggregator",
+    "urls": ["https://example.com/jobs/newgrad"],
+    "enabled": false,
+    "note": "汎用求人 aggregator の新卒一覧ページ。robots許可範囲のみ。実URLに差し替えて enabled:true で有効化"
+  },
+  {
+    "id": "game",
+    "kind": "game",
+    "urls": ["https://example.com/game-companies"],
+    "enabled": false,
+    "note": "ゲーム業界特化の企業/求人一覧。実URLに差し替えて enabled:true で有効化"
+  },
+  {
+    "id": "newgrad-nav",
+    "kind": "newgrad-nav",
+    "urls": ["https://example.com/newgrad-nav"],
+    "enabled": false,
+    "note": "大手新卒ナビ。ToS が厳しく anti-bot 強め。既定 disabled。COMPANY_LISTING_OPTIN_SOURCES=newgrad-nav で明示 opt-in したときのみ起動"
+  }
+]

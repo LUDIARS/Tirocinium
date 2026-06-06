@@ -54,11 +54,22 @@ export const config = {
   companyCrawl: {
     maxPages: num('COMPANY_CRAWL_MAX_PAGES', 20),
     fetchTimeoutMs: num('COMPANY_CRAWL_FETCH_TIMEOUT_MS', 15_000),
+    // 同一ドメインへの最小アクセス間隔 (ms)。 robots の Crawl-delay と長い方を採用。
+    minIntervalMs: num('COMPANY_CRAWL_MIN_INTERVAL_MS', 2_000),
+    // robots.txt を尊重するか。 既定 true (false でも UA / レート制限は維持)。
+    respectRobots: (process.env.COMPANY_CRAWL_RESPECT_ROBOTS ?? '1') !== '0',
+    // enrichment で 1 社あたり巡回するページ数上限。
+    enrichMaxPages: num('COMPANY_ENRICH_MAX_PAGES', 5),
     userAgent:
       process.env.COMPANY_CRAWL_USER_AGENT ??
       'TirociniumBot/0.1 (+https://github.com/LUDIARS/Tirocinium)',
     // 設定時はこの user_id のみクロール可。 空なら全 authed user 可 (dev)。
     adminIds: (process.env.COMPANY_CRAWL_ADMIN_IDS ?? '')
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean),
+    // enabled=false の listing source を明示 opt-in する id 群 (例: newgrad-nav)。
+    listingOptInSources: (process.env.COMPANY_LISTING_OPTIN_SOURCES ?? '')
       .split(',')
       .map((v) => v.trim())
       .filter(Boolean),
