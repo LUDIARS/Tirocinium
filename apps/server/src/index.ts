@@ -9,6 +9,8 @@ import { summary } from './routes/summary.js';
 import { feedback } from './routes/feedback.js';
 import { ftRuns } from './routes/ft_runs.js';
 import { training } from './routes/training.js';
+import { companies } from './routes/companies.js';
+import { recommendRoute } from './routes/recommend.js';
 import { attachSessionWs } from './ws/handler.js';
 import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
 import { startDiscordBridge } from './discord/bridge.js';
@@ -23,6 +25,8 @@ app.route('/api/v1/personas', personas);
 app.route('/api/v1/feedback', feedback);
 app.route('/api/v1/ft-runs', ftRuns);
 app.route('/api/v1/training', training);
+app.route('/api/v1/companies', companies);
+app.route('/api/v1/recommend', recommendRoute);
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404));
 

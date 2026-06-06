@@ -325,6 +325,19 @@ Cernere 認証 + LLM proxy で複合モデルだけクラウド呼びする mode
 
 ---
 
+## 5.6 おすすめ企業 + 企業クロール (NEW)
+
+ES から **おすすめ企業** を返す機能 (①) と、 企業ページを **クロールして自動収集** する機能 (②)。
+② が集めた企業プール (`companies`) を ① がマッチング対象にする。 詳細は `spec/companies/README.md`。
+
+- ① は ES (request scope or Memoria RAG) + 弱点プロファイル + 志望条件で企業プールを採点し、
+  Sonnet で rerank + 理由づけ (鍵なし時は heuristic)。 結果は `company_recommendations` に履歴化。
+- ② は `manual` (URL 指定) / `seed-file` (data/companies/seeds.json) ソースで fetch → 抽出
+  (Haiku、 失敗時 heuristic) → 正規化 → upsert。 礼節 UA + maxPages 上限 + 逐次。
+- 企業情報は公開情報のため保持可。 ES 本文は保持しない (§6 と整合)。
+
+---
+
 ## 6. データ責務境界
 
 LUDIARS ルール: 個人データは Cernere 単一情報源、自前 DB に持たない。
@@ -336,6 +349,7 @@ Tirocinium が DB に持つもの:
 | evaluation score (集計値) | 面接トランスクリプト生データ (Memoria 永続化) |
 | reservation slot 状態 | ユーザ氏名 / 連絡先 |
 | training_data の **参照** (id + Memoria URI) | training_data 本体 |
+| 企業の**公開情報** (`companies`) / おすすめ**結果** (`company_recommendations`、理由は要約) | ES から導出した本文の逐語コピー |
 
 = Tirocinium 自体は「予約台帳 + 集計 + LLM オーケストレータ」に徹する。
 
