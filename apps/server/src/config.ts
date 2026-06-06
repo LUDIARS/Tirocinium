@@ -49,6 +49,20 @@ export const config = {
       .filter(Boolean),
     commandPrefix: process.env.TIROCINIUM_DISCORD_COMMAND_PREFIX ?? '!tr',
   },
+  // 企業クロール (POST /api/v1/companies/crawl) 設定。
+  // 外部 fetch を伴うため maxPages で 1 回あたりの取得数を絞り、 礼節 UA を名乗る。
+  companyCrawl: {
+    maxPages: num('COMPANY_CRAWL_MAX_PAGES', 20),
+    fetchTimeoutMs: num('COMPANY_CRAWL_FETCH_TIMEOUT_MS', 15_000),
+    userAgent:
+      process.env.COMPANY_CRAWL_USER_AGENT ??
+      'TirociniumBot/0.1 (+https://github.com/LUDIARS/Tirocinium)',
+    // 設定時はこの user_id のみクロール可。 空なら全 authed user 可 (dev)。
+    adminIds: (process.env.COMPANY_CRAWL_ADMIN_IDS ?? '')
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean),
+  },
   // セッション作成 (POST /api/v1/sessions) の per-user レート制限。
   // 乱用 / 暴走クライアントによる予約枠・LLM コストの食い潰しを防ぐ。
   sessionRateLimit: {

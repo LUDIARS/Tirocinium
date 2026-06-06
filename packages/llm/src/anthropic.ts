@@ -20,6 +20,10 @@ const MODEL_DEFAULTS = {
   CRITIC: 'claude-opus-4-7',
   EXAMINEE: 'claude-haiku-4-5-20251001',
   JUDGE: 'claude-haiku-4-5-20251001',
+  // 企業ページからの構造化抽出 (安価・大量) は Haiku。
+  EXTRACTOR: 'claude-haiku-4-5-20251001',
+  // ES × 企業の適合判断 (要推論) は Sonnet。
+  RECOMMENDER: 'claude-sonnet-4-6',
 } as const;
 
 export type ModelRole = keyof typeof MODEL_DEFAULTS;
@@ -33,6 +37,8 @@ const MODEL_PROFILES: Record<string, Partial<Record<ModelRole, string>>> = {
     RESPONSE: 'claude-opus-4-7',
     EXAMINEE: 'claude-opus-4-7',
     JUDGE: 'claude-opus-4-7',
+    EXTRACTOR: 'claude-opus-4-7',
+    RECOMMENDER: 'claude-opus-4-7',
   },
   // 倹約: 上位 LLM (評価/サマリ/critic) を Sonnet に寄せる (低コスト)
   economy: {

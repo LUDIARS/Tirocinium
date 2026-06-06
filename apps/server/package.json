@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",
+    "@tirocinium/companies": "*",
     "@tirocinium/llm": "*",
     "@tirocinium/training": "*",
     "@tirocinium/voice": "*",

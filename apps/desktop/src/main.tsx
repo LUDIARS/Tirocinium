@@ -10,6 +10,8 @@ import { SessionLive } from './pages/SessionLive.js';
 import { SessionSummary } from './pages/SessionSummary.js';
 import { PersonaCatalog } from './pages/PersonaCatalog.js';
 import { TrainingData } from './pages/TrainingData.js';
+import { Recommend } from './pages/Recommend.js';
+import { Companies } from './pages/Companies.js';
 import { Reservation } from './pages/Reservation.js';
 import { Settings } from './pages/Settings.js';
 import './styles.css';
@@ -27,6 +29,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route path="session/:id/summary" element={<SessionSummary />} />
               <Route path="personas" element={<PersonaCatalog />} />
               <Route path="training" element={<TrainingData />} />
+              <Route path="recommend" element={<Recommend />} />
+              <Route path="companies" element={<Companies />} />
               <Route path="reservation" element={<Reservation />} />
               <Route path="settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />

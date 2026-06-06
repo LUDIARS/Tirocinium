@@ -25,6 +25,8 @@ DB 系: **PostgreSQL** (LUDIARS 共通 infra 流用、port 5432)。
 | `reservation_slots` | 30 分単位の予約枠 |
 | `reservations` | ユーザの予約レコード |
 | `users` | Cernere user_id mirror (FK 用、PII は持たない) |
+| `companies` | クロールで集めた企業プール (公開情報、§spec/companies) |
+| `company_recommendations` | ES から導出したおすすめ企業の結果履歴 (導出ガイダンス) |
 
 ---
 
@@ -291,6 +293,54 @@ CREATE TABLE ft_loop_runs (
 );
 
 CREATE INDEX idx_ft_status ON ft_loop_runs(status, started_at);
+```
+
+---
+
+## companies (migration 003)
+
+クロールで集めた企業の**公開情報**。 個人データではないため保持してよい。
+`normalized_name` (lower + 法人格/記号除去) で dedup。
+
+```sql
+CREATE TABLE companies (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name            TEXT NOT NULL,
+  normalized_name TEXT NOT NULL UNIQUE,
+  url             TEXT NOT NULL DEFAULT '',
+  industry        TEXT NOT NULL DEFAULT '',
+  description     TEXT NOT NULL DEFAULT '',
+  roles           TEXT[] NOT NULL DEFAULT '{}',  -- planner/programmer/designer/sound
+  tags            TEXT[] NOT NULL DEFAULT '{}',
+  location        TEXT NOT NULL DEFAULT '',
+  size            TEXT NOT NULL DEFAULT '',
+  source          TEXT NOT NULL DEFAULT 'unknown',
+  source_url      TEXT NOT NULL DEFAULT '',
+  crawled_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- GIN(roles), GIN(tags), industry
+```
+
+upsert は空でない値だけ更新し、 クロール毎の劣化 (新規取得が薄い場合) を防ぐ。
+
+---
+
+## company_recommendations (migration 003)
+
+ES から導出した **おすすめ企業の結果**。 ES 本文は持たず、 理由は要約で保持。
+
+```sql
+CREATE TABLE company_recommendations (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id       UUID NOT NULL REFERENCES users(id),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  query         JSONB NOT NULL DEFAULT '{}',  -- {target_role, target_company, tags, weak_axes}
+  method        TEXT NOT NULL CHECK (method IN ('llm','heuristic')),
+  model         TEXT NOT NULL DEFAULT 'none',
+  items         JSONB NOT NULL DEFAULT '[]'   -- [{company_id, name, score, reasons[], concerns[]}]
+);
+-- idx_company_reco_user (user_id, created_at DESC)
 ```
 
 ---
