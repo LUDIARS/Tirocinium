@@ -14,6 +14,7 @@ import { recommendRoute } from './routes/recommend.js';
 import { attachSessionWs } from './ws/handler.js';
 import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
 import { startDiscordBridge } from './discord/bridge.js';
+import { hydrateSecrets } from './secrets/hydrate.js';
 
 const app = new Hono();
 
@@ -47,7 +48,9 @@ const server = serve(
 attachSessionWs(server as unknown as Parameters<typeof attachSessionWs>[0]);
 startTickScheduler();
 let stopDiscordBridge: (() => void) | null = null;
-void startDiscordBridge()
+// secret-agent (Excubitor) から Discord bot token 等を config に注入してから Discord 起動。
+void hydrateSecrets()
+  .then(() => startDiscordBridge())
   .then((stop) => {
     stopDiscordBridge = stop;
   })

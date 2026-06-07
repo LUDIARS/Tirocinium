@@ -2,9 +2,23 @@
 
 Tr can run interview input/output through Discord when the server has a Discord bot token.
 
-## Environment
+## Secret source — Excubitor secret-agent (推奨)
 
-Set these variables before starting `apps/server`.
+Discord bot token 等は **Excubitor secret-agent から起動時に取得**できる (env 不使用)。
+`apps/server` は boot 時に `hydrateSecrets()` で service code `tirocinium` の以下を agent から引き、
+`config.discord.*` に注入する (memory-only、 agent 不通時は下記 env 値に fallback):
+
+```
+TIROCINIUM_DISCORD_BOT_TOKEN, TIROCINIUM_DISCORD_GUILD_ID, TIROCINIUM_DISCORD_CATEGORY_ID,
+TIROCINIUM_DISCORD_TEXT_CHANNEL_IDS, TIROCINIUM_DISCORD_COMMAND_PREFIX
+```
+
+Excubitor 側で service `tirocinium` の Infisical マッピングを設定し、 Infisical に上記キーを入れる
+(詳細は `spec/notion/README.md` §3 / Excubitor `spec/secret-agent.md`)。`@tirocinium/secrets` 経由。
+
+## Environment (agent を使わない場合の dev fallback)
+
+agent 不使用なら従来通り env で渡す。 `apps/server` 起動前に設定:
 
 ```bat
 set TIROCINIUM_DISCORD_BOT_TOKEN=<bot-token>
