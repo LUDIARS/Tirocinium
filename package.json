@@ -19,7 +19,8 @@
     "ft-loop": "tsx scripts/ft-loop/index.ts",
     "sim-loop": "tsx scripts/sim-loop/index.ts",
     "sim-batch": "tsx scripts/sim-batch/index.ts",
-    "sim-viewer": "tsx scripts/sim-viewer/index.ts"
+    "sim-viewer": "tsx scripts/sim-viewer/index.ts",
+    "notion-crawl": "tsx scripts/notion-crawl/index.ts"
   },
   "engines": {
     "node": ">=22"
