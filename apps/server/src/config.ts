@@ -80,4 +80,6 @@ export const config = {
     windowMs: num('SESSION_RATELIMIT_WINDOW_MS', 60_000),
     max: num('SESSION_RATELIMIT_MAX', 10),
   },
-} as const;
+};
+// 注: `as const` は付けない。 起動時に secret-agent から解決した値 (Discord token 等) を
+// config に注入 (hydrate) するため mutable にしている。 secrets/hydrate.ts 参照。
