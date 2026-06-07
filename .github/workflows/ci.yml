@@ -36,6 +36,12 @@ jobs:
       - name: Build packages/training
         run: npm --workspace packages/training run build
 
+      - name: Build packages/companies
+        run: npm --workspace packages/companies run build
+
+      - name: Build packages/notion
+        run: npm --workspace packages/notion run build
+
       - name: Build apps/server
         run: npm --workspace apps/server run build
 
@@ -50,6 +56,12 @@ jobs:
 
       - name: Test packages/training
         run: npm --workspace packages/training test
+
+      - name: Test packages/companies
+        run: npm --workspace packages/companies test
+
+      - name: Test packages/notion
+        run: npm --workspace packages/notion test
 
       - name: Test apps/server
         run: npm --workspace apps/server test
