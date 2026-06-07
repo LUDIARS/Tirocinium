@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyDiscordSecrets } from './hydrate.js';
+import { applyDiscordSecrets } from './apply.js';
 
 type Discord = {
   botToken: string;
