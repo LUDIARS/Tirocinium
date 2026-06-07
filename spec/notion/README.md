@@ -52,19 +52,36 @@ crawlDatabase(api, databaseId, opts)
 
 ---
 
-## 3. CLI (`scripts/notion-crawl`)
+## 3. 設定取得 (Excubitor secret-agent 経由、 env 不使用)
+
+クローラーの設定 (Notion token / DB ID / オプション) は **Excubitor secret-agent から
+runtime で取得**する (`@tirocinium/secrets`)。env もファイルも使わない。
 
 ```
-NOTION_TOKEN=secret_xxx npm run notion-crawl -- <DATABASE_ID> [options]
+service code 'tirocinium' の Infisical マッピングに以下を入れる:
+  NOTION_TOKEN, NOTION_DATABASE_ID,
+  NOTION_VERSION?, NOTION_MIN_INTERVAL_MS?, NOTION_MAX_DEPTH?, NOTION_MAX_PAGES?, NOTION_INCLUDE_CHILD_DB?
+```
+
+起動時に `resolveSecrets('tirocinium', { keys: [...] })` で agent (`POST /api/v1/secrets/resolve`)
+を叩き、 値は process memory にのみ載せる。agent / token の解決は [[Excubitor secret-agent]]
+(`spec/secret-agent.md` 相当) と同じ規約: `EXCUBITOR_URL` (既定 127.0.0.1:17332) +
+`EXCUBITOR_AGENT_TOKEN` or token ファイル。
+
+## 4. CLI (`scripts/notion-crawl`)
+
+```
+npm run notion-crawl                    # 全て agent から (NOTION_DATABASE_ID 含む)
+npm run notion-crawl -- <DATABASE_ID>   # DB ID だけ明示、 token は agent
+npm run notion-crawl -- --token secret_x <DATABASE_ID>   # token 明示 (agent 回避・緊急用)
 ```
 
 | option | 説明 |
 |---|---|
-| `--token <t>` | トークン (env `NOTION_TOKEN` でも可) |
-| `--max-depth <n>` / `--max-pages <n>` | クロール範囲 |
-| `--no-child-db` | child_database を辿らない |
-| `--out <dir>` | 出力先 (既定 `data/notion`) |
-| `--stdout` | ファイルに書かず標準出力へ |
+| `--service <code>` | secret-agent の service code (既定 `tirocinium`) |
+| `--token <t>` | Notion token 明示。 **指定時は agent を引かない** (緊急/オフライン用) |
+| `--max-depth <n>` / `--max-pages <n>` / `--no-child-db` | クロール範囲 (agent 値を上書き) |
+| `--out <dir>` (既定 `data/notion`) / `--stdout` | 出力 |
 
 出力は `data/notion/<DATABASE_ID>/<timestamp>.json` (= `CrawlResult`)。
 **private なページ内容を含むため `data/notion/` は gitignore** 済。
