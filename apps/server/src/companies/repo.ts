@@ -1,4 +1,4 @@
-import { sql } from '../db/index.js';
+import { sql, isSqlite } from '../db/index.js';
 import type { Company, NormalizedCompany } from '@tirocinium/companies';
 
 const SELECT_COLS = sql`
@@ -24,8 +24,8 @@ export async function listCompanies(filter: CompanyFilter = {}): Promise<Company
   return sql<Company[]>`
     SELECT ${SELECT_COLS} FROM companies
     WHERE TRUE
-      ${filter.role ? sql`AND ${filter.role} = ANY(roles)` : sql``}
-      ${filter.tag ? sql`AND ${filter.tag} = ANY(tags)` : sql``}
+      ${filter.role ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(roles) WHERE value = ${filter.role})` : sql`AND ${filter.role} = ANY(roles)`) : sql``}
+      ${filter.tag ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(tags) WHERE value = ${filter.tag})` : sql`AND ${filter.tag} = ANY(tags)`) : sql``}
       ${filter.industry ? sql`AND industry = ${filter.industry}` : sql``}
       ${filter.q ? sql`AND (name ILIKE ${'%' + filter.q + '%'} OR description ILIKE ${'%' + filter.q + '%'})` : sql``}
     ORDER BY updated_at DESC
@@ -83,7 +83,7 @@ export async function upsertCompany(
   const hasOpening = signals.hasOpening ?? false;
   const recruitUrl = signals.recruitUrl ?? '';
   const stockReason = signals.stockReason ?? '';
-  const rows = await sql<{ inserted: boolean }[]>`
+  const upsert = sql`
     INSERT INTO companies
       (name, normalized_name, url, industry, description, roles, tags, location, size, source, source_url,
        is_newgrad, is_game, has_opening, recruit_url, stock_reason)
@@ -109,8 +109,14 @@ export async function upsertCompany(
       recruit_url = COALESCE(NULLIF(EXCLUDED.recruit_url, ''), companies.recruit_url),
       stock_reason= COALESCE(NULLIF(EXCLUDED.stock_reason, ''), companies.stock_reason),
       updated_at  = now()
-    RETURNING (xmax = 0) AS inserted
   `;
+  // SQLite は xmax を持たないので事前照会で inserted/updated を判定。 PG は xmax で 1 クエリ判定。
+  if (isSqlite) {
+    const existing = await sql`SELECT 1 AS e FROM companies WHERE normalized_name = ${c.normalized_name}`;
+    await upsert;
+    return existing.length > 0 ? 'updated' : 'inserted';
+  }
+  const rows = await sql<{ inserted: boolean }[]>`${upsert} RETURNING (xmax = 0) AS inserted`;
   return rows[0]?.inserted ? 'inserted' : 'updated';
 }
 

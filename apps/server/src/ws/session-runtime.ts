@@ -391,7 +391,7 @@ export class SessionRuntime {
         INSERT INTO evaluations (session_id, turn_range, axes, comment, hints, model)
         VALUES (
           ${this.sessionId},
-          int4range(${window + 1}, ${upToTurnNo}, '[]'),
+          ${`[${window + 1},${upToTurnNo}]`},
           ${sql.json(ev.axes as never)},
           ${ev.comment},
           ${sql.json(ev.hints as never)},

@@ -4,7 +4,11 @@
 個人データ (ES 本文 / 面接トランスクリプト) は **持たない** (Memoria に逃がす)。
 ローカルモードはこの schema の subset を SQLite で持つ。
 
-DB 系: **PostgreSQL** (LUDIARS 共通 infra 流用、port 5432)。
+DB 系: **SQLite (既定 / ローカル) ↔ PostgreSQL (server/共有)** の 2 バックエンド。
+`DATABASE_URL` で切替 — `postgres://…` は PG、 空/`sqlite:`/`file:`/`*.sqlite` は SQLite (既定はローカル SQLite で docker/Postgres 不要)。
+SQLite は `apps/server/src/db/sqlite-driver.ts` の **postgres 風互換 shim** (タグ付き `sql` / `sql.json` / `sql.unsafe` / `sql.begin` を node:sqlite 上で再実装) が吸収し、 既存リポは原則無改変。 方言は `now()→datetime('now')` / `::cast` 除去 / `FOR UPDATE` 除去 / `uuid_generate_v4`・`cardinality` をカスタム関数で移植。 schema は `migrations/`(PG) と `migrations-sqlite/`(SQLite) の二系統。
+
+> SQLite 側の既知ギャップ: 予約系 (`reservation_*`) の `EXTRACT`/`date_trunc`/`interval` は未移植 (ローカルモードは予約を持たない設計のため許容)。 真偽値は 0/1 で返る (PG は boolean)。
 
 ---
 
