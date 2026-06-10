@@ -55,3 +55,10 @@ export {
   type GameCompanyResearchRecord,
   type GameSeedMapped,
 } from './game-seed.js';
+export {
+  selectInterviewLinks,
+  normalizeUrl,
+  NEWGRAD_IMAGE_INSTRUCTION,
+  parseNewgradImage,
+  type NewgradImage,
+} from './interview.js';
