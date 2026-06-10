@@ -38,6 +38,14 @@ export async function getCompany(id: string): Promise<Company | null> {
   return rows[0] ?? null;
 }
 
+/** dedup キー (normalized_name) で 1 社引く。 upsert 直後に id を得る用途。 */
+export async function getCompanyByNormalizedName(normalizedName: string): Promise<Company | null> {
+  const rows = await sql<Company[]>`
+    SELECT ${SELECT_COLS} FROM companies WHERE normalized_name = ${normalizedName}
+  `;
+  return rows[0] ?? null;
+}
+
 /** recommend 用に全件 (上限あり) を取得する。 candidate scoring 対象。 */
 export async function allCompaniesForScoring(limit = 1000): Promise<Company[]> {
   return sql<Company[]>`
