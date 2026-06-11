@@ -17,18 +17,32 @@ export type CompanyFilter = {
   offset?: number;
 };
 
-/** フィルタ付き企業一覧。 role/tag は配列包含、 q は name/description の部分一致。 */
-export async function listCompanies(filter: CompanyFilter = {}): Promise<Company[]> {
+export type CompanyWithStats = Company & {
+  article_count: number;
+  has_newgrad_image: boolean;
+};
+
+/** フィルタ付き企業一覧。 role/tag は配列包含、 q は name/description の部分一致。
+ *  article_count (インタビュー記事数) と has_newgrad_image (新卒像サマリ有無) を付加して返す。 */
+export async function listCompanies(filter: CompanyFilter = {}): Promise<CompanyWithStats[]> {
   const limit = Math.min(Math.max(filter.limit ?? 50, 1), 200);
   const offset = Math.max(filter.offset ?? 0, 0);
-  return sql<Company[]>`
-    SELECT ${SELECT_COLS} FROM companies
+  return sql<CompanyWithStats[]>`
+    SELECT
+      c.id, c.name, c.normalized_name, c.url, c.industry, c.description,
+      c.roles, c.tags, c.location, c.size, c.source, c.source_url,
+      c.is_newgrad, c.is_game, c.has_opening, c.recruit_url, c.stock_reason,
+      c.crawled_at, c.updated_at,
+      (SELECT count(*) FROM company_interview_articles a WHERE a.company_id = c.id) AS article_count,
+      CASE WHEN EXISTS(SELECT 1 FROM company_newgrad_role_images r WHERE r.company_id = c.id)
+           THEN TRUE ELSE FALSE END AS has_newgrad_image
+    FROM companies c
     WHERE TRUE
-      ${filter.role ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(roles) WHERE value = ${filter.role})` : sql`AND ${filter.role} = ANY(roles)`) : sql``}
-      ${filter.tag ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(tags) WHERE value = ${filter.tag})` : sql`AND ${filter.tag} = ANY(tags)`) : sql``}
-      ${filter.industry ? sql`AND industry = ${filter.industry}` : sql``}
-      ${filter.q ? sql`AND (name ILIKE ${'%' + filter.q + '%'} OR description ILIKE ${'%' + filter.q + '%'})` : sql``}
-    ORDER BY updated_at DESC
+      ${filter.role ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(c.roles) WHERE value = ${filter.role})` : sql`AND ${filter.role} = ANY(c.roles)`) : sql``}
+      ${filter.tag ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(c.tags) WHERE value = ${filter.tag})` : sql`AND ${filter.tag} = ANY(c.tags)`) : sql``}
+      ${filter.industry ? sql`AND c.industry = ${filter.industry}` : sql``}
+      ${filter.q ? sql`AND (c.name ILIKE ${'%' + filter.q + '%'} OR c.description ILIKE ${'%' + filter.q + '%'})` : sql``}
+    ORDER BY c.updated_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
 }

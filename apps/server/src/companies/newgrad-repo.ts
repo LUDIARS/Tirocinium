@@ -47,6 +47,25 @@ export async function upsertInterviewArticle(
   `;
 }
 
+export type StoredNewgradRoleImage = {
+  role: string;
+  summary: string;
+  themes: string[];
+  article_count: number;
+  model: string;
+  fetched_at: string;
+};
+
+/** 会社の役職別新卒像を全件取得。 */
+export async function getNewgradRoleImages(companyId: string): Promise<StoredNewgradRoleImage[]> {
+  return sql<StoredNewgradRoleImage[]>`
+    SELECT role, summary, themes, article_count, model, fetched_at
+    FROM company_newgrad_role_images
+    WHERE company_id = ${companyId}
+    ORDER BY role
+  `;
+}
+
 /** 会社の保存済みインタビュー記事を取得 (要約・他機能の素材)。 */
 export async function listInterviewArticles(companyId: string, limit = 200): Promise<StoredArticle[]> {
   return sql<StoredArticle[]>`

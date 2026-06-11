@@ -6,6 +6,7 @@ import {
   type ListingSource,
   type ListingCrawlSummary,
   type CompanyProfile,
+  type NewgradRoleImage,
 } from '../api/companies.js';
 
 export function Companies() {
@@ -27,6 +28,8 @@ export function Companies() {
   const [listingSummary, setListingSummary] = useState<ListingCrawlSummary | null>(null);
 
   const [profiles, setProfiles] = useState<Record<string, CompanyProfile>>({});
+  const [newgradImages, setNewgradImages] = useState<Record<string, NewgradRoleImage[]>>({});
+  const [expandedNewgrad, setExpandedNewgrad] = useState<Set<string>>(new Set());
 
   const reload = async () => {
     try {
@@ -101,6 +104,21 @@ export function Companies() {
       const p = await api.profile(id);
       setProfiles((m) => ({ ...m, [id]: p.profile }));
     });
+
+  const toggleNewgrad = async (id: string) => {
+    setExpandedNewgrad((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); return next; }
+      next.add(id);
+      return next;
+    });
+    if (!newgradImages[id]) {
+      await wrap(`newgrad-${id}`, async () => {
+        const r = await api.newgrad(id);
+        setNewgradImages((m) => ({ ...m, [id]: r.roles }));
+      });
+    }
+  };
 
   return (
     <div>
@@ -180,10 +198,15 @@ export function Companies() {
           <div key={c.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
               <strong>{c.name}</strong>
-              <span style={{ fontSize: 11, display: 'flex', gap: 4 }}>
-                {c.is_newgrad && <Badge color="#1565c0">新卒</Badge>}
+              <span style={{ fontSize: 11, display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                {c.is_newgrad && <Badge color="#1565c0">新卒採用あり</Badge>}
+                {!c.is_newgrad && <Badge color="#757575">新卒採用不明</Badge>}
                 {c.is_game && <Badge color="#6a1b9a">ゲーム</Badge>}
-                {c.has_opening && <Badge color="#2e7d32">募集</Badge>}
+                {c.has_opening && <Badge color="#2e7d32">募集中</Badge>}
+                {c.article_count > 0 && (
+                  <Badge color="#e65100">記事 {c.article_count} 件</Badge>
+                )}
+                {profiles[c.id] && <Badge color="#37474f">IR/理念</Badge>}
               </span>
             </div>
             {c.description && <div style={{ fontSize: 13, opacity: 0.85 }}>{c.description}</div>}
@@ -203,8 +226,16 @@ export function Companies() {
                   保存済を表示
                 </button>
               )}
+              {c.has_newgrad_image && (
+                <button onClick={() => void toggleNewgrad(c.id)} disabled={busy === `newgrad-${c.id}`} style={{ fontSize: 11 }}>
+                  {busy === `newgrad-${c.id}` ? '読込中…' : expandedNewgrad.has(c.id) ? '新卒像を閉じる' : '新卒像を表示'}
+                </button>
+              )}
             </div>
             {profiles[c.id] && <ProfileView p={profiles[c.id]!} />}
+            {expandedNewgrad.has(c.id) && newgradImages[c.id] && (
+              <NewgradImageView roles={newgradImages[c.id]!} />
+            )}
           </div>
         ))}
       </div>
@@ -215,6 +246,37 @@ export function Companies() {
 function Badge({ color, children }: { color: string; children: ReactNode }) {
   return (
     <span style={{ background: color, color: '#fff', borderRadius: 4, padding: '1px 6px' }}>{children}</span>
+  );
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  general: '全般',
+  planner: 'プランナー',
+  programmer: 'プログラマー',
+  designer: 'デザイナー',
+  sound: 'サウンド',
+};
+
+function NewgradImageView({ roles }: { roles: NewgradRoleImage[] }) {
+  if (roles.length === 0) return null;
+  return (
+    <div style={{ marginTop: 6, padding: 8, background: 'rgba(21,101,192,0.05)', borderRadius: 6, fontSize: 13 }}>
+      <strong style={{ fontSize: 12, opacity: 0.75 }}>インタビュー記事からの新卒像</strong>
+      {roles.map((r) => (
+        <div key={r.role} style={{ marginTop: 6 }}>
+          <span style={{ fontWeight: 600 }}>{ROLE_LABEL[r.role] ?? r.role}</span>
+          <span style={{ fontSize: 11, opacity: 0.6, marginLeft: 4 }}>記事 {r.article_count} 件</span>
+          <div style={{ marginTop: 2 }}>{r.summary}</div>
+          {r.themes.length > 0 && (
+            <div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {r.themes.map((t) => (
+                <span key={t} style={{ background: 'rgba(21,101,192,0.12)', borderRadius: 3, padding: '1px 5px', fontSize: 11 }}>{t}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
