@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   build-test:
@@ -23,9 +24,12 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: 'npm'
+          registry-url: 'https://npm.pkg.github.com'
 
       - name: Install dependencies
         run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build packages/llm
         run: npm --workspace packages/llm run build
@@ -80,13 +84,19 @@ jobs:
   ft-loop-dry-run:
     name: ft-loop dry-run (no LLM)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
+          registry-url: 'https://npm.pkg.github.com'
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: dry-run with each interviewer × first examinee
         run: |
           for f in data/general/persona/interviewer/*.md; do
