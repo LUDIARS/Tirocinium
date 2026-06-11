@@ -1,4 +1,4 @@
-import { sql } from '../db/index.js';
+import { sql, isSqlite } from '../db/index.js';
 import type { Company, NormalizedCompany } from '@tirocinium/companies';
 
 const SELECT_COLS = sql`
@@ -17,24 +17,46 @@ export type CompanyFilter = {
   offset?: number;
 };
 
-/** フィルタ付き企業一覧。 role/tag は配列包含、 q は name/description の部分一致。 */
-export async function listCompanies(filter: CompanyFilter = {}): Promise<Company[]> {
+export type CompanyWithStats = Company & {
+  article_count: number;
+  has_newgrad_image: boolean;
+};
+
+/** フィルタ付き企業一覧。 role/tag は配列包含、 q は name/description の部分一致。
+ *  article_count (インタビュー記事数) と has_newgrad_image (新卒像サマリ有無) を付加して返す。 */
+export async function listCompanies(filter: CompanyFilter = {}): Promise<CompanyWithStats[]> {
   const limit = Math.min(Math.max(filter.limit ?? 50, 1), 200);
   const offset = Math.max(filter.offset ?? 0, 0);
-  return sql<Company[]>`
-    SELECT ${SELECT_COLS} FROM companies
+  return sql<CompanyWithStats[]>`
+    SELECT
+      c.id, c.name, c.normalized_name, c.url, c.industry, c.description,
+      c.roles, c.tags, c.location, c.size, c.source, c.source_url,
+      c.is_newgrad, c.is_game, c.has_opening, c.recruit_url, c.stock_reason,
+      c.crawled_at, c.updated_at,
+      (SELECT count(*) FROM company_interview_articles a WHERE a.company_id = c.id) AS article_count,
+      CASE WHEN EXISTS(SELECT 1 FROM company_newgrad_role_images r WHERE r.company_id = c.id)
+           THEN TRUE ELSE FALSE END AS has_newgrad_image
+    FROM companies c
     WHERE TRUE
-      ${filter.role ? sql`AND ${filter.role} = ANY(roles)` : sql``}
-      ${filter.tag ? sql`AND ${filter.tag} = ANY(tags)` : sql``}
-      ${filter.industry ? sql`AND industry = ${filter.industry}` : sql``}
-      ${filter.q ? sql`AND (name ILIKE ${'%' + filter.q + '%'} OR description ILIKE ${'%' + filter.q + '%'})` : sql``}
-    ORDER BY updated_at DESC
+      ${filter.role ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(c.roles) WHERE value = ${filter.role})` : sql`AND ${filter.role} = ANY(c.roles)`) : sql``}
+      ${filter.tag ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(c.tags) WHERE value = ${filter.tag})` : sql`AND ${filter.tag} = ANY(c.tags)`) : sql``}
+      ${filter.industry ? sql`AND c.industry = ${filter.industry}` : sql``}
+      ${filter.q ? sql`AND (c.name ILIKE ${'%' + filter.q + '%'} OR c.description ILIKE ${'%' + filter.q + '%'})` : sql``}
+    ORDER BY c.updated_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
 }
 
 export async function getCompany(id: string): Promise<Company | null> {
   const rows = await sql<Company[]>`SELECT ${SELECT_COLS} FROM companies WHERE id = ${id}`;
+  return rows[0] ?? null;
+}
+
+/** dedup キー (normalized_name) で 1 社引く。 upsert 直後に id を得る用途。 */
+export async function getCompanyByNormalizedName(normalizedName: string): Promise<Company | null> {
+  const rows = await sql<Company[]>`
+    SELECT ${SELECT_COLS} FROM companies WHERE normalized_name = ${normalizedName}
+  `;
   return rows[0] ?? null;
 }
 
@@ -75,7 +97,7 @@ export async function upsertCompany(
   const hasOpening = signals.hasOpening ?? false;
   const recruitUrl = signals.recruitUrl ?? '';
   const stockReason = signals.stockReason ?? '';
-  const rows = await sql<{ inserted: boolean }[]>`
+  const upsert = sql`
     INSERT INTO companies
       (name, normalized_name, url, industry, description, roles, tags, location, size, source, source_url,
        is_newgrad, is_game, has_opening, recruit_url, stock_reason)
@@ -101,8 +123,14 @@ export async function upsertCompany(
       recruit_url = COALESCE(NULLIF(EXCLUDED.recruit_url, ''), companies.recruit_url),
       stock_reason= COALESCE(NULLIF(EXCLUDED.stock_reason, ''), companies.stock_reason),
       updated_at  = now()
-    RETURNING (xmax = 0) AS inserted
   `;
+  // SQLite は xmax を持たないので事前照会で inserted/updated を判定。 PG は xmax で 1 クエリ判定。
+  if (isSqlite) {
+    const existing = await sql`SELECT 1 AS e FROM companies WHERE normalized_name = ${c.normalized_name}`;
+    await upsert;
+    return existing.length > 0 ? 'updated' : 'inserted';
+  }
+  const rows = await sql<{ inserted: boolean }[]>`${upsert} RETURNING (xmax = 0) AS inserted`;
   return rows[0]?.inserted ? 'inserted' : 'updated';
 }
 

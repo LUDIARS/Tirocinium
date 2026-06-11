@@ -23,7 +23,9 @@ function bool(name: string): boolean {
 export const config = {
   port: num('TIROCINIUM_PORT', 8084),
   host: process.env.TIROCINIUM_HOST ?? '0.0.0.0',
-  databaseUrl: req('DATABASE_URL'),
+  // 空 / sqlite: / file: / *.sqlite は SQLite バックエンド、 postgres:// は Postgres (db/index.ts で判定)。
+  // 既定 (未設定) はローカル SQLite。 docker/Postgres 不要でローカル開発できる。
+  databaseUrl: process.env.DATABASE_URL ?? '',
   cernerePublicKey: process.env.CERNERE_PUBLIC_KEY ?? '',
   cernereAudience: process.env.CERNERE_AUDIENCE ?? 'tirocinium',
   // --- Windows Local / dev プロファイル ---

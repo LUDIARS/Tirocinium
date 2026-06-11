@@ -181,9 +181,26 @@ company_recommendations に保存 (履歴)
 
 ---
 
+## 6.5 関連ソース / レイヤー (別 spec)
+
+企業データは**3 レイヤー**で構成され、それぞれ供給源と consumer が異なる:
+
+| layer | データ | 供給 | consumer | spec |
+|---|---|---|---|---|
+| 1 会社マスタ | `companies` (社名/業種/規模/URL) | Web crawl / Notion / **gBizINFO** | 会社選択 | 本書 + [`gbizinfo.md`](./gbizinfo.md) |
+| 2 企業プロファイル | `company_profiles` (理念/IR/事業) | HP enrich (§3.5.3) | **ES添削の背景 RAG** | 本書 §3.5.3 |
+| 3 面接質問プール | `company_interview_questions` | ユーザ投稿 + Notion 取込 | **面接質問リストの優先素材** | [`interview-questions.md`](./interview-questions.md) |
+
+- **中小/ベンチャーを増やす主軸は gBizINFO**(layer 1)。粗く集めて HP で裏取り。詳細は [`gbizinfo.md`](./gbizinfo.md)。
+- ES添削の特化(背景情報入り)は **layer 2 をそのまま RAG に使う**(新規データ源不要)。
+- 面接の「その会社で実際に受けた質問」は **layer 3** で新設(本人 past_qa とは別スコープ)。詳細は [`interview-questions.md`](./interview-questions.md)。
+
+---
+
 ## 7. 未確定 / 将来
 
 - クロールの非同期ジョブ化 (大量 URL / 定期実行)。 現状は同期 + maxPages 上限。
 - sitemap / 求人サイト (Wantedly 等) ソースの追加 (利用規約確認が前提)。
+- VC/アクセラレータ portfolio ソース (高シグナルなベンチャーの厳選リスト) を listing source に追加。
 - recommend の候補プール拡大時の scoring 高速化 (現状は全件 in-memory)。
 - Memoria RAG API の最終仕様確定 (training と共通の TODO)。

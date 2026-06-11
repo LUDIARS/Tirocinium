@@ -1,17 +1,23 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sql } from './index.js';
+import { sql, dbBackend } from './index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const MIGRATIONS_DIR = join(__dirname, '..', '..', 'migrations');
+// バックエンドごとに方言別の migration ディレクトリを選ぶ。
+const MIGRATIONS_DIR = join(
+  __dirname,
+  '..',
+  '..',
+  dbBackend === 'sqlite' ? 'migrations-sqlite' : 'migrations',
+);
 
 async function ensureMigrationsTable() {
   await sql.unsafe(`
     CREATE TABLE IF NOT EXISTS _tirocinium_migrations (
       name        TEXT PRIMARY KEY,
-      applied_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+      applied_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
 }

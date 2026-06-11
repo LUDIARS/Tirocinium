@@ -9,6 +9,7 @@ import { runListingCrawl } from '../companies/listing-crawler.js';
 import { runEnrichment } from '../companies/enrich.js';
 import { loadListingSources, selectActiveSources } from '../companies/listing-config.js';
 import { getProfile } from '../companies/profile-repo.js';
+import { getNewgradRoleImages } from '../companies/newgrad-repo.js';
 
 /**
  * 企業プール (companies) の参照とクロール起動。
@@ -54,6 +55,12 @@ companies.get('/listing-sources', async (c) => {
 companies.get('/:id/profile', async (c) => {
   const profile = await getProfile(c.req.param('id'));
   return profile ? c.json({ profile }) : c.json({ error: 'not_found' }, 404);
+});
+
+/** GET /api/v1/companies/:id/newgrad — インタビュー記事由来の役職別新卒像 */
+companies.get('/:id/newgrad', async (c) => {
+  const roles = await getNewgradRoleImages(c.req.param('id'));
+  return c.json({ roles });
 });
 
 /** GET /api/v1/companies/:id — 企業詳細 */
