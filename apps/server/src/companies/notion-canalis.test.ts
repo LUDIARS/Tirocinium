@@ -1,6 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { notionRecordToCompany } from './notion-canalis.js';
 import type { RawRecord } from '@ludiars/canalis';
+
+// repo.ts は DB 接続を初期化するため、DB 不要な純粋関数テストではモックに差し替える。
+vi.mock('./repo.js', () => ({}));
 
 function record(props: Record<string, string>, over: Partial<RawRecord> = {}): RawRecord {
   return {
