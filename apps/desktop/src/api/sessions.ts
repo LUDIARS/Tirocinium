@@ -33,5 +33,11 @@ export function useSessionApi() {
     async getSummary(id: string): Promise<{ summary?: unknown }> {
       return fetchJson<{ summary?: unknown }>(`/api/v1/sessions/${id}/summary`, token);
     },
+    async submitFeedback(id: string, block: string, action: unknown): Promise<{ ok: boolean }> {
+      return fetchJson<{ ok: boolean }>(`/api/v1/sessions/${id}/feedback`, token, {
+        method: 'POST',
+        body: JSON.stringify({ block, action }),
+      });
+    },
   };
 }
