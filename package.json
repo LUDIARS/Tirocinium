@@ -20,7 +20,8 @@
     "sim-loop": "tsx scripts/sim-loop/index.ts",
     "sim-batch": "tsx scripts/sim-batch/index.ts",
     "sim-viewer": "tsx scripts/sim-viewer/index.ts",
-    "notion-crawl": "tsx scripts/notion-crawl/index.ts"
+    "notion-crawl": "tsx scripts/notion-crawl/index.ts",
+    "companies:seed-import:sqlite": "tsx scripts/companies-seed-import-sqlite/index.ts"
   },
   "engines": {
     "node": ">=22"

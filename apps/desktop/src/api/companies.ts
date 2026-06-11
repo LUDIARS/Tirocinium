@@ -20,6 +20,17 @@ export type Company = {
   stock_reason: string;
   crawled_at: string;
   updated_at: string;
+  article_count: number;
+  has_newgrad_image: boolean;
+};
+
+export type NewgradRoleImage = {
+  role: string;
+  summary: string;
+  themes: string[];
+  article_count: number;
+  model: string;
+  fetched_at: string;
 };
 
 export type ListingSource = {
@@ -114,6 +125,9 @@ export function useCompaniesApi() {
     },
     async profile(id: string): Promise<{ profile: CompanyProfile }> {
       return fetchJson(`/api/v1/companies/${id}/profile`, token);
+    },
+    async newgrad(id: string): Promise<{ roles: NewgradRoleImage[] }> {
+      return fetchJson(`/api/v1/companies/${id}/newgrad`, token);
     },
   };
 }

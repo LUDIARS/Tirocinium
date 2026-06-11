@@ -1,7 +1,7 @@
 import { sql } from '../db/index.js';
 import type { CompanyProfile, CompanyProfileInput } from '@tirocinium/companies';
 
-const SELECT_COLS = sql`company_id, philosophy, values, ir_summary, business, sources, fetched_at`;
+const SELECT_COLS = sql`company_id, philosophy, "values", ir_summary, business, sources, fetched_at`;
 
 export async function getProfile(companyId: string): Promise<CompanyProfile | null> {
   const rows = await sql<CompanyProfile[]>`
@@ -16,14 +16,14 @@ export async function upsertProfile(
   p: CompanyProfileInput,
 ): Promise<CompanyProfile> {
   const rows = await sql<CompanyProfile[]>`
-    INSERT INTO company_profiles (company_id, philosophy, values, ir_summary, business, sources, fetched_at)
+    INSERT INTO company_profiles (company_id, philosophy, "values", ir_summary, business, sources, fetched_at)
     VALUES (
       ${companyId}, ${p.philosophy ?? ''}, ${sql.json(p.values ?? [])},
       ${p.ir_summary ?? ''}, ${p.business ?? ''}, ${sql.json(p.sources ?? [])}, now()
     )
     ON CONFLICT (company_id) DO UPDATE SET
       philosophy = EXCLUDED.philosophy,
-      values     = EXCLUDED.values,
+      "values"   = EXCLUDED."values",
       ir_summary = EXCLUDED.ir_summary,
       business   = EXCLUDED.business,
       sources    = EXCLUDED.sources,
