@@ -60,5 +60,11 @@ export {
   normalizeUrl,
   NEWGRAD_IMAGE_INSTRUCTION,
   parseNewgradImage,
+  extractRobustJson,
+  NEWGRAD_ROLES_INSTRUCTION,
+  parseNewgradRoles,
+  NEWGRAD_ROLE_KEYS,
   type NewgradImage,
+  type NewgradRoleKey,
+  type NewgradRoleImages,
 } from './interview.js';

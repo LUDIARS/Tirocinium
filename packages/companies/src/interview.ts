@@ -2,7 +2,6 @@
 // 純粋関数 (LLM 呼び出しは server 側 completer に注入する)。
 
 import { extractAnchors } from './links.js';
-import { extractJsonBlock } from '@tirocinium/llm';
 
 /** 会社が求める新卒像の要約結果。 */
 export type NewgradImage = {
@@ -96,12 +95,75 @@ export const NEWGRAD_IMAGE_INSTRUCTION = `
 - summary は面接練習 AI が「この会社の面接官の観点」 を作るのに使える粒度で書く。
 `.trim();
 
-/** LLM 出力テキストを NewgradImage に parse する。 */
-export function parseNewgradImage(text: string): NewgradImage {
-  const obj = JSON.parse(extractJsonBlock(text)) as Record<string, unknown>;
-  const summary = typeof obj['summary'] === 'string' ? obj['summary'].trim() : '';
-  const themes = Array.isArray(obj['themes'])
-    ? obj['themes'].filter((x): x is string => typeof x === 'string' && x.trim() !== '').slice(0, 12)
+/** LLM 出力から最外の {...} を取り出して JSON.parse する (前後の散文/コードフェンスに頑健)。 */
+export function extractRobustJson(text: string): Record<string, unknown> {
+  const noFence = text.replace(/```(?:json)?/gi, '');
+  const start = noFence.indexOf('{');
+  const end = noFence.lastIndexOf('}');
+  if (start < 0 || end < 0 || end < start) throw new Error('no JSON object found in LLM output');
+  return JSON.parse(noFence.slice(start, end + 1)) as Record<string, unknown>;
+}
+
+function asThemes(v: unknown): string[] {
+  return Array.isArray(v)
+    ? v.filter((x): x is string => typeof x === 'string' && x.trim() !== '').slice(0, 12)
     : [];
-  return { summary, themes };
+}
+
+function asImage(v: unknown): NewgradImage | null {
+  if (typeof v !== 'object' || v === null) return null;
+  const o = v as Record<string, unknown>;
+  const summary = typeof o['summary'] === 'string' ? o['summary'].trim() : '';
+  if (!summary) return null;
+  return { summary, themes: asThemes(o['themes']) };
+}
+
+/** LLM 出力テキストを NewgradImage に parse する (単一像)。 */
+export function parseNewgradImage(text: string): NewgradImage {
+  const obj = extractRobustJson(text);
+  return { summary: typeof obj['summary'] === 'string' ? obj['summary'].trim() : '', themes: asThemes(obj['themes']) };
+}
+
+// ── 役職別の求める新卒像 ──────────────────────────────────────────────
+
+/** 役職キー。 RoleLens + 会社全体 (general)。 */
+export const NEWGRAD_ROLE_KEYS = ['general', 'planner', 'programmer', 'designer', 'sound'] as const;
+export type NewgradRoleKey = (typeof NEWGRAD_ROLE_KEYS)[number];
+export type NewgradRoleImages = Partial<Record<NewgradRoleKey, NewgradImage>>;
+
+export const NEWGRAD_ROLES_INSTRUCTION = `
+あなたは、ある企業の「新卒採用者インタビュー記事」 を複数読み、
+その会社が **新卒採用で求めている人物像を職種ごとに** 整理するアシスタントです。
+記事はプログラマー / プランナー(企画) / デザイナー(アート) / サウンド 等の職種別であることが多い。
+
+出力は **JSON オブジェクト 1 個のみ**。前置き・コードフェンス・説明文は一切禁止。
+文字列値の中では二重引用符(")を使わず、必要なら「」を使う事 (JSON を壊さないため)。
+スキーマ:
+{
+  "roles": {
+    "general":    { "summary": "会社全体として新卒に求める人物像 (200〜400字)", "themes": ["価値観キーワード", ...] },
+    "programmer": { "summary": "...", "themes": [...] },
+    "planner":    { "summary": "...", "themes": [...] },
+    "designer":   { "summary": "...", "themes": [...] },
+    "sound":      { "summary": "...", "themes": [...] }
+  }
+}
+
+ルール:
+- "general" は必ず出す。 職種キーは **記事からその職種の人物像が読み取れる場合のみ** 含める (無ければ省略)。
+- 記事に書かれている事実・語られている価値観のみを根拠にする。 推測で水増ししない。
+- 個人名や個人の経歴は含めない (人物像に抽象化)。
+- themes は各 5〜12 個。 summary は面接練習 AI が「その職種の面接官の観点」 を作れる粒度で。
+`.trim();
+
+/** LLM 出力テキストを役職別 NewgradImage 群に parse する。 */
+export function parseNewgradRoles(text: string): NewgradRoleImages {
+  const obj = extractRobustJson(text);
+  const roles = (obj['roles'] ?? obj) as Record<string, unknown>;
+  const out: NewgradRoleImages = {};
+  for (const key of NEWGRAD_ROLE_KEYS) {
+    const img = asImage(roles[key]);
+    if (img) out[key] = img;
+  }
+  return out;
 }

@@ -16,22 +16,49 @@ import { config } from '../../apps/server/src/config.js';
 import { PoliteFetcher } from '../../apps/server/src/companies/fetcher.js';
 import { allCompaniesForScoring } from '../../apps/server/src/companies/repo.js';
 import { createCompleter } from '../../apps/server/src/companies/llm-completer.js';
-import { crawlAndSummarizeNewgrad } from '../../apps/server/src/companies/newgrad.js';
+import { crawlAndSummarizeNewgrad, summarizeNewgradRoles } from '../../apps/server/src/companies/newgrad.js';
+import { companiesWithArticles, listInterviewArticles } from '../../apps/server/src/companies/newgrad-repo.js';
 import { sql } from '../../apps/server/src/db/index.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-type Args = { limit?: number; max: number; company?: string };
+type Args = { limit?: number; max: number; company?: string; summarizeOnly: boolean };
 function parseArgs(argv: string[]): Args {
-  const a: Args = { max: 100 };
+  const a: Args = { max: 100, summarizeOnly: false };
   for (let i = 0; i < argv.length; i++) {
     const t = argv[i]!;
     if (t === '--limit') a.limit = Number(argv[++i]);
     else if (t === '--max') a.max = Number(argv[++i]);
     else if (t === '--company') a.company = argv[++i];
+    else if (t === '--summarize-only') a.summarizeOnly = true;
     else throw new Error(`unknown option: ${t}`);
   }
   return a;
+}
+
+/** クロール不要: 保存済み記事から役職別サマリを (再)生成する。 */
+async function runSummarizeOnly(args: Args): Promise<void> {
+  const { complete, modelLabel } = createCompleter('SUMMARIZER');
+  let targets = await companiesWithArticles();
+  if (args.limit) targets = targets.slice(0, args.limit);
+  console.error(`[newgrad-summarize] 対象 ${targets.length} 社 (記事保存済) / backend=${config.llmBackend}`);
+  const tally = { companies: 0, summarized: 0, errors: 0 };
+  for (const c of targets) {
+    try {
+      const articles = await listInterviewArticles(c.id, args.max);
+      const roles = await summarizeNewgradRoles(c.id, articles, complete, modelLabel);
+      tally.companies++;
+      if (roles.length > 0) tally.summarized++;
+      else tally.errors++;
+      console.error(`  - ${c.name}: roles=[${roles.join(',')}] articles=${articles.length}`);
+    } catch (err) {
+      tally.errors++;
+      console.error(`  - ${c.name}: error=${(err as Error).message}`);
+    }
+  }
+  console.error(
+    `[newgrad-summarize] done: companies=${tally.companies} summarized=${tally.summarized} errors=${tally.errors}`,
+  );
 }
 
 type Research = { name?: string; interview_urls?: string[] };
@@ -54,8 +81,17 @@ function loadSeedMap(): Map<string, string[]> {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const seedMap = loadSeedMap();
 
+  if (args.summarizeOnly) {
+    try {
+      await runSummarizeOnly(args);
+    } finally {
+      await sql.end();
+    }
+    return;
+  }
+
+  const seedMap = loadSeedMap();
   let companies = await allCompaniesForScoring(2000);
   if (args.company) {
     const key = normalizeName(args.company);
@@ -91,11 +127,11 @@ async function main(): Promise<void> {
       });
       tally.companies++;
       tally.articles += r.articlesStored;
-      if (r.summarized) tally.summarized++;
+      if (r.roles.length > 0) tally.summarized++;
       if (r.error) tally.errors++;
       console.error(
         `  - ${r.company}: articles=${r.articlesStored} pages=${r.pagesFetched} ` +
-          `robots=${r.robotsBlocked} summarized=${r.summarized}${r.error ? ` error=${r.error}` : ''}`,
+          `robots=${r.robotsBlocked} roles=[${r.roles.join(',')}]${r.error ? ` error=${r.error}` : ''}`,
       );
     }
   } finally {
