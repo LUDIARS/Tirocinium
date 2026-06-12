@@ -1,17 +1,11 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sql, dbBackend } from './index.js';
+import { hydrateSecrets } from '../secrets/hydrate.js';
+import { sql, dbBackend, initSql } from './index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// バックエンドごとに方言別の migration ディレクトリを選ぶ。
-const MIGRATIONS_DIR = join(
-  __dirname,
-  '..',
-  '..',
-  dbBackend === 'sqlite' ? 'migrations-sqlite' : 'migrations',
-);
 
 async function ensureMigrationsTable() {
   await sql.unsafe(`
@@ -28,6 +22,17 @@ async function appliedSet(): Promise<Set<string>> {
 }
 
 async function main() {
+  await hydrateSecrets();
+  initSql();
+
+  // バックエンドごとに方言別の migration ディレクトリを選ぶ (initSql() 後に確定)。
+  const MIGRATIONS_DIR = join(
+    __dirname,
+    '..',
+    '..',
+    dbBackend === 'sqlite' ? 'migrations-sqlite' : 'migrations',
+  );
+
   await ensureMigrationsTable();
   const applied = await appliedSet();
 

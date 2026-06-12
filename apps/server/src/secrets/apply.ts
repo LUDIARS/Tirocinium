@@ -1,5 +1,9 @@
-// resolved secret を Discord 設定へ反映する純粋関数。
-// config.ts (DATABASE_URL を要求し import 時に throw しうる) に依存しないよう分離している。
+// resolved secret を各 config セクションへ反映する純粋関数群。
+// config.ts (DB 接続を持たない) にのみ依存するよう分離している。
+
+import type { config as _cfg } from '../config.js';
+
+type Config = typeof _cfg;
 
 /** config.discord と構造一致する反映先。 */
 export type DiscordSecretTarget = {
@@ -21,10 +25,7 @@ export function applyDiscordSecrets(
   const applied: string[] = [];
   const set = (key: string, fn: (v: string) => void): void => {
     const v = secrets[key];
-    if (v) {
-      fn(v);
-      applied.push(key);
-    }
+    if (v) { fn(v); applied.push(key); }
   };
   set('TIROCINIUM_DISCORD_BOT_TOKEN', (v) => (discord.botToken = v));
   set('TIROCINIUM_DISCORD_GUILD_ID', (v) => (discord.guildId = v));
@@ -33,5 +34,76 @@ export function applyDiscordSecrets(
   set('TIROCINIUM_DISCORD_TEXT_CHANNEL_IDS', (v) => {
     discord.allowedChannelIds = v.split(',').map((s) => s.trim()).filter(Boolean);
   });
+  return applied;
+}
+
+/**
+ * 解決済 secret をサーバー config (Discord 以外) に反映する。
+ * process.env への書き込みは子プロセス (claude CLI / SDK) への継承が必要なキーのみ行う。
+ * @returns 適用したキー名
+ */
+export function applyServerConfig(
+  cfg: Config,
+  secrets: Record<string, string>,
+): string[] {
+  const applied: string[] = [];
+
+  const set = (key: string, fn: (v: string) => void): void => {
+    const v = secrets[key];
+    if (v) { fn(v); applied.push(key); }
+  };
+  const setNum = (key: string, fn: (n: number) => void): void => {
+    const v = secrets[key];
+    if (v !== undefined) {
+      const n = Number.parseInt(v, 10);
+      if (!Number.isNaN(n)) { fn(n); applied.push(key); }
+    }
+  };
+  const setBool = (key: string, fn: (b: boolean) => void): void => {
+    const v = secrets[key];
+    if (v !== undefined) {
+      fn(v === '1' || v.toLowerCase() === 'true');
+      applied.push(key);
+    }
+  };
+
+  set('TIROCINIUM_HOST', (v) => { cfg.host = v; });
+  setNum('TIROCINIUM_PORT', (v) => { cfg.port = v; });
+  set('DATABASE_URL', (v) => { cfg.databaseUrl = v; });
+  set('CERNERE_PUBLIC_KEY', (v) => { cfg.cernerePublicKey = v; });
+  set('CERNERE_AUDIENCE', (v) => { cfg.cernereAudience = v; });
+  setBool('TIROCINIUM_DEV_AUTH', (v) => { cfg.devAuth = v; });
+  set('TIROCINIUM_DEV_USER_ID', (v) => { cfg.devUserId = v; });
+  set('TIROCINIUM_LLM_BACKEND', (v) => { cfg.llmBackend = v as 'api' | 'cli'; });
+  setNum('SLOT_DURATION_MIN', (v) => { cfg.slotDurationMin = v; });
+  setNum('SLOT_CAPACITY', (v) => { cfg.slotCapacity = v; });
+  setNum('NO_SHOW_TIMEOUT_MIN', (v) => { cfg.noShowTimeoutMin = v; });
+  setNum('NOTIFY_LEAD_MIN', (v) => { cfg.notifyLeadMin = v; });
+  set('NUNTIUS_URL', (v) => { cfg.nuntiusUrl = v; });
+  set('NUNTIUS_API_KEY', (v) => { cfg.nuntiusApiKey = v; });
+  setNum('COMPANY_CRAWL_MAX_PAGES', (v) => { cfg.companyCrawl.maxPages = v; });
+  setNum('COMPANY_CRAWL_FETCH_TIMEOUT_MS', (v) => { cfg.companyCrawl.fetchTimeoutMs = v; });
+  setNum('COMPANY_CRAWL_MIN_INTERVAL_MS', (v) => { cfg.companyCrawl.minIntervalMs = v; });
+  setBool('COMPANY_CRAWL_RESPECT_ROBOTS', (v) => { cfg.companyCrawl.respectRobots = v; });
+  setNum('COMPANY_ENRICH_MAX_PAGES', (v) => { cfg.companyCrawl.enrichMaxPages = v; });
+  set('COMPANY_CRAWL_USER_AGENT', (v) => { cfg.companyCrawl.userAgent = v; });
+  set('COMPANY_CRAWL_ADMIN_IDS', (v) => {
+    cfg.companyCrawl.adminIds = v.split(',').map((s) => s.trim()).filter(Boolean);
+  });
+  set('COMPANY_LISTING_OPTIN_SOURCES', (v) => {
+    cfg.companyCrawl.listingOptInSources = v.split(',').map((s) => s.trim()).filter(Boolean);
+  });
+  setNum('SESSION_RATELIMIT_WINDOW_MS', (v) => { cfg.sessionRateLimit.windowMs = v; });
+  setNum('SESSION_RATELIMIT_MAX', (v) => { cfg.sessionRateLimit.max = v; });
+
+  // 子プロセス (claude CLI / Anthropic SDK / OpenAI SDK) が直接 process.env を読むキーは
+  // config への書込みに加え process.env にも注入する。
+  const envPassthrough: Record<string, string> = {};
+  for (const key of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'CLAUDE_CODE_GIT_BASH_PATH', 'MEMORIA_URL']) {
+    const v = secrets[key];
+    if (v) { envPassthrough[key] = v; applied.push(key); }
+  }
+  Object.assign(process.env, envPassthrough);
+
   return applied;
 }

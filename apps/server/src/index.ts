@@ -15,6 +15,12 @@ import { attachSessionWs } from './ws/handler.js';
 import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
 import { startDiscordBridge } from './discord/bridge.js';
 import { hydrateSecrets } from './secrets/hydrate.js';
+import { initSql } from './db/index.js';
+
+// 起動順: hydrateSecrets → initSql → serve → Discord
+// hydrateSecrets が失敗 (secret-agent 不通) したら起動を止める。
+await hydrateSecrets();
+initSql();
 
 const app = new Hono();
 
@@ -32,8 +38,6 @@ app.route('/api/v1/recommend', recommendRoute);
 app.notFound((c) => c.json({ error: 'not_found' }, 404));
 
 app.onError((err, c) => {
-  // 内部エラー詳細 (err.message: stack/内部状態を含み得る) はレスポンスに出さず stderr のみに留める。
-  // クライアントには汎用コードのみ返し、情報漏洩を防ぐ。
   console.error(err);
   return c.json({ error: 'internal' }, 500);
 });
@@ -47,13 +51,10 @@ const server = serve(
 
 attachSessionWs(server as unknown as Parameters<typeof attachSessionWs>[0]);
 startTickScheduler();
+
 let stopDiscordBridge: (() => void) | null = null;
-// secret-agent (Excubitor) から Discord bot token 等を config に注入してから Discord 起動。
-void hydrateSecrets()
-  .then(() => startDiscordBridge())
-  .then((stop) => {
-    stopDiscordBridge = stop;
-  })
+void startDiscordBridge()
+  .then((stop) => { stopDiscordBridge = stop; })
   .catch((err) => console.error('[discord] start failed', err));
 
 const shutdown = () => {
