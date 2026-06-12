@@ -6,6 +6,7 @@ import { AuthProvider } from './auth/AuthContext.js';
 import { LoginGate } from './auth/LoginGate.js';
 import { Recommend } from './pages/Recommend.js';
 import { Companies } from './pages/Companies.js';
+import { HomePage } from './pages/HomePage.js';
 import './styles.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -15,7 +16,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<App />}>
-              <Route index element={<Navigate to="/companies" replace />} />
+              <Route index element={<HomePage />} />
               <Route path="companies" element={<Companies />} />
               <Route path="recommend" element={<Recommend />} />
               <Route path="*" element={<Navigate to="/companies" replace />} />
