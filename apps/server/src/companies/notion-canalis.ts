@@ -1,5 +1,5 @@
-// Notion の企業リスト → companies テーブル の取込を Canalis に載せ替えた経路。
-//   ① Crawl  : Canalis の NotionSource (旧 @tirocinium/notion を共有 lib へ移管)
+// Notion の企業リスト → companies テーブル の取込経路。
+//   ① Crawl  : Canalis の NotionSource
 //   ② Clean  : notionRecordToCompany — Notion プロパティ → CompanyInput (決定論・LLM不使用)
 //   ③ Save   : 既存 upsertCompany (normalized_name で merge、空値非劣化 / フラグ sticky を温存)
 // LLM 排除方針どおり、 この経路は辞書的マッピングのみで LLM を一切呼ばない。
