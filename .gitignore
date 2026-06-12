@@ -33,3 +33,4 @@ data/training/sim-sessions/
 
 # Notion クロール出力 (private なページ内容を含むため非追跡)
 data/notion/
+logs/
