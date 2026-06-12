@@ -25,7 +25,6 @@
     "@tirocinium/secrets": "*",
     "@tirocinium/training": "*",
     "@tirocinium/voice": "*",
-    "dotenv": "^16.4.5",
     "gray-matter": "^4.0.3",
     "hono": "^4.6.0",
     "paseto": "^3.1.4",
