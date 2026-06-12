@@ -1,4 +1,12 @@
 import { WebSocket } from 'ws';
+import {
+  joinVoiceChannel,
+  VoiceConnectionStatus,
+  entersState,
+  type VoiceConnection,
+  type AudioPlayer,
+} from '@discordjs/voice';
+import { createIvClient } from '@tirocinium/voice';
 import { config } from '../config.js';
 import { sql } from '../db/index.js';
 import { listInterviewers } from '../persona/repo.js';
@@ -6,10 +14,13 @@ import { tryStart } from '../reservation/coordinator.js';
 import { SessionRuntime } from '../ws/session-runtime.js';
 import type { ServerFrame } from '../ws/frames.js';
 import { parseDiscordCommand, renderDiscordHelp, type DiscordInterviewMode } from './commands.js';
+import { buildVoiceAdapterBridge, type VoiceAdapterBridge } from './voice-adapter.js';
+import { subscribeVoiceAudio, createTtsPlayer, playTts } from './voice-bridge.js';
 
 const DISCORD_API = 'https://discord.com/api/v10';
 const DISCORD_GATEWAY = 'wss://gateway.discord.gg/?v=10&encoding=json';
-const INTENTS = 1 | 512 | 32768;
+// GUILDS(1) | GUILD_VOICE_STATES(128) | GUILD_MESSAGES(512) | MESSAGE_CONTENT(32768)
+const INTENTS = 1 | 128 | 512 | 32768;
 const DISCORD_MESSAGE_LIMIT = 1900;
 
 type GatewayPayload = {
@@ -37,6 +48,9 @@ type ActiveDiscordSession = {
   sessionId: string;
   runtime: SessionRuntime;
   socket: RuntimeDiscordSocket;
+  guildId?: string;
+  voiceConnection?: VoiceConnection;
+  audioPlayer?: AudioPlayer;
 };
 
 class RuntimeDiscordSocket {
@@ -47,6 +61,7 @@ class RuntimeDiscordSocket {
   constructor(
     private readonly channelId: string,
     private readonly sendMessage: (channelId: string, content: string) => Promise<void>,
+    private readonly onTextReady?: (text: string) => void,
   ) {}
 
   send(raw: string): void {
@@ -66,7 +81,10 @@ class RuntimeDiscordSocket {
     if (frame.kind === 'response_end') {
       const text = this.responseBuffer.trim();
       this.responseBuffer = '';
-      if (text) await this.sendMessage(this.channelId, text);
+      if (text) {
+        await this.sendMessage(this.channelId, text);
+        this.onTextReady?.(text);
+      }
       return;
     }
     if (frame.kind === 'system') {
@@ -85,9 +103,11 @@ export async function startDiscordBridge(): Promise<() => void> {
   }
 
   const activeSessions = new Map<string, ActiveDiscordSession>();
+  const voiceAdapters = new Map<string, VoiceAdapterBridge>();
   const gateway = new WebSocket(DISCORD_GATEWAY);
   let heartbeatTimer: NodeJS.Timeout | null = null;
   let sequence: number | null = null;
+  let botUserId: string | null = null;
 
   const rest = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
     const res = await fetch(`${DISCORD_API}${path}`, {
@@ -158,7 +178,17 @@ export async function startDiscordBridge(): Promise<() => void> {
       `;
     }
 
-    const socket = new RuntimeDiscordSocket(channelId, sendMessage);
+    // TTS 用 ivClient (voice mode のみ使用; tts() は現状 stub)
+    const ivClientForTts = mode === 'voice' ? createIvClient() : null;
+
+    const onTextReady = (mode === 'voice' && ivClientForTts)
+      ? (text: string) => {
+          const s = activeSessions.get(channelId);
+          if (s?.audioPlayer) void playTts(text, s.audioPlayer, ivClientForTts);
+        }
+      : undefined;
+
+    const socket = new RuntimeDiscordSocket(channelId, sendMessage, onTextReady);
     const runtime = new SessionRuntime(
       socket as unknown as ConstructorParameters<typeof SessionRuntime>[0],
       decision.sessionId,
@@ -167,17 +197,46 @@ export async function startDiscordBridge(): Promise<() => void> {
     activeSessions.set(channelId, { mode, sessionId: decision.sessionId, runtime, socket });
 
     await runtime.init();
+
     if (mode === 'voice') {
-      if (!guildId && !config.discord.guildId) {
+      const guildIdResolved = guildId ?? config.discord.guildId;
+      if (!guildIdResolved) {
         await sendMessage(channelId, 'Voice mode needs a Discord guild id.');
       } else {
-        const roomId = await createVoiceRoom(guildId ?? config.discord.guildId, target);
+        const roomId = await createVoiceRoom(guildIdResolved, target);
         await sendMessage(channelId, `Created MTG voice room: <#${roomId}>`);
+
+        // Voice adapter: gateway ↔ @discordjs/voice を橋渡し
+        const voiceBridge = buildVoiceAdapterBridge((raw) => gateway.send(raw));
+        voiceAdapters.set(guildIdResolved, voiceBridge);
+
+        const connection = joinVoiceChannel({
+          channelId: roomId,
+          guildId: guildIdResolved,
+          adapterCreator: voiceBridge.adapterCreator,
+          selfDeaf: false,
+          selfMute: true,
+        });
+
+        const session = activeSessions.get(channelId);
+        if (session) {
+          session.guildId = guildIdResolved;
+          session.voiceConnection = connection;
+        }
+
+        // 接続完了後に STT 受信 + TTS player をセットアップ (非同期)
+        void entersState(connection, VoiceConnectionStatus.Ready, 30_000)
+          .then(() => {
+            subscribeVoiceAudio(connection, botUserId ?? '', runtime);
+            const player = createTtsPlayer(connection);
+            const s = activeSessions.get(channelId);
+            if (s) s.audioPlayer = player;
+          })
+          .catch((err: Error) => {
+            console.error('[discord/voice] join timeout', err.message);
+            void sendMessage(channelId, 'Voice channel connection timed out. Text mode is still active.');
+          });
       }
-      await sendMessage(
-        channelId,
-        'Voice STT/TTS bridge is not wired yet. Continue by typing answers in this channel.',
-      );
     }
 
     await sendMessage(channelId, `Started Tr ${mode} interview. Tr will ask first.`);
@@ -193,6 +252,15 @@ export async function startDiscordBridge(): Promise<() => void> {
     await active.runtime.onMessage(JSON.stringify({ kind: 'end_session' }));
     await active.runtime.close();
     active.socket.close();
+
+    if (active.voiceConnection) {
+      active.voiceConnection.destroy();
+    }
+    if (active.guildId) {
+      voiceAdapters.get(active.guildId)?.dispose();
+      voiceAdapters.delete(active.guildId);
+    }
+
     activeSessions.delete(channelId);
   };
 
@@ -221,6 +289,7 @@ export async function startDiscordBridge(): Promise<() => void> {
     if (command.kind === 'none') {
       const active = activeSessions.get(message.channel_id);
       if (!active) return;
+      // voice mode でも text fallback として受け付ける
       await active.runtime.onMessage(JSON.stringify({ kind: 'stt_final', text: message.content }));
     }
   };
@@ -249,11 +318,25 @@ export async function startDiscordBridge(): Promise<() => void> {
         return;
       }
       if (payload.t === 'READY') {
+        const ready = payload.d as { user?: { id: string } };
+        botUserId = ready.user?.id ?? null;
         console.log('[discord] bridge ready');
         return;
       }
       if (payload.t === 'MESSAGE_CREATE') {
         await handleMessageCreate(payload.d as DiscordMessage);
+        return;
+      }
+      // voice gateway 連携: @discordjs/voice の adapter に転送
+      if (payload.t === 'VOICE_STATE_UPDATE') {
+        const d = payload.d as { guild_id?: string };
+        if (d.guild_id) voiceAdapters.get(d.guild_id)?.onVoiceStateUpdate(payload.d);
+        return;
+      }
+      if (payload.t === 'VOICE_SERVER_UPDATE') {
+        const d = payload.d as { guild_id?: string };
+        if (d.guild_id) voiceAdapters.get(d.guild_id)?.onVoiceServerUpdate(payload.d);
+        return;
       }
     })().catch((err) => console.error('[discord] bridge error', err));
   });
@@ -265,7 +348,12 @@ export async function startDiscordBridge(): Promise<() => void> {
     for (const active of activeSessions.values()) {
       void active.runtime.close();
       active.socket.close();
+      active.voiceConnection?.destroy();
     }
+    for (const adapter of voiceAdapters.values()) {
+      adapter.dispose();
+    }
+    voiceAdapters.clear();
     activeSessions.clear();
     gateway.close();
   };

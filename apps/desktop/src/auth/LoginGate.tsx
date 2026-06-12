@@ -1,10 +1,16 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from './AuthContext.js';
 import { DEV_AUTH } from '../config.js';
 
 export function LoginGate({ children }: { children: ReactNode }) {
-  const { isAuthed } = useAuth();
-  if (!isAuthed) return <LoginScreen />;
+  const { isAuthed, setToken } = useAuth();
+
+  // DEV_AUTH モードではログイン画面をスキップして自動ログイン
+  useEffect(() => {
+    if (DEV_AUTH && !isAuthed) setToken('dev');
+  }, [DEV_AUTH, isAuthed, setToken]);
+
+  if (!isAuthed) return DEV_AUTH ? null : <LoginScreen />;
   return <>{children}</>;
 }
 
