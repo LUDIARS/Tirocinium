@@ -4,6 +4,7 @@
 
 import { config } from '../config.js';
 import { resolveSecrets, readLocalSecrets, SecretAgentError, localConfigPath, type ResolvedSecrets } from '@tirocinium/secrets';
+// localConfigPath は env 引数のみ (serviceCode 不要) に変更済み。
 import { applyDiscordSecrets, applyServerConfig } from './apply.js';
 
 /** secret-agent の service code (既定 'tirocinium')。 */
@@ -67,11 +68,11 @@ export async function hydrateSecrets(): Promise<void> {
     source = 'agent';
   } catch (err) {
     if (err instanceof SecretAgentError && (err.code === 'unreachable' || err.code === 'no_token')) {
-      const local = readLocalSecrets(SERVICE_CODE);
+      const local = readLocalSecrets();
       if (!local) {
         throw new Error(
           `secret-agent に接続できず、ローカル config も見つかりません。\n` +
-          `  config パス: ${localConfigPath(SERVICE_CODE)}\n` +
+          `  config パス: ${localConfigPath()}\n` +
           `  初期設定: npm run config-setup`,
         );
       }

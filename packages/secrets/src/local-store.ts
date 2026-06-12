@@ -1,82 +1,112 @@
-// ローカル暗号化 config ストア。
-// Excubitor secret-agent が不在のスタンドアロン起動向け。
-// 保存先: %APPDATA%\Tirocinium\<serviceCode>.enc (Windows)
-//         ~/.config/Tirocinium/<serviceCode>.enc  (fallback)
+// ローカル暗号化 config ストア (Canalis 方式)。
 //
-// 暗号化: AES-256-GCM、鍵はマシン固有 ID から PBKDF2 導出。
-// フォーマット: IV(12B) || authTag(16B) || ciphertext
+// 保存先: リポジトリ直下 tirocinium.config.json (gitignore 済)。
+//         env override: TIROCINIUM_CONFIG_PATH
+//
+// フォーマット: { plain: Record<string,string>, secrets: Record<string,EncryptedBlob> }
+//   - 非シークレット (port / host / backend 等) は plain に平文保存。
+//   - シークレット (API キー / Bot トークン) は AES-256-GCM EncryptedBlob として保存。
+//
+// master secret: env TIROCINIUM_MASTER_KEY → マシン束縛値 (tirocinium:hostname:user)。
 
-import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { execSync } from 'node:child_process';
+import { hostname, userInfo } from 'node:os';
+import { encryptJson, decryptJson, isEncryptedBlob, type EncryptedBlob } from './crypto.js';
 import type { ResolvedSecrets } from './types.js';
 
-const PBKDF2_SALT = 'tirocinium-local-config-v1';
-const PBKDF2_ITER = 100_000;
+export type { EncryptedBlob };
 
-function getMachineId(): string {
+/** config ファイルのディスク上フォーマット。 */
+export interface LocalConfigFile {
+  /** 非シークレット: 平文文字列マップ。 */
+  plain: Record<string, string>;
+  /** シークレット: AES-256-GCM EncryptedBlob マップ。 */
+  secrets: Record<string, EncryptedBlob>;
+}
+
+/** 暗号化して保存するキー (API キー / Bot トークン / 証明書)。それ以外は plain に保存。 */
+export const LOCAL_SECRET_KEYS = new Set([
+  'ANTHROPIC_API_KEY',
+  'OPENAI_API_KEY',
+  'TIROCINIUM_DISCORD_BOT_TOKEN',
+  'NUNTIUS_API_KEY',
+  'CERNERE_PUBLIC_KEY',
+]);
+
+/** config ファイルパス: env TIROCINIUM_CONFIG_PATH → リポ直下 tirocinium.config.json。 */
+export function localConfigPath(env: NodeJS.ProcessEnv = process.env): string {
+  const override = env['TIROCINIUM_CONFIG_PATH'];
+  if (override && override.length > 0) return override;
+  return join(process.cwd(), 'tirocinium.config.json');
+}
+
+/** master secret: env TIROCINIUM_MASTER_KEY → マシン束縛値。 */
+export function masterSecret(env: NodeJS.ProcessEnv = process.env): string {
+  const override = env['TIROCINIUM_MASTER_KEY'];
+  if (override && override.length > 0) return override;
+  return `tirocinium:${hostname()}:${userInfo().username}`;
+}
+
+/** config ファイルを読む。未存在 / 破損なら空 config 扱い。 */
+export function readConfigFile(env: NodeJS.ProcessEnv = process.env): LocalConfigFile {
+  const path = localConfigPath(env);
+  if (!existsSync(path)) return { plain: {}, secrets: {} };
   try {
-    const out = execSync(
-      'reg query HKLM\\SOFTWARE\\Microsoft\\Cryptography /v MachineGuid',
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
-    );
-    const m = out.match(/MachineGuid\s+REG_SZ\s+(\S+)/);
-    if (m?.[1]) return m[1];
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as LocalConfigFile;
+    return {
+      plain: parsed.plain && typeof parsed.plain === 'object' ? parsed.plain : {},
+      secrets: parsed.secrets && typeof parsed.secrets === 'object' ? parsed.secrets : {},
+    };
   } catch {
-    // ignore
-  }
-  return homedir();
-}
-
-function deriveKey(serviceCode: string): Buffer {
-  const machineId = getMachineId();
-  return pbkdf2Sync(`${machineId}:${serviceCode}`, PBKDF2_SALT, PBKDF2_ITER, 32, 'sha256');
-}
-
-export function localConfigPath(
-  serviceCode: string,
-  env: NodeJS.ProcessEnv = process.env,
-): string {
-  const override = env['TIROCINIUM_LOCAL_CONFIG_PATH'];
-  if (override) return override;
-  const base = env['APPDATA'] ?? join(homedir(), '.config');
-  return join(base, 'Tirocinium', `${serviceCode}.enc`);
-}
-
-/** ローカル暗号化 config を読む。ファイルなし / 復号失敗なら null。 */
-export function readLocalSecrets(
-  serviceCode: string,
-  env: NodeJS.ProcessEnv = process.env,
-): ResolvedSecrets | null {
-  try {
-    const raw = readFileSync(localConfigPath(serviceCode, env));
-    const iv = raw.subarray(0, 12);
-    const authTag = raw.subarray(12, 28);
-    const ciphertext = raw.subarray(28);
-    const key = deriveKey(serviceCode);
-    const dec = createDecipheriv('aes-256-gcm', key, iv);
-    dec.setAuthTag(authTag);
-    const plain = Buffer.concat([dec.update(ciphertext), dec.final()]).toString('utf8');
-    return JSON.parse(plain) as ResolvedSecrets;
-  } catch {
-    return null;
+    return { plain: {}, secrets: {} };
   }
 }
 
-/** ローカル暗号化 config を書く。ディレクトリが無ければ作成する。 */
-export function writeLocalSecrets(
-  serviceCode: string,
-  secrets: ResolvedSecrets,
-  env: NodeJS.ProcessEnv = process.env,
-): void {
-  const path = localConfigPath(serviceCode, env);
+/** config ファイルを書く (2-space JSON)。 */
+export function writeConfigFile(cfg: LocalConfigFile, env: NodeJS.ProcessEnv = process.env): void {
+  const path = localConfigPath(env);
   mkdirSync(dirname(path), { recursive: true });
-  const key = deriveKey(serviceCode);
-  const iv = randomBytes(12);
-  const enc = createCipheriv('aes-256-gcm', key, iv);
-  const ciphertext = Buffer.concat([enc.update(JSON.stringify(secrets), 'utf8'), enc.final()]);
-  const authTag = enc.getAuthTag();
-  writeFileSync(path, Buffer.concat([iv, authTag, ciphertext]));
+  writeFileSync(path, `${JSON.stringify(cfg, null, 2)}\n`, 'utf8');
+}
+
+/**
+ * 全 config を読んで平文 map を返す (シークレットは復号)。
+ * ファイル未存在 → null。復号失敗キーは skip (master 鍵変更時等)。
+ */
+export function readLocalSecrets(env: NodeJS.ProcessEnv = process.env): ResolvedSecrets | null {
+  if (!existsSync(localConfigPath(env))) return null;
+  const cfg = readConfigFile(env);
+  const ms = masterSecret(env);
+  const out: ResolvedSecrets = { ...cfg.plain };
+  for (const [key, blob] of Object.entries(cfg.secrets)) {
+    if (!isEncryptedBlob(blob)) continue;
+    try {
+      out[key] = decryptJson<string>(blob, ms);
+    } catch {
+      // master 鍵変更 / 改竄時は無視
+    }
+  }
+  return out;
+}
+
+/** 1 キーを config ファイルに書く。LOCAL_SECRET_KEYS なら暗号化、それ以外は平文。 */
+export function setLocalConfig(key: string, value: string, env: NodeJS.ProcessEnv = process.env): void {
+  const cfg = readConfigFile(env);
+  if (LOCAL_SECRET_KEYS.has(key)) {
+    cfg.secrets[key] = encryptJson(value, masterSecret(env));
+    delete cfg.plain[key];
+  } else {
+    cfg.plain[key] = value;
+    delete cfg.secrets[key];
+  }
+  writeConfigFile(cfg, env);
+}
+
+/** 1 キーを config ファイルから削除。 */
+export function deleteLocalConfig(key: string, env: NodeJS.ProcessEnv = process.env): void {
+  const cfg = readConfigFile(env);
+  delete cfg.plain[key];
+  delete cfg.secrets[key];
+  writeConfigFile(cfg, env);
 }

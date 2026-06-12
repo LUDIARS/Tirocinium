@@ -3,9 +3,7 @@
 // 使用: npm run config-setup
 
 import { createInterface } from 'node:readline/promises';
-import { readLocalSecrets, writeLocalSecrets, localConfigPath } from '@tirocinium/secrets';
-
-const SERVICE_CODE = process.env['TIROCINIUM_SERVICE_CODE'] ?? 'tirocinium';
+import { readLocalSecrets, setLocalConfig, localConfigPath, LOCAL_SECRET_KEYS } from '@tirocinium/secrets';
 
 // apps/server/src/secrets/hydrate.ts の SECRET_KEYS と同期する。
 const SECRET_KEYS: readonly string[] = [
@@ -48,10 +46,11 @@ async function main() {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
 
   console.log('=== Tirocinium ローカル設定セットアップ ===');
-  console.log(`保存先: ${localConfigPath(SERVICE_CODE)}\n`);
+  console.log(`保存先: ${localConfigPath()}`);
+  console.log(`シークレットキー (暗号化保存): ${[...LOCAL_SECRET_KEYS].join(', ')}\n`);
 
-  const existing = readLocalSecrets(SERVICE_CODE) ?? {};
-  const updated: Record<string, string> = { ...existing };
+  const existing = readLocalSecrets() ?? {};
+  let savedCount = 0;
 
   for (const key of SECRET_KEYS) {
     const cur = existing[key];
@@ -59,19 +58,15 @@ async function main() {
     const answer = await rl.question(`${key}${hint}: `);
     const v = answer.trim();
     if (v) {
-      updated[key] = v;
-    } else if (!cur) {
-      // 入力なし・既存値なし → 削除 or 未設定のまま
-      delete updated[key];
+      setLocalConfig(key, v);
+      savedCount++;
     }
-    // 入力なし・既存値あり → existing[key] を維持（already in updated）
   }
 
   rl.close();
 
-  writeLocalSecrets(SERVICE_CODE, updated);
-  console.log(`\n設定を保存しました: ${localConfigPath(SERVICE_CODE)}`);
-  console.log(`設定キー数: ${Object.keys(updated).length}`);
+  console.log(`\n設定を保存しました: ${localConfigPath()}`);
+  console.log(`更新キー数: ${savedCount}`);
 }
 
 main().catch((err) => {
