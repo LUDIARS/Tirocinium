@@ -1,19 +1,22 @@
-// 起動時に secret-agent (Excubitor) から hydrateSecrets() で全値を注入する。
-// env / dotenv は使用しない。secrets/hydrate.ts 参照。
+// ローカルツールモード: SQLite + devAuth 固定、Cernere/Nuntius/Memoria 連携なし。
+// LLM 設定のみ npm run config-setup で注入する。secrets/hydrate.ts 参照。
 
 export const config = {
   port: 8084,
   host: '0.0.0.0',
-  databaseUrl: '',
+  databaseUrl: '',  // 空 = SQLite (data/tirocinium.sqlite)。db/index.ts 参照。
+  // Cernere 認証は devAuth=true で常にバイパス (ローカルツールモード)。
+  // 下記フィールドは cernere.ts の型要件のみ残す (実際には参照されない)。
   cernerePublicKey: '',
   cernereAudience: 'tirocinium',
-  devAuth: false,
+  devAuth: true,
   devUserId: '00000000-0000-0000-0000-000000000001',
   llmBackend: 'api' as 'api' | 'cli',
   slotDurationMin: 30,
   slotCapacity: 4,
   noShowTimeoutMin: 5,
   notifyLeadMin: 15,
+  // Nuntius 通知は nuntiusUrl 空なら nop (ローカルツールモード)。
   nuntiusUrl: '',
   nuntiusApiKey: '',
   discord: {
