@@ -10,6 +10,7 @@
   "scripts": {
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
+    "dev": "node scripts/dev.mjs",
     "dev:server": "npm --workspace apps/server run dev",
     "dev:desktop": "npm --workspace apps/desktop run dev",
     "build:server": "npm --workspace apps/server run build",
