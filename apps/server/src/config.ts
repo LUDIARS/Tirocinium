@@ -3,7 +3,9 @@
 
 export const config = {
   port: 8084,
-  host: '0.0.0.0',
+  // devAuth=true (全認証バイパス) で起動するため、既定は loopback のみに bind し
+  // ネットワーク到達不能にする。外部公開が必要な場合のみ TIROCINIUM_HOST で上書きする。
+  host: '127.0.0.1',
   databaseUrl: '',  // 空 = SQLite (data/tirocinium.sqlite)。db/index.ts 参照。
   // Cernere 認証は devAuth=true で常にバイパス (ローカルツールモード)。
   // 下記フィールドは cernere.ts の型要件のみ残す (実際には参照されない)。
