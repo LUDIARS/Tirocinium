@@ -22,7 +22,13 @@ async function appliedSet(): Promise<Set<string>> {
 }
 
 async function main() {
-  await hydrateSecrets();
+  // マイグレーションは DB パスのみ必要。secret-agent / ローカル config が未設定でも
+  // databaseUrl 空 = SQLite デフォルト (data/tirocinium.sqlite) で続行する。
+  try {
+    await hydrateSecrets();
+  } catch {
+    console.warn('[migrate] config not available — using default SQLite path');
+  }
   initSql();
 
   // バックエンドごとに方言別の migration ディレクトリを選ぶ (initSql() 後に確定)。
