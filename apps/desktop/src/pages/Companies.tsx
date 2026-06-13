@@ -30,7 +30,7 @@ export function Companies() {
 
   const [profiles, setProfiles] = useState<Record<string, CompanyProfile>>({});
   const [newgradImages, setNewgradImages] = useState<Record<string, NewgradRoleImage[]>>({});
-  const [expandedNewgrad, setExpandedNewgrad] = useState<Set<string>>(new Set());
+  const [newgradModal, setNewgradModal] = useState<{ id: string; name: string } | null>(null);
 
   const reload = async () => {
     try {
@@ -107,13 +107,8 @@ export function Companies() {
       setProfiles((m) => ({ ...m, [id]: p.profile }));
     });
 
-  const toggleNewgrad = async (id: string) => {
-    setExpandedNewgrad((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) { next.delete(id); return next; }
-      next.add(id);
-      return next;
-    });
+  const openNewgrad = async (id: string, name: string) => {
+    setNewgradModal({ id, name });
     if (!newgradImages[id]) {
       await wrap(`newgrad-${id}`, async () => {
         const r = await api.newgrad(id);
@@ -237,30 +232,35 @@ export function Companies() {
               {c.roles.length > 0 && <span>職種: {c.roles.join(', ')} </span>}
               {c.stock_reason && <span>· {c.stock_reason}</span>}
             </div>
-            <div style={{ fontSize: 12, marginTop: 2, display: 'flex', gap: 10, alignItems: 'center' }}>
-              {c.url && <a href={c.url} target="_blank" rel="noreferrer">サイト</a>}
-              {c.recruit_url && <a href={c.recruit_url} target="_blank" rel="noreferrer">採用</a>}
-              <button onClick={() => (profiles[c.id] ? loadProfile(c.id) : enrichOne(c.id))} disabled={busy !== null}>
-                {busy === `enrich-${c.id}` ? '取得中…' : profiles[c.id] ? 'IR/理念を再取得しない' : 'IR/理念取得'}
-              </button>
-              {!profiles[c.id] && (
-                <button onClick={() => loadProfile(c.id)} disabled={busy !== null} style={{ fontSize: 11 }}>
-                  保存済を表示
-                </button>
+            <div style={{ fontSize: 12, marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {c.url && (
+                <a className="fd-link-btn" href={c.url} target="_blank" rel="noreferrer">サイト ↗</a>
               )}
+              {c.recruit_url && (
+                <a className="fd-link-btn" href={c.recruit_url} target="_blank" rel="noreferrer">採用 ↗</a>
+              )}
+              <button className="fd-btn-secondary" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => (profiles[c.id] ? loadProfile(c.id) : enrichOne(c.id))} disabled={busy !== null}>
+                {busy === `enrich-${c.id}` ? '取得中…' : profiles[c.id] ? 'IR/理念を再読込しない' : c.has_profile ? 'IR/理念を表示' : 'IR/理念取得'}
+              </button>
               {c.has_newgrad_image && (
-                <button onClick={() => void toggleNewgrad(c.id)} disabled={busy === `newgrad-${c.id}`} style={{ fontSize: 11 }}>
-                  {busy === `newgrad-${c.id}` ? '読込中…' : expandedNewgrad.has(c.id) ? '新卒像を閉じる' : '新卒像を表示'}
+                <button className="fd-btn-secondary" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => void openNewgrad(c.id, c.name)} disabled={busy === `newgrad-${c.id}`}>
+                  {busy === `newgrad-${c.id}` ? '読込中…' : '新卒像を表示'}
                 </button>
               )}
             </div>
             {profiles[c.id] && <ProfileView p={profiles[c.id]!} />}
-            {expandedNewgrad.has(c.id) && newgradImages[c.id] && (
-              <NewgradImageView roles={newgradImages[c.id]!} />
-            )}
           </div>
         ))}
       </div>
+
+      {newgradModal && (
+        <NewgradModal
+          name={newgradModal.name}
+          roles={newgradImages[newgradModal.id]}
+          loading={busy === `newgrad-${newgradModal.id}`}
+          onClose={() => setNewgradModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -279,25 +279,78 @@ const ROLE_LABEL: Record<string, string> = {
   sound: 'サウンド',
 };
 
-function NewgradImageView({ roles }: { roles: NewgradRoleImage[] }) {
-  if (roles.length === 0) return null;
+function NewgradModal({
+  name,
+  roles,
+  loading,
+  onClose,
+}: {
+  name: string;
+  roles: NewgradRoleImage[] | undefined;
+  loading: boolean;
+  onClose: () => void;
+}) {
+  const list = roles ?? [];
+  const [active, setActive] = useState<string>('');
+  // roles 確定後、最初のタブを選択 (未選択 or 既存タブが消えた場合)。
+  useEffect(() => {
+    if (list.length > 0 && !list.some((r) => r.role === active)) {
+      setActive(list[0]!.role);
+    }
+  }, [list, active]);
+
+  const current = list.find((r) => r.role === active);
+
   return (
-    <div style={{ marginTop: 6, padding: 8, background: 'rgba(21,101,192,0.05)', borderRadius: 6, fontSize: 13 }}>
-      <strong style={{ fontSize: 12, opacity: 0.75 }}>インタビュー記事からの新卒像</strong>
-      {roles.map((r) => (
-        <div key={r.role} style={{ marginTop: 6 }}>
-          <span style={{ fontWeight: 600 }}>{ROLE_LABEL[r.role] ?? r.role}</span>
-          <span style={{ fontSize: 11, opacity: 0.6, marginLeft: 4 }}>記事 {r.article_count} 件</span>
-          <div style={{ marginTop: 2 }}>{r.summary}</div>
-          {r.themes.length > 0 && (
-            <div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              {r.themes.map((t) => (
-                <span key={t} style={{ background: 'rgba(21,101,192,0.12)', borderRadius: 3, padding: '1px 5px', fontSize: 11 }}>{t}</span>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3>{name} — 求める新卒像</h3>
+          <button className="modal-close" onClick={onClose} aria-label="閉じる">×</button>
+        </div>
+
+        {list.length > 0 && (
+          <div className="fd-tabs">
+            {list.map((r) => (
+              <button
+                key={r.role}
+                className={r.role === active ? 'fd-tab active' : 'fd-tab'}
+                onClick={() => setActive(r.role)}
+              >
+                {ROLE_LABEL[r.role] ?? r.role}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="modal-body">
+          {loading && list.length === 0 && <p style={{ opacity: 0.7 }}>読み込み中…</p>}
+          {!loading && list.length === 0 && <p style={{ opacity: 0.7 }}>新卒像データがありません。</p>}
+          {current && (
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--c-subtle)', marginBottom: 10 }}>
+                インタビュー記事 {current.article_count} 件をもとに生成
+                {current.model && ` · ${current.model}`}
+              </div>
+              {current.summary.split(/\n{2,}/).map((para, i) => (
+                <p key={i} style={{ margin: '0 0 10px', lineHeight: 1.75 }}>{para.trim()}</p>
               ))}
+              {current.themes.length > 0 && (
+                <>
+                  <div style={{ fontSize: 12, fontWeight: 600, margin: '14px 0 6px', color: 'var(--c-subtle)' }}>
+                    キーテーマ
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {current.themes.map((t) => (
+                      <span key={t} className="fd-chip">{t}</span>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
