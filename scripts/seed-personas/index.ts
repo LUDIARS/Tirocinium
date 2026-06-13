@@ -2,12 +2,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import dotenv from 'dotenv';
 import matter from 'gray-matter';
-
-// server と同じ規約で .env.local を優先ロード (cwd = apps/server)。
-dotenv.config({ path: '.env.local' });
-dotenv.config();
 import postgres from 'postgres';
 
 const __filename = fileURLToPath(import.meta.url);
