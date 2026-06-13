@@ -21,10 +21,11 @@ export type CompanyFilter = {
 export type CompanyWithStats = Company & {
   article_count: number;
   has_newgrad_image: boolean;
+  has_profile: boolean;
 };
 
 /** フィルタ付き企業一覧。 role/tag は配列包含、 q は name/description の部分一致。
- *  article_count (インタビュー記事数) と has_newgrad_image (新卒像サマリ有無) を付加して返す。 */
+ *  article_count (記事数) / has_newgrad_image (新卒像) / has_profile (IR・理念クロール済) を付加。 */
 export async function listCompanies(filter: CompanyFilter = {}): Promise<CompanyWithStats[]> {
   const limit = Math.min(Math.max(filter.limit ?? 50, 1), 200);
   const offset = Math.max(filter.offset ?? 0, 0);
@@ -36,13 +37,15 @@ export async function listCompanies(filter: CompanyFilter = {}): Promise<Company
       c.crawled_at, c.updated_at,
       (SELECT count(*) FROM company_interview_articles a WHERE a.company_id = c.id) AS article_count,
       CASE WHEN EXISTS(SELECT 1 FROM company_newgrad_role_images r WHERE r.company_id = c.id)
-           THEN TRUE ELSE FALSE END AS has_newgrad_image
+           THEN TRUE ELSE FALSE END AS has_newgrad_image,
+      CASE WHEN EXISTS(SELECT 1 FROM company_profiles p WHERE p.company_id = c.id)
+           THEN TRUE ELSE FALSE END AS has_profile
     FROM companies c
     WHERE TRUE
       ${filter.role ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(c.roles) WHERE value = ${filter.role})` : sql`AND ${filter.role} = ANY(c.roles)`) : sql``}
       ${filter.tag ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(c.tags) WHERE value = ${filter.tag})` : sql`AND ${filter.tag} = ANY(c.tags)`) : sql``}
       ${filter.industry ? sql`AND c.industry = ${filter.industry}` : sql``}
-      ${filter.q ? sql`AND (c.name ILIKE ${'%' + filter.q + '%'} OR c.description ILIKE ${'%' + filter.q + '%'})` : sql``}
+      ${filter.q ? (isSqlite ? sql`AND (c.name LIKE ${'%' + filter.q + '%'} OR c.description LIKE ${'%' + filter.q + '%'})` : sql`AND (c.name ILIKE ${'%' + filter.q + '%'} OR c.description ILIKE ${'%' + filter.q + '%'})`) : sql``}
     ORDER BY c.updated_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
