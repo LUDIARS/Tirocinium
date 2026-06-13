@@ -1,7 +1,12 @@
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import postgres, { type Sql } from 'postgres';
 import { config } from '../config.js';
 import { createSqliteSql } from './sqlite-driver.js';
+
+// __dirname = apps/server/src/db → プロジェクトルートは 4 階層上
+const _dir = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = resolve(_dir, '../../../..');
 
 // --- 遅延初期化 ---
 // DB 接続は initSql() が呼ばれるまで作成しない。
@@ -14,13 +19,14 @@ export let isSqlite = true;
 export let dbBackend: 'sqlite' | 'postgres' = 'sqlite';
 
 function sqlitePath(u: string): string {
-  if (!u) return resolve(process.cwd(), 'data', 'tirocinium.sqlite');
+  if (!u) return resolve(PROJECT_ROOT, 'data', 'tirocinium.sqlite');
   const p = u
     .replace(/^sqlite:\/\//, '')
     .replace(/^sqlite:/, '')
     .replace(/^file:\/\//, '')
     .replace(/^file:/, '');
-  return resolve(process.cwd(), p);
+  // 絶対パスはそのまま、相対パスはプロジェクトルート基準
+  return resolve(PROJECT_ROOT, p);
 }
 
 /** hydrateSecrets() の後に呼ぶ。 config.databaseUrl を読んで DB 接続を確立する。 */
