@@ -20,13 +20,15 @@ const SERVER_PORT = 8084;
 const DESKTOP_PORT = 5178;
 const DEV_PORTS = [SERVER_PORT, DESKTOP_PORT];
 
-// frontend (Vite) が build 時に読む env。bat と同じ既定値。
-const FE_ENV = {
-  ...process.env,
-  VITE_DEV_AUTH: process.env.VITE_DEV_AUTH ?? '1',
-  VITE_SERVER_URL: process.env.VITE_SERVER_URL ?? `http://localhost:${SERVER_PORT}`,
-  VITE_WS_URL: process.env.VITE_WS_URL ?? `ws://localhost:${SERVER_PORT}`,
-};
+// frontend (Vite) env。
+// API/WS は同一オリジン (Vite proxy → server) で受けるので VITE_SERVER_URL/VITE_WS_URL は
+// 設定しない (絶対 URL を入れるとブラウザがクロスオリジンになり CORS で弾かれる)。
+// proxy の転送先だけ VITE_PROXY_TARGET で渡す (vite.config.ts が参照)。
+const FE_ENV = { ...process.env };
+delete FE_ENV.VITE_SERVER_URL;
+delete FE_ENV.VITE_WS_URL;
+FE_ENV.VITE_DEV_AUTH = process.env.VITE_DEV_AUTH ?? '1';
+FE_ENV.VITE_PROXY_TARGET = process.env.VITE_PROXY_TARGET ?? `http://localhost:${SERVER_PORT}`;
 
 // ── ポート掃除 ────────────────────────────────────────
 function killPort(port) {
