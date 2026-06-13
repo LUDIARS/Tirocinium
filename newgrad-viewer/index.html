@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>企業×役職別『求める新卒像』ビューア</title>
+<style>
+  :root {
+    --bg: #0f1115; --card: #181b22; --line: #272b34; --fg: #e6e8ee; --muted: #98a0ae;
+    --accent: #7aa2ff; --good: #4ec98a; --warn: #e0b341; --chip: #232734;
+    --role-general: #a78bfa; --role-planner: #60a5fa; --role-programmer: #34d399;
+    --role-designer: #f472b6; --role-sound: #fb923c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.6 system-ui, "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: rgba(15,17,21,.92); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); padding: 14px 20px; }
+  h1 { font-size: 18px; margin: 0 0 10px; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input[type=search] { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 14px; min-width: 240px; flex: 1; }
+  .count { color: var(--muted); font-size: 13px; }
+  .role-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tab { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px; font-size: 13px; cursor: pointer; color: var(--muted); transition: all .15s; }
+  .tab:hover { color: var(--fg); }
+  .tab.active { color: #fff; border-color: currentColor; }
+  .tab[data-role=all].active   { color: var(--accent); border-color: var(--accent); background: rgba(122,162,255,.08); }
+  .tab[data-role=general].active   { color: var(--role-general); border-color: var(--role-general); background: rgba(167,139,250,.08); }
+  .tab[data-role=planner].active   { color: var(--role-planner); border-color: var(--role-planner); background: rgba(96,165,250,.08); }
+  .tab[data-role=programmer].active{ color: var(--role-programmer); border-color: var(--role-programmer); background: rgba(52,211,153,.08); }
+  .tab[data-role=designer].active  { color: var(--role-designer); border-color: var(--role-designer); background: rgba(244,114,182,.08); }
+  .tab[data-role=sound].active     { color: var(--role-sound); border-color: var(--role-sound); background: rgba(251,146,60,.08); }
+  main { padding: 18px 20px 60px; display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .card-head h2 { font-size: 15px; margin: 0; }
+  .meta { color: var(--muted); font-size: 12px; }
+  .role-block { border-top: 1px solid var(--line); padding-top: 10px; }
+  .role-label { font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+  .role-label.general   { color: var(--role-general); }
+  .role-label.planner   { color: var(--role-planner); }
+  .role-label.programmer{ color: var(--role-programmer); }
+  .role-label.designer  { color: var(--role-designer); }
+  .role-label.sound     { color: var(--role-sound); }
+  .summary { font-size: 13px; color: var(--fg); }
+  .chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+  .chip { background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; font-size: 12px; color: var(--muted); }
+  .articles { border-top: 1px dashed var(--line); padding-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .article-link { font-size: 12px; }
+  .empty { color: var(--muted); padding: 40px; text-align: center; grid-column: 1/-1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📋 企業×役職別『求める新卒像』ビューア <span class="count" id="count"></span></h1>
+  <div class="controls">
+    <input type="search" id="q" placeholder="社名・業界・キーワードで検索…" />
+    <div class="role-tabs">
+      <button class="tab active" data-role="all">全て</button>
+      <button class="tab" data-role="general">総合職</button>
+      <button class="tab" data-role="planner">プランナー</button>
+      <button class="tab" data-role="programmer">プログラマ</button>
+      <button class="tab" data-role="designer">デザイナー</button>
+      <button class="tab" data-role="sound">サウンド</button>
+    </div>
+  </div>
+</header>
+<main id="grid"></main>
+<script src="./data.js"></script>
+<script>
+  const DATA = (window.NEWGRAD || []).slice();
+  const grid = document.getElementById('grid');
+  const qEl = document.getElementById('q');
+  const countEl = document.getElementById('count');
+  let activeRole = 'all';
+
+  const ROLE_LABELS = {
+    general: '総合職', planner: 'プランナー', programmer: 'プログラマ',
+    designer: 'デザイナー', sound: 'サウンド',
+  };
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
+  const link = (u, label) => u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(label || host(u))}</a>` : '';
+
+  function roleBlock(role, data) {
+    const label = ROLE_LABELS[role] || role;
+    const themes = (data.themes || []).map(t => `<span class="chip">${esc(t)}</span>`).join('');
+    return `<div class="role-block">
+      <div class="role-label ${esc(role)}">${esc(label)}</div>
+      ${data.summary ? `<div class="summary">${esc(data.summary)}</div>` : ''}
+      ${themes ? `<div class="chips">${themes}</div>` : ''}
+    </div>`;
+  }
+
+  function card(c, filterRole) {
+    const roles = Object.entries(c.roles || {});
+    const shownRoles = filterRole === 'all' ? roles : roles.filter(([r]) => r === filterRole);
+    const roleHtml = shownRoles.map(([r, d]) => roleBlock(r, d)).join('');
+    const articles = (c.articles || []).slice(0, 5);
+    const articleHtml = articles.length
+      ? `<div class="articles">${articles.map((a, i) => `<span class="article-link">${link(a.url, a.title || ('記事' + (i + 1)))}</span>`).join('')}</div>`
+      : '';
+    const siteLink = c.url ? link(c.url, host(c.url)) : '';
+    return `<div class="card">
+      <div class="card-head">
+        <h2>${siteLink ? `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.name)}</a>` : esc(c.name)}</h2>
+        <div class="meta">${esc(c.industry || '')}${c.size ? ' · ' + esc(c.size) : ''}</div>
+      </div>
+      ${roleHtml}
+      ${articleHtml}
+    </div>`;
+  }
+
+  function render() {
+    const q = qEl.value.trim().toLowerCase();
+    const list = DATA.filter(c => {
+      if (activeRole !== 'all' && !c.roles[activeRole]) return false;
+      if (q) {
+        const roleTexts = Object.values(c.roles || {}).flatMap(d => [d.summary || '', ...(d.themes || [])]).join(' ');
+        const hay = [c.name, c.industry, c.size, roleTexts].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    countEl.textContent = `(${list.length} / ${DATA.length} 社)`;
+    grid.innerHTML = list.length ? list.map(c => card(c, activeRole)).join('') : '<div class="empty">該当なし</div>';
+  }
+
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeRole = btn.dataset.role;
+      render();
+    });
+  });
+  qEl.addEventListener('input', render);
+  render();
+</script>
+</body>
+</html>
