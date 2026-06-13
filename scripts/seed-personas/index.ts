@@ -3,7 +3,11 @@ import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import matter from 'gray-matter';
-import postgres from 'postgres';
+// migrate.ts と同じ DB 抽象を使う (既定 SQLite / DATABASE_URL=postgres:// で PG)。
+// 注: secrets/hydrate チェーン (@ludiars/encrypted-config) は scripts/ からの
+// tsx 解決で exports を引けず壊れるため import しない。 DB url は下で直接 config に流す。
+import { config } from '../../apps/server/src/config.js';
+import { sql, initSql } from '../../apps/server/src/db/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -60,10 +64,11 @@ async function main() {
     return;
   }
 
+  // DATABASE_URL があれば尊重 (postgres:// 等)、 無ければ config 既定の空 = SQLite
+  // (data/tirocinium.sqlite)。 start-tirocinium.bat の Docker 不要フローはこちら。
   const url = process.env['DATABASE_URL'];
-  if (!url) throw new Error('DATABASE_URL required');
-
-  const sql = postgres(url, { prepare: false });
+  if (url) config.databaseUrl = url;
+  initSql();
 
   try {
     for (const p of interviewers) {
