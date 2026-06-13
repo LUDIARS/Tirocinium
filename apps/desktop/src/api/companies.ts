@@ -22,6 +22,7 @@ export type Company = {
   updated_at: string;
   article_count: number;
   has_newgrad_image: boolean;
+  has_profile: boolean;
 };
 
 export type NewgradRoleImage = {
@@ -84,7 +85,7 @@ export function useCompaniesApi() {
   const { token } = useAuth();
 
   return {
-    async list(params: { role?: string; tag?: string; q?: string } = {}): Promise<{
+    async list(params: { role?: string; tag?: string; q?: string; limit?: number } = {}): Promise<{
       companies: Company[];
       total: number;
     }> {
@@ -92,6 +93,7 @@ export function useCompaniesApi() {
       if (params.role) qs.set('role', params.role);
       if (params.tag) qs.set('tag', params.tag);
       if (params.q) qs.set('q', params.q);
+      if (params.limit) qs.set('limit', String(params.limit));
       const suffix = qs.toString() ? `?${qs.toString()}` : '';
       return fetchJson(`/api/v1/companies${suffix}`, token);
     },

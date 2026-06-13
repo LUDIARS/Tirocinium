@@ -17,6 +17,7 @@ export function Companies() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [onlyGenerated, setOnlyGenerated] = useState(false);
 
   const [sources, setSources] = useState<string[]>([]);
   const [source, setSource] = useState('manual');
@@ -33,7 +34,8 @@ export function Companies() {
 
   const reload = async () => {
     try {
-      const r = await api.list({ q: q.trim() || undefined });
+      // プール全件を一覧表示できるよう limit を上げる (検索時も同様)。
+      const r = await api.list({ q: q.trim() || undefined, limit: 200 });
       setCompanies(r.companies);
       setTotal(r.total);
     } catch (e) {
@@ -120,6 +122,13 @@ export function Companies() {
     }
   };
 
+  // 生成済みデータ (IR/理念 or 新卒像) を持つ企業数。一覧で確認できるようにする。
+  const profileCount = companies.filter((c) => c.has_profile).length;
+  const newgradCount = companies.filter((c) => c.has_newgrad_image).length;
+  const visible = onlyGenerated
+    ? companies.filter((c) => c.has_profile || c.has_newgrad_image)
+    : companies;
+
   return (
     <div>
       <h2>企業プール</h2>
@@ -185,16 +194,28 @@ export function Companies() {
       {note && <p style={{ color: '#2e7d32' }}>{note}</p>}
 
       <div className="card">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-          <h3 style={{ margin: 0, flex: 1 }}>登録済み ({total})</h3>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+          <h3 style={{ margin: 0, flex: 1 }}>登録済み一覧 ({total})</h3>
           <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void reload()} placeholder="検索" />
           <button onClick={() => void reload()}>検索</button>
           <button onClick={enrichAll} disabled={busy !== null}>
             {busy === 'enrich-all' ? 'IR/理念取得中…' : '未取得をIR/理念取得'}
           </button>
         </div>
-        {companies.length === 0 && <p>まだ企業がありません</p>}
-        {companies.map((c) => (
+        {/* 生成済みデータの俯瞰 + 絞り込み (検索とは独立) */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8, fontSize: 12, opacity: 0.85, flexWrap: 'wrap' }}>
+          <span>IR/理念クロール済 <strong>{profileCount}</strong> 社</span>
+          <span>新卒像生成済 <strong>{newgradCount}</strong> 社</span>
+          <label style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }}>
+            <input type="checkbox" checked={onlyGenerated} onChange={(e) => setOnlyGenerated(e.target.checked)} />
+            生成済みデータがある企業のみ表示
+          </label>
+          {onlyGenerated && <span style={{ opacity: 0.7 }}>表示 {visible.length} 社</span>}
+        </div>
+        {visible.length === 0 && (
+          <p>{onlyGenerated ? '生成済みデータのある企業がありません' : 'まだ企業がありません'}</p>
+        )}
+        {visible.map((c) => (
           <div key={c.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
               <strong>{c.name}</strong>
@@ -206,7 +227,8 @@ export function Companies() {
                 {c.article_count > 0 && (
                   <Badge color="#e65100">記事 {c.article_count} 件</Badge>
                 )}
-                {profiles[c.id] && <Badge color="#37474f">IR/理念</Badge>}
+                {c.has_profile && <Badge color="#37474f">IR/理念済</Badge>}
+                {c.has_newgrad_image && <Badge color="#00838f">新卒像済</Badge>}
               </span>
             </div>
             {c.description && <div style={{ fontSize: 13, opacity: 0.85 }}>{c.description}</div>}
