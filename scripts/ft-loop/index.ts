@@ -2,7 +2,6 @@
 import { mkdir, writeFile, readFile, access } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import 'dotenv/config';
 import matter from 'gray-matter';
 import {
   buildSystemPrompt,
