@@ -3,6 +3,7 @@
 // @tirocinium/companies の robots.ts に委譲し、 ここは fetch / cache / 待機を持つ。
 
 import { parseRobots, isAllowed, pathOf, type RobotsRules } from '@tirocinium/companies';
+import { safeFetch } from './ssrf-guard.js';
 
 export type FetcherConfig = {
   userAgent: string;
@@ -72,10 +73,9 @@ export class PoliteFetcher {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), this.cfg.fetchTimeoutMs);
     try {
-      const res = await fetch(url, {
+      const res = await safeFetch(url, {
         headers: { 'user-agent': this.cfg.userAgent, accept: 'text/html,*/*' },
         signal: ctrl.signal,
-        redirect: 'follow',
       });
       if (!res.ok) return { ok: false, reason: 'http', message: `HTTP ${res.status}` };
       return { ok: true, html: await res.text() };
