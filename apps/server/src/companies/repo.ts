@@ -1,7 +1,8 @@
 import { sql, isSqlite } from '../db/index.js';
 import type { Company, NormalizedCompany } from '@tirocinium/companies';
 
-const SELECT_COLS = sql`
+// 遅延評価: sql は initSql() 後にしか呼べない (module-load 時点では未初期化)。
+const selectCols = () => sql`
   id, name, normalized_name, url, industry, description,
   roles, tags, location, size, source, source_url,
   is_newgrad, is_game, has_opening, recruit_url, stock_reason,
@@ -48,14 +49,14 @@ export async function listCompanies(filter: CompanyFilter = {}): Promise<Company
 }
 
 export async function getCompany(id: string): Promise<Company | null> {
-  const rows = await sql<Company[]>`SELECT ${SELECT_COLS} FROM companies WHERE id = ${id}`;
+  const rows = await sql<Company[]>`SELECT ${selectCols()} FROM companies WHERE id = ${id}`;
   return rows[0] ?? null;
 }
 
 /** dedup キー (normalized_name) で 1 社引く。 upsert 直後に id を得る用途。 */
 export async function getCompanyByNormalizedName(normalizedName: string): Promise<Company | null> {
   const rows = await sql<Company[]>`
-    SELECT ${SELECT_COLS} FROM companies WHERE normalized_name = ${normalizedName}
+    SELECT ${selectCols()} FROM companies WHERE normalized_name = ${normalizedName}
   `;
   return rows[0] ?? null;
 }
@@ -63,7 +64,7 @@ export async function getCompanyByNormalizedName(normalizedName: string): Promis
 /** recommend 用に全件 (上限あり) を取得する。 candidate scoring 対象。 */
 export async function allCompaniesForScoring(limit = 1000): Promise<Company[]> {
   return sql<Company[]>`
-    SELECT ${SELECT_COLS} FROM companies
+    SELECT ${selectCols()} FROM companies
     ORDER BY updated_at DESC
     LIMIT ${Math.min(limit, 5000)}
   `;
@@ -137,7 +138,7 @@ export async function upsertCompany(
 /** enrichment 対象 (url を持ち profile 未取得) の企業を返す。 */
 export async function companiesNeedingEnrichment(limit = 50): Promise<Company[]> {
   return sql<Company[]>`
-    SELECT ${SELECT_COLS} FROM companies c
+    SELECT ${selectCols()} FROM companies c
     WHERE c.url <> ''
       AND NOT EXISTS (SELECT 1 FROM company_profiles p WHERE p.company_id = c.id)
     ORDER BY c.updated_at DESC
