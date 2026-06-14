@@ -1,23 +1,35 @@
 [
   {
+    "id": "honne-navi-game",
+    "kind": "newgrad-nav",
+    "tier": "secondary",
+    "urls": ["https://shinsotsushukatsu-real.com/game-company-list/"],
+    "chunkChars": 14000,
+    "enabled": false,
+    "note": "新卒就活ホンネナビ ゲーム会社一覧 (約209社・1ページ)。robots許可 (禁止は /wp-admin/ のみ)。大手〜中小ベンチャー混在で『上場有無』列あり→中小は非上場で抽出。まとめサイトのため低頻度+明示opt-in。COMPANY_LISTING_OPTIN_SOURCES=honne-navi-game で有効化。ToSは運用前に目視確認"
+  },
+  {
+    "id": "tgs-exhibitors",
+    "kind": "game",
+    "tier": "primary",
+    "urls": ["https://example.com/tgs-exhibitors"],
+    "enabled": false,
+    "note": "東京ゲームショウ出展社一覧 (一次情報・ゲーム純度高・インディー/小規模が多い)。実URL未確定のためtemplate。年次更新の出展社ページURL確定後に差し替えて enabled:true"
+  },
+  {
+    "id": "cesa-members",
+    "kind": "game",
+    "tier": "primary",
+    "urls": ["https://example.com/cesa-members"],
+    "enabled": false,
+    "note": "CESA会員企業一覧 (一次情報・ゲーム純度高、中〜大企業バイアス)。実URL未確定のためtemplate"
+  },
+  {
     "id": "job-aggregator",
     "kind": "job-aggregator",
+    "tier": "secondary",
     "urls": ["https://example.com/jobs/newgrad"],
     "enabled": false,
-    "note": "汎用求人 aggregator の新卒一覧ページ。robots許可範囲のみ。実URLに差し替えて enabled:true で有効化"
-  },
-  {
-    "id": "game",
-    "kind": "game",
-    "urls": ["https://example.com/game-companies"],
-    "enabled": false,
-    "note": "ゲーム業界特化の企業/求人一覧。実URLに差し替えて enabled:true で有効化"
-  },
-  {
-    "id": "newgrad-nav",
-    "kind": "newgrad-nav",
-    "urls": ["https://example.com/newgrad-nav"],
-    "enabled": false,
-    "note": "大手新卒ナビ。ToS が厳しく anti-bot 強め。既定 disabled。COMPANY_LISTING_OPTIN_SOURCES=newgrad-nav で明示 opt-in したときのみ起動"
+    "note": "汎用求人aggregatorの新卒一覧。エージェント型/SPAは企業名がログイン裏で取得困難なことが多い。ログイン無しで企業名が列挙される一覧のみ対象。robots許可範囲で実URL確認後に有効化"
   }
 ]

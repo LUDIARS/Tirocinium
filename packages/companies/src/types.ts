@@ -40,6 +40,12 @@ export type NormalizedCompany = {
   source_url: string;
 };
 
+/** 出所 1 件 (どのソースのどの URL で発見したか)。 */
+export type CompanySource = {
+  source: string;
+  url: string;
+};
+
 /** DB から読み出した 1 社分 (id 付き)。 */
 export type Company = NormalizedCompany & {
   id: string;
@@ -50,6 +56,12 @@ export type Company = NormalizedCompany & {
   recruit_url: string;
   /** ストック理由 (新卒採用あり 等) */
   stock_reason: string;
+  /** 横断 provenance (migration 007)。 複数ソースに出た会社の出所を累積。 */
+  sources: CompanySource[];
+  /** 中小フラグ (migration 007)。 非上場 ∧ 大手非該当 で立つ。 */
+  is_smb: boolean;
+  /** 上場シグナル (migration 007)。 中小判定の材料。 */
+  is_listed: boolean;
   crawled_at: string;
   updated_at: string;
 };
@@ -88,6 +100,8 @@ export type CompanyFlags = {
   isGame: boolean;
   /** 現在募集 (新卒/中途問わず求人) がある */
   hasOpening: boolean;
+  /** 中小企業と読み取れる (非上場 ∧ 大手非該当)。 listing 段で立つ。 未判定は undefined。 */
+  isSMB?: boolean;
 };
 
 /** listing ページから抽出した 1 社分のエントリ (発見段階)。 */
@@ -101,6 +115,10 @@ export type ListingEntry = {
   industry?: string;
   /** listing 上の説明 / 職種スニペット (classify の材料) */
   snippet?: string;
+  /** 上場しているか (一覧の「上場有無」列など。 中小判定の材料)。 不明は undefined。 */
+  isListed?: boolean;
+  /** 規模の手がかり (例 '中小' / '従業員50名' / '大手')。 中小判定の材料。 */
+  sizeHint?: string;
   /** LLM が listing から推定したフラグ (任意。 keyword heuristic と統合する) */
   flagsHint?: Partial<CompanyFlags>;
 };
@@ -109,9 +127,13 @@ export type ListingEntry = {
 export type ListingSourceConfig = {
   id: string;
   /** 種別。 表示 / 既定の有効可否の目安 */
-  kind: 'job-aggregator' | 'game' | 'seed-list' | 'newgrad-nav';
+  kind: 'job-aggregator' | 'game' | 'seed-list' | 'newgrad-nav' | 'gov-api';
+  /** 信頼度の層。 primary=一次情報 / secondary=まとめ / structured=構造化API。 未指定は secondary 扱い。 */
+  tier?: 'primary' | 'secondary' | 'structured';
   /** listing ページ URL 群 */
   urls: string[];
+  /** 1 ページが巨大な一覧 (200 社超) を分割抽出する際のチャンク文字数。 未指定は config 既定。 */
+  chunkChars?: number;
   /** false の source は明示 opt-in (env) が無い限り起動しない */
   enabled: boolean;
   /** メモ (ToS 注意など) */

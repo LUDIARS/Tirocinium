@@ -37,17 +37,20 @@ export {
 } from './recommend.js';
 export {
   classifyFromText,
+  classifySMB,
   classifyListingEntry,
   shouldStock,
   stockReason,
+  type StockOptions,
 } from './classify.js';
+export { mergeSources, coerceSources } from './provenance.js';
 export { parseRobots, isAllowed, pathOf } from './robots.js';
 export {
   extractAnchors,
   selectEnrichmentLinks,
   enrichmentFetchList,
 } from './links.js';
-export { LISTING_INSTRUCTION, parseListing, extractListing } from './listing.js';
+export { LISTING_INSTRUCTION, parseListing, extractListing, chunkText } from './listing.js';
 export { PROFILE_INSTRUCTION, parseProfile, extractProfile } from './profile.js';
 export {
   mapGameCompanySeed,

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   classifyFromText,
+  classifySMB,
   classifyListingEntry,
   shouldStock,
   stockReason,
@@ -44,6 +45,30 @@ describe('classifyListingEntry', () => {
   });
 });
 
+describe('classifySMB', () => {
+  it('non-listed unknown company is treated as SMB (inclusive)', () => {
+    expect(classifySMB({ name: 'スタジオX', industry: 'ゲーム' })).toBe(true);
+  });
+  it('listed company is NOT SMB', () => {
+    expect(classifySMB({ name: 'スタジオX', isListed: true })).toBe(false);
+  });
+  it('known big company name is NOT SMB even if isListed unknown', () => {
+    expect(classifySMB({ name: 'カプコン' })).toBe(false);
+    expect(classifySMB({ name: 'バンダイナムコスタジオ' })).toBe(false);
+  });
+  it('sizeHint suggesting 大手/上場 is NOT SMB', () => {
+    expect(classifySMB({ name: '某社', sizeHint: '大手' })).toBe(false);
+    expect(classifySMB({ name: '某社', sizeHint: '従業員 3000名' })).toBe(false);
+  });
+  it('small sizeHint stays SMB', () => {
+    expect(classifySMB({ name: '某社', sizeHint: '従業員50名' })).toBe(true);
+  });
+  it('classifyListingEntry carries isSMB', () => {
+    expect(classifyListingEntry({ name: 'スタジオX', industry: 'ゲーム' }).isSMB).toBe(true);
+    expect(classifyListingEntry({ name: 'カプコン', industry: 'ゲーム' }).isSMB).toBe(false);
+  });
+});
+
 describe('shouldStock', () => {
   it('stocks when newgrad', () => {
     expect(shouldStock({ isNewgrad: true, isGame: false, hasOpening: false })).toBe(true);
@@ -56,6 +81,20 @@ describe('shouldStock', () => {
   });
   it('does NOT stock non-game opening without newgrad', () => {
     expect(shouldStock({ isNewgrad: false, isGame: false, hasOpening: true })).toBe(false);
+  });
+  it('requireSMB excludes companies known NOT to be SMB', () => {
+    expect(
+      shouldStock({ isNewgrad: true, isGame: true, hasOpening: true, isSMB: false }, { requireSMB: true }),
+    ).toBe(false);
+  });
+  it('requireSMB keeps SMB / unknown companies', () => {
+    expect(
+      shouldStock({ isNewgrad: true, isGame: false, hasOpening: false, isSMB: true }, { requireSMB: true }),
+    ).toBe(true);
+    // isSMB undefined (未判定) は除外しない (inclusive)
+    expect(
+      shouldStock({ isNewgrad: true, isGame: false, hasOpening: false }, { requireSMB: true }),
+    ).toBe(true);
   });
 });
 
