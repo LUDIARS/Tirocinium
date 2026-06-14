@@ -107,28 +107,53 @@ export function Companies() {
       return hay.includes(needle);
     });
 
-  // サジェスト候補: 登録企業に実在する 職種 / 業界 / タグ語 をユニーク化。
-  // 入力中、部分一致するものを件数つきで提示する (オートコンプリート風)。
+  // サジェスト候補: 登録企業に実在する 職種 / 業界 / タグ語 をユニーク化し、
+  // 該当社数 (= 利用頻度) を集計する。職種は優先表示するため kind を持たせる。
+  type SuggestKind = 'role' | 'industry' | 'tag';
   const suggestPool = (() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { count: number; kind: SuggestKind }>();
+    const add = (raw: string | undefined, kind: SuggestKind) => {
+      const tok = raw?.trim();
+      if (!tok) return;
+      const prev = map.get(tok);
+      // 既出なら件数を加算。職種を優先したいので role の kind は上書き勝ち。
+      map.set(tok, {
+        count: (prev?.count ?? 0) + 1,
+        kind: prev?.kind === 'role' ? 'role' : kind,
+      });
+    };
     for (const c of companies) {
-      const tokens = [c.industry, ...c.roles, ...tagWords(c)].filter(
-        (v): v is string => Boolean(v && v.trim()),
-      );
-      for (const tok of new Set(tokens)) map.set(tok, (map.get(tok) ?? 0) + 1);
+      const seen = new Set<string>();
+      const push = (raw: string | undefined, kind: SuggestKind) => {
+        const tok = raw?.trim();
+        if (!tok || seen.has(tok)) return;
+        seen.add(tok);
+        add(tok, kind);
+      };
+      for (const r of c.roles) push(r, 'role');
+      push(c.industry, 'industry');
+      for (const t of tagWords(c)) push(t, 'tag');
     }
     return map;
   })();
-  const suggestions =
-    needle && showSuggest
-      ? [...suggestPool.entries()]
-          .filter(([tok]) => {
-            const low = tok.toLowerCase();
+
+  const kindRank: Record<SuggestKind, number> = { role: 0, industry: 1, tag: 2 };
+  const allSuggest = [...suggestPool.entries()].map(([token, v]) => ({ token, ...v }));
+  const suggestions = !showSuggest
+    ? []
+    : needle
+      ? // 入力中: 部分一致を頻度順に (オートコンプリート)
+        allSuggest
+          .filter((s) => {
+            const low = s.token.toLowerCase();
             return low.includes(needle) && low !== needle;
           })
-          .sort((a, b) => b[1] - a[1])
+          .sort((a, b) => b.count - a.count)
           .slice(0, 8)
-      : [];
+      : // 未入力でフォーカス時: よく使われるキーワードを先出し (職種優先)
+        allSuggest
+          .sort((a, b) => kindRank[a.kind] - kindRank[b.kind] || b.count - a.count)
+          .slice(0, 10);
 
   return (
     <div>
@@ -155,20 +180,30 @@ export function Companies() {
             />
             {suggestions.length > 0 && (
               <ul className="company-suggest">
-                {suggestions.map(([tok, count]) => (
-                  <li key={tok}>
+                {!needle && (
+                  <li className="company-suggest-head">よく使われるキーワード</li>
+                )}
+                {suggestions.map((s) => (
+                  <li key={s.token}>
                     <button
                       type="button"
                       className="company-suggest-item"
                       onMouseDown={(e) => {
                         // blur より先に発火させて選択を確定する。
                         e.preventDefault();
-                        setQ(tok);
+                        setQ(s.token);
                         setShowSuggest(false);
                       }}
                     >
-                      <span>{tok}</span>
-                      <span className="company-suggest-count">{count}</span>
+                      <span>
+                        {s.token}
+                        {!needle && (
+                          <span className={`company-suggest-kind kind-${s.kind}`}>
+                            {s.kind === 'role' ? '職種' : s.kind === 'industry' ? '業界' : 'タグ'}
+                          </span>
+                        )}
+                      </span>
+                      <span className="company-suggest-count">{s.count}</span>
                     </button>
                   </li>
                 ))}

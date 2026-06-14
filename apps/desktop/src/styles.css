@@ -829,6 +829,25 @@ pre {
 }
 .company-suggest li { margin: 0; }
 
+.company-suggest-head {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--c-subtle);
+  letter-spacing: 0.04em;
+  padding: 4px 10px 2px;
+}
+
+.company-suggest-kind {
+  margin-left: 6px;
+  font-size: 0.66rem;
+  border-radius: 4px;
+  padding: 0 5px;
+  vertical-align: middle;
+}
+.company-suggest-kind.kind-role     { background: #e8f0fe; color: #1565c0; }
+.company-suggest-kind.kind-industry { background: #ede7f6; color: #5e35b1; }
+.company-suggest-kind.kind-tag      { background: #e0f2f1; color: #00796b; }
+
 .company-suggest-item {
   width: 100%;
   display: flex;
