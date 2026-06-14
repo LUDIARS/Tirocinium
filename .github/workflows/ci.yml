@@ -43,9 +43,6 @@ jobs:
       - name: Build packages/companies
         run: npm --workspace packages/companies run build
 
-      - name: Build packages/notion
-        run: npm --workspace packages/notion run build
-
       - name: Build packages/secrets
         run: npm --workspace packages/secrets run build
 
@@ -66,9 +63,6 @@ jobs:
 
       - name: Test packages/companies
         run: npm --workspace packages/companies test
-
-      - name: Test packages/notion
-        run: npm --workspace packages/notion test
 
       - name: Test packages/secrets
         run: npm --workspace packages/secrets test
