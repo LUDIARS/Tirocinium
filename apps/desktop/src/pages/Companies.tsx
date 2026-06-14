@@ -11,6 +11,7 @@ export function Companies() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState('');
+  const [showSuggest, setShowSuggest] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -83,18 +84,51 @@ export function Companies() {
   // 生成済みデータ (IR/理念 or 新卒像) を持つ企業数。一覧で確認できるようにする。
   const profileCount = companies.filter((c) => c.has_profile).length;
   const newgradCount = companies.filter((c) => c.has_newgrad_image).length;
-  // 検索はクライアント側フィルタ。名前 / 説明 / 業界 / 職種を横断して部分一致。
+
+  // 企業ごとに「タグ語」(バッジ相当のキーワード) を導出。検索/サジェスト両方で使う。
+  const tagWords = (c: Company): string[] => {
+    const t: string[] = [];
+    if (c.is_game) t.push('ゲーム');
+    if (c.is_newgrad) t.push('新卒');
+    if (c.has_opening) t.push('募集中');
+    return t;
+  };
+
+  // 検索はクライアント側フィルタ。名前 / 説明 / 業界 / 職種 / タグを横断して部分一致。
   const needle = q.trim().toLowerCase();
   const visible = companies
     .filter((c) => (onlyGenerated ? c.has_profile || c.has_newgrad_image : true))
     .filter((c) => {
       if (!needle) return true;
-      const hay = [c.name, c.description, c.industry, ...c.roles]
+      const hay = [c.name, c.description, c.industry, ...c.roles, ...tagWords(c)]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
       return hay.includes(needle);
     });
+
+  // サジェスト候補: 登録企業に実在する 職種 / 業界 / タグ語 をユニーク化。
+  // 入力中、部分一致するものを件数つきで提示する (オートコンプリート風)。
+  const suggestPool = (() => {
+    const map = new Map<string, number>();
+    for (const c of companies) {
+      const tokens = [c.industry, ...c.roles, ...tagWords(c)].filter(
+        (v): v is string => Boolean(v && v.trim()),
+      );
+      for (const tok of new Set(tokens)) map.set(tok, (map.get(tok) ?? 0) + 1);
+    }
+    return map;
+  })();
+  const suggestions =
+    needle && showSuggest
+      ? [...suggestPool.entries()]
+          .filter(([tok]) => {
+            const low = tok.toLowerCase();
+            return low.includes(needle) && low !== needle;
+          })
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 8)
+      : [];
 
   return (
     <div>
@@ -108,7 +142,39 @@ export function Companies() {
           <h3 style={{ margin: 0, flex: 1 }}>
             登録済み一覧 ({visible.length !== total ? `${visible.length} / ${total}` : total})
           </h3>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="名前 / 業界 / 職種で絞り込み" />
+          <div className="company-search">
+            <input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setShowSuggest(true);
+              }}
+              onFocus={() => setShowSuggest(true)}
+              onBlur={() => setTimeout(() => setShowSuggest(false), 120)}
+              placeholder="名前 / 業界 / 職種 / タグで絞り込み"
+            />
+            {suggestions.length > 0 && (
+              <ul className="company-suggest">
+                {suggestions.map(([tok, count]) => (
+                  <li key={tok}>
+                    <button
+                      type="button"
+                      className="company-suggest-item"
+                      onMouseDown={(e) => {
+                        // blur より先に発火させて選択を確定する。
+                        e.preventDefault();
+                        setQ(tok);
+                        setShowSuggest(false);
+                      }}
+                    >
+                      <span>{tok}</span>
+                      <span className="company-suggest-count">{count}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <button onClick={enrichAll} disabled={busy !== null}>
             {busy === 'enrich-all' ? 'IR/理念取得中…' : '未取得をIR/理念取得'}
           </button>

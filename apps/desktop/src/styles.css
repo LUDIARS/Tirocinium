@@ -803,6 +803,58 @@ pre {
   border-bottom-color: var(--c-accent);
 }
 
+/* === Company search + suggest (企業プール検索) === */
+.company-search {
+  position: relative;
+}
+.company-search input {
+  width: 220px;
+}
+
+.company-suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.company-suggest li { margin: 0; }
+
+.company-suggest-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: transparent;
+  color: var(--c-text);
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+.company-suggest-item:hover { background: var(--c-muted); opacity: 1; }
+
+.company-suggest-count {
+  font-size: 0.72rem;
+  color: var(--c-subtle);
+  background: var(--c-muted);
+  border-radius: 999px;
+  padding: 1px 7px;
+  flex-shrink: 0;
+}
+
 /* === Company cards (企業プール一覧) === */
 .company-grid {
   display: grid;
