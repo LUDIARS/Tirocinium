@@ -28,10 +28,13 @@ const ROLE_ALIASES: Record<string, RoleLens> = {
   コンポーザー: 'sound',
 };
 
-/** 社名を dedup キーに正規化する (lower + 法人格 / 記号 / 空白除去)。 */
+/** 社名を dedup キーに正規化する (lower + 括弧注記 / 法人格 / 記号 / 空白除去)。 */
 export function normalizeName(name: string): string {
   return name
     .toLowerCase()
+    // 括弧の注記 (旧称/英名/HD 名など) を中身ごと除去 → seed↔research の名寄れを安定させる。
+    // 例: "グリー株式会社（グリーホールディングス株式会社）" / "株式会社ディー・エヌ・エー（DeNA）"
+    .replace(/[（(][^）)]*[）)]/g, '')
     .replace(/株式会社|有限会社|合同会社|（株）|\(株\)|co\.,?\s*ltd\.?|inc\.?|corp\.?|ltd\.?/gi, '')
     .replace(/[\s　,.・/\\()（）「」【】]/g, '')
     .trim();
@@ -89,6 +92,11 @@ export function normalizeCompany(input: CompanyInput): NormalizedCompany | null 
     tags: cleanTags(input.tags),
     location: str(input.location, 120),
     size: str(input.size, 60),
+    employee_count:
+      Number.isFinite(input.employeeCount) && (input.employeeCount ?? 0) > 0
+        ? Math.round(input.employeeCount as number)
+        : 0,
+    listing_market: str(input.listingMarket, 20),
     source: str(input.source, 60) || 'unknown',
     source_url: str(input.source_url, 500) || str(input.url, 500),
   };
