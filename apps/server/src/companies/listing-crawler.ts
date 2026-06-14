@@ -8,6 +8,7 @@ import {
   stockReason,
   normalizeCompany,
   extractListing,
+  chunkText,
   htmlToText,
   type ListingSourceConfig,
 } from '@tirocinium/companies';
@@ -67,10 +68,19 @@ export async function runListingCrawl(sourceId?: string): Promise<ListingCrawlSu
         continue;
       }
       summary.pagesFetched++;
-      try {
-        await ingestListingPage(client, source, htmlToText(res.html, 16000), summary);
-      } catch (err) {
-        summary.errors.push({ url, message: (err as Error).message });
+      // 巨大一覧 (200社超) は 1 回の抽出で取りこぼすため、 全文をチャンク分割して複数回抽出する (§2①)。
+      const fullText = htmlToText(res.html, config.companyCrawl.listingMaxChars);
+      const chunks = chunkText(
+        fullText,
+        source.chunkChars ?? config.companyCrawl.listingChunkChars,
+        config.companyCrawl.listingMaxChunks,
+      );
+      for (const chunk of chunks) {
+        try {
+          await ingestListingPage(client, source, chunk, summary);
+        } catch (err) {
+          summary.errors.push({ url, message: (err as Error).message });
+        }
       }
     }
   }
@@ -95,7 +105,7 @@ async function ingestListingPage(
 
   for (const entry of entries) {
     const flags = classifyListingEntry(entry);
-    if (!shouldStock(flags)) {
+    if (!shouldStock(flags, { requireSMB: config.companyCrawl.requireSMB })) {
       summary.skipped++;
       continue;
     }
@@ -115,6 +125,8 @@ async function ingestListingPage(
       isNewgrad: flags.isNewgrad,
       isGame: flags.isGame,
       hasOpening: flags.hasOpening,
+      isSMB: flags.isSMB ?? false,
+      isListed: entry.isListed ?? false,
       recruitUrl: entry.recruitUrl ?? '',
       stockReason: stockReason(flags),
     });

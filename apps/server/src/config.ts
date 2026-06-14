@@ -37,6 +37,12 @@ export const config = {
     userAgent: 'TirociniumBot/0.1 (+https://github.com/LUDIARS/Tirocinium)',
     adminIds: [] as string[],
     listingOptInSources: [] as string[],
+    // 中小のみ stock する (spec/companies/listing-bundle.md §2③)。 既定 off。
+    requireSMB: false,
+    // 巨大一覧の分割抽出 (§2①)。 1 チャンク文字数 / 全文上限 / チャンク上限。
+    listingChunkChars: 16_000,
+    listingMaxChars: 120_000,
+    listingMaxChunks: 12,
   },
   sessionRateLimit: {
     windowMs: 60_000,

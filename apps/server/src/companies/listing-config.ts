@@ -22,7 +22,9 @@ export async function loadListingSources(): Promise<ListingSourceConfig[]> {
       .map((r) => ({
         id: String(r.id ?? ''),
         kind: (r.kind ?? 'job-aggregator') as ListingSourceConfig['kind'],
+        tier: (r.tier ?? undefined) as ListingSourceConfig['tier'],
         urls: Array.isArray(r.urls) ? r.urls.filter((u): u is string => typeof u === 'string') : [],
+        chunkChars: typeof r.chunkChars === 'number' ? r.chunkChars : undefined,
         enabled: r.enabled === true,
         note: typeof r.note === 'string' ? r.note : undefined,
       }))
