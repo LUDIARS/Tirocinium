@@ -84,16 +84,19 @@ upsertCompany (normalized_name で UPSERT、 空値は既存を温存)
 
 ### 3.5.1 listing ソース (設定駆動)
 
-`data/companies/listing-sources.json` に `{id, kind, urls[], enabled, note}` を列挙。
+`data/companies/listing-sources.json` に `{id, kind, tier?, urls[], chunkChars?, enabled, note}` を列挙。
 サイト固有のセレクタは持たず、 ページ本文を **LLM (EXTRACTOR=Haiku) で企業リスト抽出** する (`extractListing`)。
+複数ソースの束ね方 (tier / 大表チャンク化 / 横断 provenance / 中小レーン) は [[spec/companies/listing-bundle.md]]。
 
 | kind | 用途 | 既定 |
 |---|---|---|
 | `job-aggregator` | 汎用求人 aggregator の新卒一覧 | disabled (実URL差替で有効化) |
-| `game` | ゲーム業界特化の企業/求人一覧 | disabled |
+| `game` | ゲーム業界特化の企業/求人一覧 (一次情報) | disabled |
 | `seed-list` | 用意した企業リスト由来 | disabled |
-| `newgrad-nav` | 大手新卒ナビ (ToS 厳しめ) | **disabled + 明示 opt-in 必須** |
+| `newgrad-nav` | 新卒ナビ / 就活まとめ (ToS 厳しめ) | **disabled + 明示 opt-in 必須** |
+| `gov-api` | 構造化 API (gBizINFO 等、[[spec/companies/gbizinfo.md]]) | CLI 起動 |
 
+- `tier` (`primary`/`secondary`/`structured`) で信頼度を層化。 `chunkChars` で巨大一覧 (200社超) を分割抽出。
 - `enabled=false` でも `COMPANY_LISTING_OPTIN_SOURCES` に id があれば起動 (ToS リスク源の安全弁)。
 - 全ソースで **robots.txt 遵守 + 1ドメイン逐次 + Crawl-delay/最小間隔 + 礼節UA** (`PoliteFetcher`)。
 

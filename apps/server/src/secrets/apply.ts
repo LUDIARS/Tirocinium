@@ -86,6 +86,8 @@ export function applyServerConfig(
   set('COMPANY_LISTING_OPTIN_SOURCES', (v) => {
     cfg.companyCrawl.listingOptInSources = v.split(',').map((s) => s.trim()).filter(Boolean);
   });
+  setBool('COMPANY_REQUIRE_SMB', (v) => { cfg.companyCrawl.requireSMB = v; });
+  setNum('COMPANY_LISTING_CHUNK_CHARS', (v) => { cfg.companyCrawl.listingChunkChars = v; });
   setNum('SESSION_RATELIMIT_WINDOW_MS', (v) => { cfg.sessionRateLimit.windowMs = v; });
   setNum('SESSION_RATELIMIT_MAX', (v) => { cfg.sessionRateLimit.max = v; });
 
