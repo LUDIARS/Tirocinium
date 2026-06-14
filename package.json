@@ -21,7 +21,6 @@
     "sim-loop": "tsx scripts/sim-loop/index.ts",
     "sim-batch": "tsx scripts/sim-batch/index.ts",
     "sim-viewer": "tsx scripts/sim-viewer/index.ts",
-    "notion-crawl": "tsx scripts/notion-crawl/index.ts",
     "companies:seed-import:sqlite": "tsx scripts/companies-seed-import-sqlite/index.ts",
     "config-setup": "tsx scripts/config-setup/index.ts",
     "export:newgrad-data": "tsx scripts/export-newgrad-data/index.ts"
