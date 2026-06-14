@@ -34,3 +34,10 @@ data/training/sim-sessions/
 # Notion クロール出力 (private なページ内容を含むため非追跡)
 data/notion/
 logs/
+
+# ローカル設定/秘密ストア (packages/secrets local-store。マシン固有パス + secrets を含むため非追跡)
+tirocinium.config.json
+**/tirocinium.config.json
+
+# クラッシュダンプ (git-bash 等)
+*.stackdump
