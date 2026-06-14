@@ -1,11 +1,12 @@
 import { sql } from '../db/index.js';
 import type { CompanyProfile, CompanyProfileInput } from '@tirocinium/companies';
 
-const SELECT_COLS = sql`company_id, philosophy, "values", ir_summary, business, sources, fetched_at`;
+// 遅延評価: sql は initSql() 後にしか呼べない (module-load 時点では未初期化)。
+const selectCols = () => sql`company_id, philosophy, "values", ir_summary, business, sources, fetched_at`;
 
 export async function getProfile(companyId: string): Promise<CompanyProfile | null> {
   const rows = await sql<CompanyProfile[]>`
-    SELECT ${SELECT_COLS} FROM company_profiles WHERE company_id = ${companyId}
+    SELECT ${selectCols()} FROM company_profiles WHERE company_id = ${companyId}
   `;
   return rows[0] ?? null;
 }
@@ -28,7 +29,7 @@ export async function upsertProfile(
       business   = EXCLUDED.business,
       sources    = EXCLUDED.sources,
       fetched_at = now()
-    RETURNING ${SELECT_COLS}
+    RETURNING ${selectCols()}
   `;
   return rows[0]!;
 }

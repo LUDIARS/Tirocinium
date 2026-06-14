@@ -1,26 +1,19 @@
-// 起動時に Excubitor secret-agent から server の全 config を取得して注入する。
-// env もファイルも使わず、 process memory (config オブジェクト / process.env 最小限) にのみ載せる。
-// agent 不通 / 未設定なら例外を投げ、起動を止める。
+// 起動時にローカル暗号化 config (または secret-agent) から LLM キーを注入する。
+// DB=SQLite、devAuth=true 固定のため DB/Cernere/Nuntius 系は注入しない。
+// ローカル config が未設定でもデフォルト値で起動する (LLM 呼出時にエラーになる)。
 
 import { config } from '../config.js';
 import { resolveSecrets, readLocalSecrets, SecretAgentError, localConfigPath, type ResolvedSecrets } from '@tirocinium/secrets';
-// localConfigPath は env 引数のみ (serviceCode 不要) に変更済み。
 import { applyDiscordSecrets, applyServerConfig } from './apply.js';
 
 /** secret-agent の service code (既定 'tirocinium')。 */
 const SERVICE_CODE = process.env['TIROCINIUM_SERVICE_CODE'] ?? 'tirocinium';
 
-/** agent から取得する全 config キー。 */
+/** agent / ローカル config から取得するキー (ローカルツールモード用に絞り込み済み)。 */
 export const SECRET_KEYS = [
-  // サーバー基本設定
+  // サーバー基本設定 (省略時はデフォルト値)
   'TIROCINIUM_PORT',
   'TIROCINIUM_HOST',
-  'DATABASE_URL',
-  'CERNERE_PUBLIC_KEY',
-  'CERNERE_AUDIENCE',
-  // dev バイパス
-  'TIROCINIUM_DEV_AUTH',
-  'TIROCINIUM_DEV_USER_ID',
   // LLM バックエンド
   'TIROCINIUM_LLM_BACKEND',
   // LLM API キー (process.env に passthrough)
@@ -28,11 +21,6 @@ export const SECRET_KEYS = [
   'OPENAI_API_KEY',
   // CLI バックエンド用 (Windows で claude CLI spawn に必要)
   'CLAUDE_CODE_GIT_BASH_PATH',
-  // 通知
-  'NUNTIUS_URL',
-  'NUNTIUS_API_KEY',
-  // RAG
-  'MEMORIA_URL',
   // 予約スロット
   'SLOT_DURATION_MIN',
   'SLOT_CAPACITY',
@@ -58,7 +46,7 @@ export const SECRET_KEYS = [
   'TIROCINIUM_DISCORD_COMMAND_PREFIX',
 ];
 
-/** 起動時に config を注入する。優先順位: secret-agent → ローカル暗号化 config */
+/** 起動時に config を注入する。優先順位: secret-agent → ローカル暗号化 config → デフォルト値で起動 */
 export async function hydrateSecrets(): Promise<void> {
   let secrets: ResolvedSecrets;
   let source: string;
@@ -70,11 +58,9 @@ export async function hydrateSecrets(): Promise<void> {
     if (err instanceof SecretAgentError && (err.code === 'unreachable' || err.code === 'no_token')) {
       const local = readLocalSecrets();
       if (!local) {
-        throw new Error(
-          `secret-agent に接続できず、ローカル config も見つかりません。\n` +
-          `  config パス: ${localConfigPath()}\n` +
-          `  初期設定: npm run config-setup`,
-        );
+        console.warn('[secrets] ローカル config が見つかりません。デフォルト設定で起動します。');
+        console.warn(`  LLM キーを設定するには: npm run config-setup  (保存先: ${localConfigPath()})`);
+        return;
       }
       secrets = local;
       source = 'local';

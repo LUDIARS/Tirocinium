@@ -69,18 +69,11 @@ export function applyServerConfig(
 
   set('TIROCINIUM_HOST', (v) => { cfg.host = v; });
   setNum('TIROCINIUM_PORT', (v) => { cfg.port = v; });
-  set('DATABASE_URL', (v) => { cfg.databaseUrl = v; });
-  set('CERNERE_PUBLIC_KEY', (v) => { cfg.cernerePublicKey = v; });
-  set('CERNERE_AUDIENCE', (v) => { cfg.cernereAudience = v; });
-  setBool('TIROCINIUM_DEV_AUTH', (v) => { cfg.devAuth = v; });
-  set('TIROCINIUM_DEV_USER_ID', (v) => { cfg.devUserId = v; });
   set('TIROCINIUM_LLM_BACKEND', (v) => { cfg.llmBackend = v as 'api' | 'cli'; });
   setNum('SLOT_DURATION_MIN', (v) => { cfg.slotDurationMin = v; });
   setNum('SLOT_CAPACITY', (v) => { cfg.slotCapacity = v; });
   setNum('NO_SHOW_TIMEOUT_MIN', (v) => { cfg.noShowTimeoutMin = v; });
   setNum('NOTIFY_LEAD_MIN', (v) => { cfg.notifyLeadMin = v; });
-  set('NUNTIUS_URL', (v) => { cfg.nuntiusUrl = v; });
-  set('NUNTIUS_API_KEY', (v) => { cfg.nuntiusApiKey = v; });
   setNum('COMPANY_CRAWL_MAX_PAGES', (v) => { cfg.companyCrawl.maxPages = v; });
   setNum('COMPANY_CRAWL_FETCH_TIMEOUT_MS', (v) => { cfg.companyCrawl.fetchTimeoutMs = v; });
   setNum('COMPANY_CRAWL_MIN_INTERVAL_MS', (v) => { cfg.companyCrawl.minIntervalMs = v; });
@@ -99,7 +92,7 @@ export function applyServerConfig(
   // 子プロセス (claude CLI / Anthropic SDK / OpenAI SDK) が直接 process.env を読むキーは
   // config への書込みに加え process.env にも注入する。
   const envPassthrough: Record<string, string> = {};
-  for (const key of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'CLAUDE_CODE_GIT_BASH_PATH', 'MEMORIA_URL']) {
+  for (const key of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'CLAUDE_CODE_GIT_BASH_PATH']) {
     const v = secrets[key];
     if (v) { envPassthrough[key] = v; applied.push(key); }
   }
