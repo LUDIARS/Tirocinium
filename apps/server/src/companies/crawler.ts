@@ -18,6 +18,7 @@ import {
 } from '@tirocinium/companies';
 import { config } from '../config.js';
 import { upsertCompany } from './repo.js';
+import { safeFetch } from './ssrf-guard.js';
 
 export type RunCrawlInput = {
   source: string;
@@ -31,10 +32,9 @@ async function fetchHtml(url: string): Promise<string> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), config.companyCrawl.fetchTimeoutMs);
   try {
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       headers: { 'user-agent': config.companyCrawl.userAgent, accept: 'text/html,*/*' },
       signal: ctrl.signal,
-      redirect: 'follow',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.text();

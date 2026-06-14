@@ -2,9 +2,6 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   useCompaniesApi,
   type Company,
-  type CrawlSummary,
-  type ListingSource,
-  type ListingCrawlSummary,
   type CompanyProfile,
   type NewgradRoleImage,
 } from '../api/companies.js';
@@ -14,26 +11,20 @@ export function Companies() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState('');
+  const [showSuggest, setShowSuggest] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
-
-  const [sources, setSources] = useState<string[]>([]);
-  const [source, setSource] = useState('manual');
-  const [urls, setUrls] = useState('');
-  const [summary, setSummary] = useState<CrawlSummary | null>(null);
-
-  const [listingSources, setListingSources] = useState<ListingSource[]>([]);
-  const [listingSource, setListingSource] = useState('');
-  const [listingSummary, setListingSummary] = useState<ListingCrawlSummary | null>(null);
+  const [onlyGenerated, setOnlyGenerated] = useState(false);
 
   const [profiles, setProfiles] = useState<Record<string, CompanyProfile>>({});
   const [newgradImages, setNewgradImages] = useState<Record<string, NewgradRoleImage[]>>({});
-  const [expandedNewgrad, setExpandedNewgrad] = useState<Set<string>>(new Set());
+  const [newgradModal, setNewgradModal] = useState<{ id: string; name: string } | null>(null);
 
   const reload = async () => {
     try {
-      const r = await api.list({ q: q.trim() || undefined });
+      // プール全件を取得し、絞り込みはクライアント側フィルタで行う。
+      const r = await api.list({ limit: 200 });
       setCompanies(r.companies);
       setTotal(r.total);
     } catch (e) {
@@ -43,15 +34,6 @@ export function Companies() {
 
   useEffect(() => {
     void reload();
-    void api.sources().then((r) => {
-      setSources(r.sources);
-      if (r.sources[0]) setSource(r.sources[0]);
-    });
-    void api.listingSources().then((r) => {
-      setListingSources(r.sources);
-      const first = r.sources.find((s) => s.active) ?? r.sources[0];
-      if (first) setListingSource(first.id);
-    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -67,22 +49,6 @@ export function Companies() {
       setBusy(null);
     }
   };
-
-  const crawl = () =>
-    wrap('crawl', async () => {
-      const urlList = urls.split(/[\n,]/).map((u) => u.trim()).filter(Boolean);
-      const res = await api.crawl({ source, urls: urlList });
-      setSummary(res.summary);
-      setUrls('');
-      await reload();
-    });
-
-  const crawlListing = () =>
-    wrap('listing', async () => {
-      const res = await api.crawlListing({ source: listingSource || undefined });
-      setListingSummary(res.summary);
-      await reload();
-    });
 
   const enrichAll = () =>
     wrap('enrich-all', async () => {
@@ -105,13 +71,8 @@ export function Companies() {
       setProfiles((m) => ({ ...m, [id]: p.profile }));
     });
 
-  const toggleNewgrad = async (id: string) => {
-    setExpandedNewgrad((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) { next.delete(id); return next; }
-      next.add(id);
-      return next;
-    });
+  const openNewgrad = async (id: string, name: string) => {
+    setNewgradModal({ id, name });
     if (!newgradImages[id]) {
       await wrap(`newgrad-${id}`, async () => {
         const r = await api.newgrad(id);
@@ -120,85 +81,158 @@ export function Companies() {
     }
   };
 
+  // 生成済みデータ (IR/理念 or 新卒像) を持つ企業数。一覧で確認できるようにする。
+  const profileCount = companies.filter((c) => c.has_profile).length;
+  const newgradCount = companies.filter((c) => c.has_newgrad_image).length;
+
+  // 企業ごとに「タグ語」(バッジ相当のキーワード) を導出。検索/サジェスト両方で使う。
+  const tagWords = (c: Company): string[] => {
+    const t: string[] = [];
+    if (c.is_game) t.push('ゲーム');
+    if (c.is_newgrad) t.push('新卒');
+    if (c.has_opening) t.push('募集中');
+    return t;
+  };
+
+  // 検索はクライアント側フィルタ。名前 / 説明 / 業界 / 職種 / タグを横断して部分一致。
+  const needle = q.trim().toLowerCase();
+  const visible = companies
+    .filter((c) => (onlyGenerated ? c.has_profile || c.has_newgrad_image : true))
+    .filter((c) => {
+      if (!needle) return true;
+      const hay = [c.name, c.description, c.industry, ...c.roles, ...tagWords(c)]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(needle);
+    });
+
+  // サジェスト候補: 登録企業に実在する 職種 / 業界 / タグ語 をユニーク化し、
+  // 該当社数 (= 利用頻度) を集計する。職種は優先表示するため kind を持たせる。
+  type SuggestKind = 'role' | 'industry' | 'tag';
+  const suggestPool = (() => {
+    const map = new Map<string, { count: number; kind: SuggestKind }>();
+    const add = (raw: string | undefined, kind: SuggestKind) => {
+      const tok = raw?.trim();
+      if (!tok) return;
+      const prev = map.get(tok);
+      // 既出なら件数を加算。職種を優先したいので role の kind は上書き勝ち。
+      map.set(tok, {
+        count: (prev?.count ?? 0) + 1,
+        kind: prev?.kind === 'role' ? 'role' : kind,
+      });
+    };
+    for (const c of companies) {
+      const seen = new Set<string>();
+      const push = (raw: string | undefined, kind: SuggestKind) => {
+        const tok = raw?.trim();
+        if (!tok || seen.has(tok)) return;
+        seen.add(tok);
+        add(tok, kind);
+      };
+      for (const r of c.roles) push(r, 'role');
+      push(c.industry, 'industry');
+      for (const t of tagWords(c)) push(t, 'tag');
+    }
+    return map;
+  })();
+
+  const kindRank: Record<SuggestKind, number> = { role: 0, industry: 1, tag: 2 };
+  const allSuggest = [...suggestPool.entries()].map(([token, v]) => ({ token, ...v }));
+  const suggestions = !showSuggest
+    ? []
+    : needle
+      ? // 入力中: 部分一致を頻度順に (オートコンプリート)
+        allSuggest
+          .filter((s) => {
+            const low = s.token.toLowerCase();
+            return low.includes(needle) && low !== needle;
+          })
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 8)
+      : // 未入力でフォーカス時: よく使われるキーワードを先出し (職種優先)
+        allSuggest
+          .sort((a, b) => kindRank[a.kind] - kindRank[b.kind] || b.count - a.count)
+          .slice(0, 10);
+
   return (
     <div>
       <h2>企業プール</h2>
-      <p style={{ fontSize: 13, opacity: 0.8 }}>
-        新卒採用企業・ゲーム企業(募集あり)を listing からクロールしてストックし、各社サイトを巡回して IR/企業理念を取得します。
-        robots.txt 遵守・低速・礼節UA で実行します。公開情報のみ保持します。
-      </p>
-
-      {/* listing クロール */}
-      <div className="foundation-form card">
-        <h3 style={{ marginTop: 0 }}>新卒/ゲーム企業を発見 (listing)</h3>
-        <p style={{ fontSize: 12, opacity: 0.7, margin: 0 }}>
-          条件: 新卒採用あり、または ゲーム企業かつ募集あり。ソースは data/companies/listing-sources.json で設定。
-        </p>
-        <label>
-          ソース
-          <select value={listingSource} onChange={(e) => setListingSource(e.target.value)}>
-            {listingSources.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.id} ({s.kind}){s.active ? '' : ' [無効]'}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button onClick={crawlListing} disabled={busy !== null}>
-          {busy === 'listing' ? '発見中…' : 'listing クロール'}
-        </button>
-        {listingSummary && (
-          <p style={{ fontSize: 13 }}>
-            発見 {listingSummary.discovered} / ストック {listingSummary.stocked} / 除外 {listingSummary.skipped}
-            {listingSummary.robotsBlocked > 0 && ` / robots遮断 ${listingSummary.robotsBlocked}`}
-            {listingSummary.errors.length > 0 && ` / エラー ${listingSummary.errors.length}`}
-          </p>
-        )}
-      </div>
-
-      {/* 手動 URL クロール */}
-      <div className="foundation-form card">
-        <h3 style={{ marginTop: 0 }}>URL 指定クロール</h3>
-        <label>
-          ソース
-          <select value={source} onChange={(e) => setSource(e.target.value)}>
-            {sources.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </label>
-        {source === 'manual' && (
-          <label>
-            URL (改行 / カンマ区切り)
-            <textarea value={urls} onChange={(e) => setUrls(e.target.value)} rows={3} placeholder="https://example.com/recruit" />
-          </label>
-        )}
-        <button onClick={crawl} disabled={busy !== null}>
-          {busy === 'crawl' ? 'クロール中…' : 'クロール実行'}
-        </button>
-        {summary && (
-          <p style={{ fontSize: 13 }}>取得 {summary.fetched} / 登録 {summary.upserted}</p>
-        )}
-      </div>
 
       {error && <p style={{ color: '#c62828' }}>{error}</p>}
       {note && <p style={{ color: '#2e7d32' }}>{note}</p>}
 
       <div className="card">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-          <h3 style={{ margin: 0, flex: 1 }}>登録済み ({total})</h3>
-          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void reload()} placeholder="検索" />
-          <button onClick={() => void reload()}>検索</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+          <h3 style={{ margin: 0, flex: 1 }}>
+            登録済み一覧 ({visible.length !== total ? `${visible.length} / ${total}` : total})
+          </h3>
+          <div className="company-search">
+            <input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setShowSuggest(true);
+              }}
+              onFocus={() => setShowSuggest(true)}
+              onBlur={() => setTimeout(() => setShowSuggest(false), 120)}
+              placeholder="名前 / 業界 / 職種 / タグで絞り込み"
+            />
+            {suggestions.length > 0 && (
+              <ul className="company-suggest">
+                {!needle && (
+                  <li className="company-suggest-head">よく使われるキーワード</li>
+                )}
+                {suggestions.map((s) => (
+                  <li key={s.token}>
+                    <button
+                      type="button"
+                      className="company-suggest-item"
+                      onMouseDown={(e) => {
+                        // blur より先に発火させて選択を確定する。
+                        e.preventDefault();
+                        setQ(s.token);
+                        setShowSuggest(false);
+                      }}
+                    >
+                      <span>
+                        {s.token}
+                        {!needle && (
+                          <span className={`company-suggest-kind kind-${s.kind}`}>
+                            {s.kind === 'role' ? '職種' : s.kind === 'industry' ? '業界' : 'タグ'}
+                          </span>
+                        )}
+                      </span>
+                      <span className="company-suggest-count">{s.count}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <button onClick={enrichAll} disabled={busy !== null}>
             {busy === 'enrich-all' ? 'IR/理念取得中…' : '未取得をIR/理念取得'}
           </button>
         </div>
-        {companies.length === 0 && <p>まだ企業がありません</p>}
-        {companies.map((c) => (
-          <div key={c.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-              <strong>{c.name}</strong>
-              <span style={{ fontSize: 11, display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* 生成済みデータの俯瞰 + 絞り込み (検索とは独立) */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8, fontSize: 12, opacity: 0.85, flexWrap: 'wrap' }}>
+          <span>IR/理念クロール済 <strong>{profileCount}</strong> 社</span>
+          <span>新卒像生成済 <strong>{newgradCount}</strong> 社</span>
+          <label style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }}>
+            <input type="checkbox" checked={onlyGenerated} onChange={(e) => setOnlyGenerated(e.target.checked)} />
+            生成済みデータがある企業のみ表示
+          </label>
+        </div>
+        {visible.length === 0 && (
+          <p>{q.trim() || onlyGenerated ? '条件に一致する企業がありません' : 'まだ企業がありません'}</p>
+        )}
+        <div className="company-grid">
+          {visible.map((c) => (
+            <div key={c.id} className="company-card">
+              <div className="company-card-head">
+                <span className="company-card-name">{c.name}</span>
+              </div>
+              <div className="company-card-badges">
                 {c.is_newgrad && <Badge color="#1565c0">新卒採用あり</Badge>}
                 {!c.is_newgrad && <Badge color="#757575">新卒採用不明</Badge>}
                 {c.is_game && <Badge color="#6a1b9a">ゲーム</Badge>}
@@ -206,39 +240,45 @@ export function Companies() {
                 {c.article_count > 0 && (
                   <Badge color="#e65100">記事 {c.article_count} 件</Badge>
                 )}
-                {profiles[c.id] && <Badge color="#37474f">IR/理念</Badge>}
-              </span>
-            </div>
-            {c.description && <div style={{ fontSize: 13, opacity: 0.85 }}>{c.description}</div>}
-            <div style={{ fontSize: 12, opacity: 0.7 }}>
-              {c.industry && <span>{c.industry} · </span>}
-              {c.roles.length > 0 && <span>職種: {c.roles.join(', ')} </span>}
-              {c.stock_reason && <span>· {c.stock_reason}</span>}
-            </div>
-            <div style={{ fontSize: 12, marginTop: 2, display: 'flex', gap: 10, alignItems: 'center' }}>
-              {c.url && <a href={c.url} target="_blank" rel="noreferrer">サイト</a>}
-              {c.recruit_url && <a href={c.recruit_url} target="_blank" rel="noreferrer">採用</a>}
-              <button onClick={() => (profiles[c.id] ? loadProfile(c.id) : enrichOne(c.id))} disabled={busy !== null}>
-                {busy === `enrich-${c.id}` ? '取得中…' : profiles[c.id] ? 'IR/理念を再取得しない' : 'IR/理念取得'}
-              </button>
-              {!profiles[c.id] && (
-                <button onClick={() => loadProfile(c.id)} disabled={busy !== null} style={{ fontSize: 11 }}>
-                  保存済を表示
+                {c.has_profile && <Badge color="#37474f">IR/理念済</Badge>}
+                {c.has_newgrad_image && <Badge color="#00838f">新卒像済</Badge>}
+              </div>
+              {c.description && <div className="company-card-desc">{c.description}</div>}
+              <div className="company-card-meta">
+                {c.industry && <span>{c.industry} · </span>}
+                {c.roles.length > 0 && <span>職種: {c.roles.join(', ')} </span>}
+                {c.stock_reason && <span>· {c.stock_reason}</span>}
+              </div>
+              {profiles[c.id] && <ProfileView p={profiles[c.id]!} />}
+              <div className="company-card-actions">
+                {c.url && (
+                  <a className="fd-link-btn" href={c.url} target="_blank" rel="noreferrer">サイト ↗</a>
+                )}
+                {c.recruit_url && (
+                  <a className="fd-link-btn" href={c.recruit_url} target="_blank" rel="noreferrer">採用 ↗</a>
+                )}
+                <button className="fd-btn-secondary" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => (profiles[c.id] ? loadProfile(c.id) : enrichOne(c.id))} disabled={busy !== null}>
+                  {busy === `enrich-${c.id}` ? '取得中…' : profiles[c.id] ? 'IR/理念を再読込しない' : c.has_profile ? 'IR/理念を表示' : 'IR/理念取得'}
                 </button>
-              )}
-              {c.has_newgrad_image && (
-                <button onClick={() => void toggleNewgrad(c.id)} disabled={busy === `newgrad-${c.id}`} style={{ fontSize: 11 }}>
-                  {busy === `newgrad-${c.id}` ? '読込中…' : expandedNewgrad.has(c.id) ? '新卒像を閉じる' : '新卒像を表示'}
-                </button>
-              )}
+                {c.has_newgrad_image && (
+                  <button className="fd-btn-secondary" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => void openNewgrad(c.id, c.name)} disabled={busy === `newgrad-${c.id}`}>
+                    {busy === `newgrad-${c.id}` ? '読込中…' : '新卒像を表示'}
+                  </button>
+                )}
+              </div>
             </div>
-            {profiles[c.id] && <ProfileView p={profiles[c.id]!} />}
-            {expandedNewgrad.has(c.id) && newgradImages[c.id] && (
-              <NewgradImageView roles={newgradImages[c.id]!} />
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
+
+      {newgradModal && (
+        <NewgradModal
+          name={newgradModal.name}
+          roles={newgradImages[newgradModal.id]}
+          loading={busy === `newgrad-${newgradModal.id}`}
+          onClose={() => setNewgradModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -257,25 +297,78 @@ const ROLE_LABEL: Record<string, string> = {
   sound: 'サウンド',
 };
 
-function NewgradImageView({ roles }: { roles: NewgradRoleImage[] }) {
-  if (roles.length === 0) return null;
+function NewgradModal({
+  name,
+  roles,
+  loading,
+  onClose,
+}: {
+  name: string;
+  roles: NewgradRoleImage[] | undefined;
+  loading: boolean;
+  onClose: () => void;
+}) {
+  const list = roles ?? [];
+  const [active, setActive] = useState<string>('');
+  // roles 確定後、最初のタブを選択 (未選択 or 既存タブが消えた場合)。
+  useEffect(() => {
+    if (list.length > 0 && !list.some((r) => r.role === active)) {
+      setActive(list[0]!.role);
+    }
+  }, [list, active]);
+
+  const current = list.find((r) => r.role === active);
+
   return (
-    <div style={{ marginTop: 6, padding: 8, background: 'rgba(21,101,192,0.05)', borderRadius: 6, fontSize: 13 }}>
-      <strong style={{ fontSize: 12, opacity: 0.75 }}>インタビュー記事からの新卒像</strong>
-      {roles.map((r) => (
-        <div key={r.role} style={{ marginTop: 6 }}>
-          <span style={{ fontWeight: 600 }}>{ROLE_LABEL[r.role] ?? r.role}</span>
-          <span style={{ fontSize: 11, opacity: 0.6, marginLeft: 4 }}>記事 {r.article_count} 件</span>
-          <div style={{ marginTop: 2 }}>{r.summary}</div>
-          {r.themes.length > 0 && (
-            <div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              {r.themes.map((t) => (
-                <span key={t} style={{ background: 'rgba(21,101,192,0.12)', borderRadius: 3, padding: '1px 5px', fontSize: 11 }}>{t}</span>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3>{name} — 求める新卒像</h3>
+          <button className="modal-close" onClick={onClose} aria-label="閉じる">×</button>
+        </div>
+
+        {list.length > 0 && (
+          <div className="fd-tabs">
+            {list.map((r) => (
+              <button
+                key={r.role}
+                className={r.role === active ? 'fd-tab active' : 'fd-tab'}
+                onClick={() => setActive(r.role)}
+              >
+                {ROLE_LABEL[r.role] ?? r.role}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="modal-body">
+          {loading && list.length === 0 && <p style={{ opacity: 0.7 }}>読み込み中…</p>}
+          {!loading && list.length === 0 && <p style={{ opacity: 0.7 }}>新卒像データがありません。</p>}
+          {current && (
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--c-subtle)', marginBottom: 10 }}>
+                インタビュー記事 {current.article_count} 件をもとに生成
+                {current.model && ` · ${current.model}`}
+              </div>
+              {current.summary.split(/\n{2,}/).map((para, i) => (
+                <p key={i} style={{ margin: '0 0 10px', lineHeight: 1.75 }}>{para.trim()}</p>
               ))}
+              {current.themes.length > 0 && (
+                <>
+                  <div style={{ fontSize: 12, fontWeight: 600, margin: '14px 0 6px', color: 'var(--c-subtle)' }}>
+                    キーテーマ
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {current.themes.map((t) => (
+                      <span key={t} className="fd-chip">{t}</span>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
-      ))}
+      </div>
     </div>
   );
 }

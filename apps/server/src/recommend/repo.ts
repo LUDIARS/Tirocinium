@@ -18,7 +18,8 @@ export type SavedRecommendation = {
   items: RecommendationItem[];
 };
 
-const SELECT_COLS = sql`id, user_id, created_at, query, method, model, items`;
+// 遅延評価: sql は initSql() 後にしか呼べない (module-load 時点では未初期化)。
+const selectCols = () => sql`id, user_id, created_at, query, method, model, items`;
 
 export async function saveRecommendation(
   userId: string,
@@ -30,14 +31,14 @@ export async function saveRecommendation(
     VALUES (
       ${userId}, ${sql.json(query)}, ${result.method}, ${result.model}, ${sql.json(result.items)}
     )
-    RETURNING ${SELECT_COLS}
+    RETURNING ${selectCols()}
   `;
   return rows[0]!;
 }
 
 export async function listRecommendations(userId: string, limit = 10): Promise<SavedRecommendation[]> {
   return sql<SavedRecommendation[]>`
-    SELECT ${SELECT_COLS} FROM company_recommendations
+    SELECT ${selectCols()} FROM company_recommendations
     WHERE user_id = ${userId}
     ORDER BY created_at DESC
     LIMIT ${Math.min(Math.max(limit, 1), 50)}

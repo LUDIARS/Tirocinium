@@ -1,14 +1,8 @@
 import { NavLink, Outlet } from 'react-router-dom';
 
 const navItems: { to: string; label: string }[] = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/start', label: 'Session Start' },
-  { to: '/personas', label: 'Personas' },
-  { to: '/training', label: '学習データ' },
-  { to: '/recommend', label: 'おすすめ企業' },
   { to: '/companies', label: '企業プール' },
-  { to: '/reservation', label: 'Reservation' },
-  { to: '/settings', label: 'Settings' },
+  { to: '/recommend', label: 'おすすめ企業' },
 ];
 
 export function App() {
