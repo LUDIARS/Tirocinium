@@ -48,6 +48,11 @@ export const config = {
     // 既定の粗フィルタ業種コード (情報通信業系)。 実 API で最適コードを確定する。
     defaultIndustry: '',
   },
+  // 自動 enrich キュー: 概要なしのゲーム関連企業を 1 分 1 件で順次クロールする (LLM 必須)。
+  enrichQueue: {
+    enabled: true,
+    intervalMs: 60_000, // 1 分に 1 件 (礼節)
+  },
   sessionRateLimit: {
     windowMs: 60_000,
     max: 10,

@@ -3,6 +3,8 @@ import {
   useCompaniesApi,
   type Company,
   type CompanyProfile,
+  type ContributeSummary,
+  type EnrichQueueStatus,
   type NewgradRoleImage,
 } from '../api/companies.js';
 
@@ -22,6 +24,8 @@ export function Companies() {
   const [profiles, setProfiles] = useState<Record<string, CompanyProfile>>({});
   const [newgradImages, setNewgradImages] = useState<Record<string, NewgradRoleImage[]>>({});
   const [newgradModal, setNewgradModal] = useState<{ id: string; name: string } | null>(null);
+  const [contributeFor, setContributeFor] = useState<{ id: string; name: string } | null>(null);
+  const [queue, setQueue] = useState<EnrichQueueStatus | null>(null);
 
   const reload = async (query = q) => {
     try {
@@ -41,6 +45,15 @@ export function Companies() {
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, showNoise]);
+
+  // 自動 enrich キューの状態をポーリング (30 秒ごと)。
+  useEffect(() => {
+    const poll = () => { void api.enrichQueueStatus().then(setQueue).catch(() => {}); };
+    poll();
+    const id = window.setInterval(poll, 30_000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const wrap = async (key: string, fn: () => Promise<void>) => {
     setBusy(key);
@@ -105,6 +118,8 @@ export function Companies() {
     .filter((c) => (onlyGenerated ? c.has_profile || c.has_newgrad_image : true))
     .filter((c) => {
       if (!needle) return true;
+      // 検索時は概要なしの企業を出さない (ノイズ回避)。 一覧ブラウズでは表示し enrich 対象にする。
+      if (!c.description.trim()) return false;
       const hay = [c.name, c.description, c.industry, ...c.roles, ...tagWords(c)]
         .filter(Boolean)
         .join(' ')
@@ -163,6 +178,23 @@ export function Companies() {
   return (
     <div>
       <h2>企業プール</h2>
+
+      {queue && (queue.pending > 0 || queue.running) && (
+        <div className="enrich-queue-banner">
+          {queue.running ? (
+            <>
+              <span className="enrich-queue-dot" />
+              自動クロール稼働中 — 概要なし <strong>{queue.pending}</strong> 社を 1 分に 1 件ずつ取得しています
+              {queue.lastDetail && <span className="enrich-queue-last">（直近: {queue.lastDetail}）</span>}
+            </>
+          ) : (
+            <>
+              概要なしのゲーム関連企業 <strong>{queue.pending}</strong> 社（自動クロール停止中
+              {queue.disabledReason ? `: ${queue.disabledReason}` : ''}）。 各社の「情報クロール依頼 / 情報提供」から個別に追加できます。
+            </>
+          )}
+        </div>
+      )}
 
       {error && <p style={{ color: '#c62828' }}>{error}</p>}
       {note && <p style={{ color: '#2e7d32' }}>{note}</p>}
@@ -267,8 +299,30 @@ export function Companies() {
                 {c.recruit_url && (
                   <a className="fd-link-btn" href={c.recruit_url} target="_blank" rel="noreferrer">採用 ↗</a>
                 )}
-                <button className="fd-btn-secondary" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => (profiles[c.id] ? loadProfile(c.id) : enrichOne(c.id))} disabled={busy !== null}>
-                  {busy === `enrich-${c.id}` ? '取得中…' : profiles[c.id] ? 'IR/理念を再読込しない' : c.has_profile ? 'IR/理念を表示' : 'IR/理念取得'}
+                <button
+                  className="fd-btn-secondary"
+                  style={{ fontSize: 12, padding: '4px 12px' }}
+                  onClick={() => (profiles[c.id] ? loadProfile(c.id) : enrichOne(c.id))}
+                  disabled={busy !== null || (!c.url && !profiles[c.id] && !c.has_profile)}
+                  title={!c.url && !c.has_profile ? 'URL 未登録 — 「情報提供」からリンクを追加してください' : ''}
+                >
+                  {busy === `enrich-${c.id}`
+                    ? '取得中…'
+                    : profiles[c.id]
+                      ? 'IR/理念を再読込しない'
+                      : c.has_profile
+                        ? 'IR/理念を表示'
+                        : c.description
+                          ? 'IR/理念取得'
+                          : '情報クロール依頼'}
+                </button>
+                <button
+                  className="fd-btn-secondary"
+                  style={{ fontSize: 12, padding: '4px 12px' }}
+                  onClick={() => setContributeFor({ id: c.id, name: c.name })}
+                  disabled={busy !== null}
+                >
+                  情報提供
                 </button>
                 {c.has_newgrad_image && (
                   <button className="fd-btn-secondary" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => void openNewgrad(c.id, c.name)} disabled={busy === `newgrad-${c.id}`}>
@@ -289,6 +343,109 @@ export function Companies() {
           onClose={() => setNewgradModal(null)}
         />
       )}
+
+      {contributeFor && (
+        <ContributeModal
+          id={contributeFor.id}
+          name={contributeFor.name}
+          onClose={() => setContributeFor(null)}
+          onApplied={() => void reload()}
+        />
+      )}
+    </div>
+  );
+}
+
+function ContributeModal({
+  id,
+  name,
+  onClose,
+  onApplied,
+}: {
+  id: string;
+  name: string;
+  onClose: () => void;
+  onApplied: () => void;
+}) {
+  const api = useCompaniesApi();
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<ContributeSummary | null>(null);
+
+  const links = text
+    .split(/[\s\n]+/)
+    .map((s) => s.trim())
+    .filter((s) => /^https?:\/\//.test(s));
+
+  const submit = async () => {
+    if (links.length === 0) {
+      setError('http(s) で始まるリンクを 1 つ以上入力してください');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.contribute(id, links);
+      setSummary(r.summary);
+      if (r.summary.applied > 0) onApplied();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '取り込みに失敗しました');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const TYPE_LABEL: Record<string, string> = { company: '企業情報', game: 'ゲーム情報', newgrad: '新卒情報', other: '対象外' };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3>{name} — 情報提供</h3>
+          <button className="modal-close" onClick={onClose} aria-label="閉じる">×</button>
+        </div>
+        <div className="modal-body">
+          <p style={{ fontSize: 13, color: 'var(--c-subtle)', marginTop: 0 }}>
+            この会社に関するリンク (公式サイト / ゲーム紹介 / 採用・社員インタビュー 等) を貼り付けてください。
+            取得・キャッシュして AI が「企業 / ゲーム / 新卒」に分類し、 情報を追加します。 1 行 1 URL・最大 8 件。
+          </p>
+          <textarea
+            className="foundation-form"
+            style={{ width: '100%', minHeight: 110, resize: 'vertical' }}
+            placeholder={'https://example.co.jp/about\nhttps://example.co.jp/recruit'}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            disabled={busy}
+          />
+          {error && <p style={{ color: '#c62828' }}>{error}</p>}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+            <button onClick={() => void submit()} disabled={busy || links.length === 0}>
+              {busy ? '取り込み中…' : `取り込む (${links.length})`}
+            </button>
+            <span style={{ fontSize: 12, color: 'var(--c-subtle)' }}>検出リンク {links.length} 件</span>
+          </div>
+
+          {summary && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                結果: {summary.applied} / {summary.processed} 件を反映
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {summary.results.map((r) => (
+                  <li key={r.url} style={{ fontSize: 12, lineHeight: 1.5 }}>
+                    <span className={`fd-chip ${r.applied ? 'active' : ''}`} style={{ marginRight: 6 }}>
+                      {TYPE_LABEL[r.type] ?? r.type}
+                    </span>
+                    <span style={{ color: r.applied ? 'var(--c-text)' : 'var(--c-subtle)' }}>{r.detail}</span>
+                    <div style={{ color: 'var(--c-subtle)', wordBreak: 'break-all' }}>{r.url}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

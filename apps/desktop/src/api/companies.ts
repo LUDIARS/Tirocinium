@@ -83,6 +83,33 @@ export type CrawlSummary = {
   errors: { url: string; message: string }[];
 };
 
+export type ContributeLinkResult = {
+  url: string;
+  type: 'company' | 'game' | 'newgrad' | 'other';
+  applied: boolean;
+  detail: string;
+};
+
+export type ContributeSummary = {
+  company: string;
+  processed: number;
+  applied: number;
+  results: ContributeLinkResult[];
+};
+
+export type EnrichQueueStatus = {
+  enabled: boolean;
+  running: boolean;
+  intervalMs: number;
+  disabledReason: string;
+  processed: number;
+  enrichedOk: number;
+  lastCompany: string;
+  lastDetail: string;
+  pending: number;
+  attempted: number;
+};
+
 export function useCompaniesApi() {
   const { token } = useAuth();
 
@@ -104,6 +131,9 @@ export function useCompaniesApi() {
     },
     async sources(): Promise<{ sources: string[] }> {
       return fetchJson('/api/v1/companies/sources', token);
+    },
+    async enrichQueueStatus(): Promise<EnrichQueueStatus> {
+      return fetchJson('/api/v1/companies/enrich-queue/status', token);
     },
     async crawl(input: { source: string; urls?: string[]; maxPages?: number }): Promise<{
       summary: CrawlSummary;
@@ -132,6 +162,12 @@ export function useCompaniesApi() {
     },
     async profile(id: string): Promise<{ profile: CompanyProfile }> {
       return fetchJson(`/api/v1/companies/${id}/profile`, token);
+    },
+    async contribute(id: string, links: string[]): Promise<{ summary: ContributeSummary }> {
+      return fetchJson(`/api/v1/companies/${id}/contribute`, token, {
+        method: 'POST',
+        body: JSON.stringify({ links }),
+      });
     },
     async newgrad(id: string): Promise<{ roles: NewgradRoleImage[] }> {
       return fetchJson(`/api/v1/companies/${id}/newgrad`, token);

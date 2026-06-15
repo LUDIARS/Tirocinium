@@ -13,6 +13,7 @@ import { companies } from './routes/companies.js';
 import { recommendRoute } from './routes/recommend.js';
 import { attachSessionWs } from './ws/handler.js';
 import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
+import { startEnrichQueue, stopEnrichQueue } from './companies/enrich-queue.js';
 import { startDiscordBridge } from './discord/bridge.js';
 import { hydrateSecrets } from './secrets/hydrate.js';
 import { initSql } from './db/index.js';
@@ -53,6 +54,7 @@ const server = serve(
 
 attachSessionWs(server as unknown as Parameters<typeof attachSessionWs>[0]);
 startTickScheduler();
+startEnrichQueue();
 
 let stopDiscordBridge: (() => void) | null = null;
 void startDiscordBridge()
@@ -63,6 +65,7 @@ const shutdown = () => {
   console.log('shutting down');
   stopDiscordBridge?.();
   stopTickScheduler();
+  stopEnrichQueue();
   server.close();
   process.exit(0);
 };

@@ -224,6 +224,60 @@ export async function upsertCompany(
   return wasPresent ? 'updated' : 'inserted';
 }
 
+/**
+ * 特定企業 (id 指定) の空フィールドを埋める (情報提供ウインドウ由来の追記)。
+ * 既存の非空値は壊さない (COALESCE + NULLIF)。 url を補うと以後の自動 enrich が回る。
+ * @returns 更新された (= 1 行ヒットした) か
+ */
+export async function updateCompanyInfo(
+  id: string,
+  fields: { description?: string; industry?: string; url?: string; location?: string },
+): Promise<boolean> {
+  const rows = await sql<{ id: string }[]>`
+    UPDATE companies SET
+      description = COALESCE(NULLIF(${fields.description ?? ''}, ''), description),
+      industry   = COALESCE(NULLIF(${fields.industry ?? ''}, ''), industry),
+      url        = COALESCE(NULLIF(${fields.url ?? ''}, ''), url),
+      location   = COALESCE(NULLIF(${fields.location ?? ''}, ''), location),
+      updated_at = now()
+    WHERE id = ${id}
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+
+// ── 自動 enrich キュー (migration 014、 概要なし企業を 1 分 1 件で順次クロール) ──
+
+/** 自動 enrich の次の 1 社を選ぶ。 概要なし ∧ url 有 ∧ ゲーム関連、 最も試行が古い順。 */
+export async function nextCompanyForAutoEnrich(): Promise<Company | null> {
+  const rows = await sql<Company[]>`
+    SELECT ${selectCols()} FROM companies c
+    WHERE c.description = ''
+      AND c.url <> ''
+      AND EXISTS (SELECT 1 FROM company_game cg WHERE cg.company_id = c.id)
+    ORDER BY (c.enrich_attempted_at IS NULL) DESC, c.enrich_attempted_at ASC, c.updated_at ASC
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+/** 自動 enrich を試行した記録を残す (再ピックの間隔を空ける)。 */
+export async function markEnrichAttempted(id: string): Promise<void> {
+  await sql`UPDATE companies SET enrich_attempted_at = now() WHERE id = ${id}`;
+}
+
+/** 自動 enrich キューの規模 (残り = 概要なし ∧ url有 ∧ ゲーム関連)。 */
+export async function autoEnrichStats(): Promise<{ pending: number; attempted: number }> {
+  const rows = await sql<{ pending: string; attempted: string }[]>`
+    SELECT
+      sum(CASE WHEN c.description = '' THEN 1 ELSE 0 END)::text AS pending,
+      sum(CASE WHEN c.description = '' AND c.enrich_attempted_at IS NOT NULL THEN 1 ELSE 0 END)::text AS attempted
+    FROM companies c
+    WHERE c.url <> '' AND EXISTS (SELECT 1 FROM company_game cg WHERE cg.company_id = c.id)
+  `;
+  return { pending: Number(rows[0]?.pending ?? 0), attempted: Number(rows[0]?.attempted ?? 0) };
+}
+
 /** enrichment 対象 (url を持ち profile 未取得) の企業を返す。 */
 export async function companiesNeedingEnrichment(limit = 50): Promise<Company[]> {
   return sql<Company[]>`

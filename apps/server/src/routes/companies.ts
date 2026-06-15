@@ -12,6 +12,8 @@ import { getProfile } from '../companies/profile-repo.js';
 import { getNewgradRoleImages } from '../companies/newgrad-repo.js';
 import { searchGames, relatedCompaniesByGame, companiesByTech } from '../companies/games-repo.js';
 import { getObSummary, getObPlacements, topCompaniesByOb } from '../companies/ob-repo.js';
+import { runContribute } from '../companies/contribute.js';
+import { enrichQueueStatus } from '../companies/enrich-queue.js';
 
 /**
  * 企業プール (companies) の参照とクロール起動。
@@ -96,6 +98,9 @@ companies.get('/by-tech', async (c) => {
   return c.json({ companies: rows });
 });
 
+/** GET /api/v1/companies/enrich-queue/status — 自動 enrich キューの状態 */
+companies.get('/enrich-queue/status', async (c) => c.json(await enrichQueueStatus()));
+
 /** GET /api/v1/companies/ob/top — OB 就職者数の多い企業ランキング */
 companies.get('/ob/top', async (c) => {
   const limit = c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined;
@@ -169,6 +174,22 @@ companies.post('/crawl-listing', cernereAuth, async (c) => {
     return c.json({ summary }, 200);
   } catch (err) {
     return c.json({ error: 'listing_crawl_failed', detail: (err as Error).message }, 502);
+  }
+});
+
+/** POST /api/v1/companies/:id/contribute — ユーザ提供リンクを分類して企業情報を追加 { links: string[] } */
+companies.post('/:id/contribute', cernereAuth, async (c) => {
+  const user = c.get('user');
+  if (!canCrawl(user.id)) return c.json({ error: 'forbidden' }, 403);
+  const body = (await c.req.json().catch(() => null)) as { links?: unknown } | null;
+  const links = Array.isArray(body?.links) ? body!.links.filter((u): u is string => typeof u === 'string') : [];
+  if (links.length === 0) return c.json({ error: 'links_required' }, 400);
+  try {
+    const summary = await runContribute(c.req.param('id'), links);
+    return c.json({ summary }, 200);
+  } catch (err) {
+    const msg = (err as Error).message;
+    return c.json({ error: msg === 'company not found' ? 'not_found' : 'contribute_failed', detail: msg }, msg === 'company not found' ? 404 : 502);
   }
 });
 
