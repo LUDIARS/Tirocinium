@@ -6,6 +6,9 @@ import {
   type RelatedCompany,
   type RelatedResult,
 } from '../api/games.js';
+import { GameGraph } from './GameGraph.js';
+
+type ResultView = 'card' | 'graph';
 
 const listingLabel = (m: string): string =>
   ({ prime: '一部上場', growth: 'マザーズ', standard: '二部', other: '上場' } as Record<string, string>)[m] ?? '';
@@ -112,6 +115,8 @@ export function GameSearch() {
   const [engine, setEngine] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [view, setView] = useState<ResultView>('card');
+  const [graphPick, setGraphPick] = useState<RelatedCompany | null>(null);
 
   // 検索 (デバウンス)
   useEffect(() => {
@@ -136,6 +141,7 @@ export function GameSearch() {
     setSelected(game);
     setBusy(true);
     setError(null);
+    setGraphPick(null);
     try {
       setResult(await api.related(game.id, { ...f, engine: eng || undefined }));
     } catch (e) {
@@ -224,22 +230,48 @@ export function GameSearch() {
 
           {result && (
             <>
-              <h3>このゲームに直接関わった会社 ({result.direct.length})</h3>
-              <div className="company-grid">
-                {result.direct.map((c) => (
-                  <CompanyCard key={`d-${c.id}`} c={c} />
-                ))}
+              <div className="fd-tabs game-view-toggle">
+                <button className={view === 'card' ? 'fd-tab active' : 'fd-tab'} onClick={() => setView('card')}>
+                  カード
+                </button>
+                <button className={view === 'graph' ? 'fd-tab active' : 'fd-tab'} onClick={() => setView('graph')}>
+                  グラフ
+                </button>
               </div>
 
-              <h3>関連する会社 — 共作 / 同シリーズ / 取引先 ({result.related.length})</h3>
-              {result.related.length === 0 ? (
-                <p className="company-suggest-count">関連ネットワークはまだ見つかりません (データ拡充で増えます)。</p>
-              ) : (
-                <div className="company-grid">
-                  {result.related.map((c) => (
-                    <CompanyCard key={`r-${c.id}`} c={c} />
-                  ))}
+              {view === 'graph' ? (
+                <div className="game-graph-layout">
+                  <GameGraph
+                    result={result}
+                    selectedId={graphPick ? `${graphPick.relation}-${graphPick.id}` : null}
+                    onSelect={setGraphPick}
+                  />
+                  {graphPick && (
+                    <aside className="game-graph-detail">
+                      <CompanyCard c={graphPick} />
+                    </aside>
+                  )}
                 </div>
+              ) : (
+                <>
+                  <h3>このゲームに直接関わった会社 ({result.direct.length})</h3>
+                  <div className="company-grid">
+                    {result.direct.map((c) => (
+                      <CompanyCard key={`d-${c.id}`} c={c} />
+                    ))}
+                  </div>
+
+                  <h3>作り手と他作品を共作した会社 ({result.related.length})</h3>
+                  {result.related.length === 0 ? (
+                    <p className="company-suggest-count">共作ネットワークはまだ見つかりません (データ拡充で増えます)。</p>
+                  ) : (
+                    <div className="company-grid">
+                      {result.related.map((c) => (
+                        <CompanyCard key={`r-${c.id}`} c={c} />
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
