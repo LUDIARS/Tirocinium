@@ -14,6 +14,7 @@ import { searchGames, relatedCompaniesByGame, companiesByTech } from '../compani
 import { getObSummary, getObPlacements, topCompaniesByOb } from '../companies/ob-repo.js';
 import { runContribute } from '../companies/contribute.js';
 import { enrichQueueStatus } from '../companies/enrich-queue.js';
+import { buildMapMarkers } from '../companies/geocode.js';
 
 /**
  * 企業プール (companies) の参照とクロール起動。
@@ -96,6 +97,18 @@ companies.get('/by-tech', async (c) => {
     limit: c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined,
   });
   return c.json({ companies: rows });
+});
+
+/** GET /api/v1/companies/map-config — Google Maps の有効可否 + JS API key (referrer 制限前提で公開) */
+companies.get('/map-config', (c) => {
+  const apiKey = config.googleMaps.apiKey;
+  return c.json({ enabled: Boolean(apiKey), apiKey });
+});
+
+/** GET /api/v1/companies/map-markers — 企業所在地のマーカー (未 geocode は順次解決) */
+companies.get('/map-markers', async (c) => {
+  const max = c.req.query('max') ? Number.parseInt(c.req.query('max')!, 10) : undefined;
+  return c.json(await buildMapMarkers(max));
 });
 
 /** GET /api/v1/companies/enrich-queue/status — 自動 enrich キューの状態 */

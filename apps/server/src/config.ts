@@ -41,6 +41,11 @@ export const config = {
     listingMaxChars: 120_000,
     listingMaxChunks: 12,
   },
+  // Google Maps (企業所在地マップ)。 key は secret 経由。 空ならマップ機能は無効。
+  // JS API key はブラウザに渡る (HTTP referrer 制限前提)。 Geocoding にも同 key を使う。
+  googleMaps: {
+    apiKey: '',
+  },
   // gBizINFO (経産省 法人情報 API)。 token は secret 経由 (env 不使用)、 空なら gbiz-import は起動しない。
   gbiz: {
     token: '',
