@@ -44,22 +44,25 @@ async function main(): Promise<void> {
   try {
     // --seed 未指定なら既定 seed のみ。 指定があれば「既定 → 各 --seed」を順に上乗せ (冪等 upsert)。
     const runs = args.seedPaths.length > 0 ? [undefined, ...args.seedPaths] : [undefined];
-    const grand = { total: 0, inserted: 0, updated: 0, profiles: 0, skipped: 0 };
+    const grand = { total: 0, inserted: 0, updated: 0, profiles: 0, games: 0, edges: 0, skipped: 0 };
     for (const seedPath of runs) {
       const s = await importGameCompanySeeds({ seedPath, researchPath: args.researchPath });
       grand.total += s.total;
       grand.inserted += s.inserted;
       grand.updated += s.updated;
       grand.profiles += s.profiles;
+      grand.games += s.games;
+      grand.edges += s.edges;
       grand.skipped += s.skipped;
       console.error(
         `[companies:seed-import]  ${seedPath ?? '(default seed)'}: total=${s.total} ` +
-          `inserted=${s.inserted} updated=${s.updated} profiles=${s.profiles} skipped=${s.skipped}`,
+          `inserted=${s.inserted} updated=${s.updated} profiles=${s.profiles} ` +
+          `games=${s.games} edges=${s.edges} skipped=${s.skipped}`,
       );
     }
     console.error(
       `[companies:seed-import] done: total=${grand.total} inserted=${grand.inserted} ` +
-        `updated=${grand.updated} profiles=${grand.profiles} skipped=${grand.skipped}`,
+        `updated=${grand.updated} profiles=${grand.profiles} games=${grand.games} edges=${grand.edges} skipped=${grand.skipped}`,
     );
   } finally {
     await sql.end();

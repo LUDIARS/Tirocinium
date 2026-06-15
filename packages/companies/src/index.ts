@@ -44,6 +44,7 @@ export {
   type StockOptions,
 } from './classify.js';
 export { mergeSources, coerceSources } from './provenance.js';
+export { normalizeTitle, splitTopLevel, parseGamesFromResearch, normalizeGame } from './game.js';
 export {
   SMB_EMPLOYEE_MAX,
   isSMBByEmployees,
