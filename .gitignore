@@ -27,6 +27,9 @@ audio_recordings/
 session_dumps/
 *.sqlite
 *.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite.bak-*
 
 # overnight シミュレーション出力 (生成物)
 data/training/sim-sessions/

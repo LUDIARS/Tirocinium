@@ -1,5 +1,4 @@
-// 起動時にローカル暗号化 config (または secret-agent) から LLM キーを注入する。
-// DB=SQLite、devAuth=true 固定のため DB/Cernere/Nuntius 系は注入しない。
+// 起動時にローカル暗号化 config (または secret-agent) から設定を注入する。
 // ローカル config が未設定でもデフォルト値で起動する (LLM 呼出時にエラーになる)。
 
 import { config } from '../config.js';
@@ -14,6 +13,9 @@ export const SECRET_KEYS = [
   // サーバー基本設定 (省略時はデフォルト値)
   'TIROCINIUM_PORT',
   'TIROCINIUM_HOST',
+  'TIROCINIUM_DEV_AUTH',
+  'CERNERE_PUBLIC_KEY',
+  'CERNERE_AUDIENCE',
   // LLM バックエンド
   'TIROCINIUM_LLM_BACKEND',
   // LLM API キー (process.env に passthrough)
@@ -48,6 +50,15 @@ export const SECRET_KEYS = [
   'TIROCINIUM_DISCORD_COMMAND_PREFIX',
 ];
 
+function envSecrets(): ResolvedSecrets {
+  const out: ResolvedSecrets = {};
+  for (const key of SECRET_KEYS) {
+    const v = process.env[key];
+    if (v) out[key] = v;
+  }
+  return out;
+}
+
 /** 起動時に config を注入する。優先順位: secret-agent → ローカル暗号化 config → デフォルト値で起動 */
 export async function hydrateSecrets(): Promise<void> {
   let secrets: ResolvedSecrets;
@@ -60,17 +71,22 @@ export async function hydrateSecrets(): Promise<void> {
     if (err instanceof SecretAgentError && (err.code === 'unreachable' || err.code === 'no_token')) {
       const local = readLocalSecrets();
       if (!local) {
-        console.warn('[secrets] ローカル config が見つかりません。デフォルト設定で起動します。');
-        console.warn(`  LLM キーを設定するには: npm run config-setup  (保存先: ${localConfigPath()})`);
-        return;
+        secrets = envSecrets();
+        source = Object.keys(secrets).length > 0 ? 'env' : 'default';
+        if (source === 'default') {
+          console.warn('[secrets] ローカル config が見つかりません。デフォルト設定で起動します。');
+          console.warn(`  LLM キーを設定するには: npm run config-setup  (保存先: ${localConfigPath()})`);
+        }
+      } else {
+        secrets = { ...local, ...envSecrets() };
+        source = 'local/env';
       }
-      secrets = local;
-      source = 'local';
     } else {
       throw err;
     }
   }
 
+  secrets = { ...secrets, ...envSecrets() };
   const applied1 = applyServerConfig(config, secrets);
   const applied2 = applyDiscordSecrets(config.discord, secrets);
   const all = [...applied1, ...applied2];

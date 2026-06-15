@@ -5,6 +5,7 @@ import { V4 } from 'paseto';
 import { config } from '../config.js';
 import { sql } from '../db/index.js';
 import { SessionRuntime } from './session-runtime.js';
+import { devAuthUserId } from '../auth/cernere.js';
 
 const PATH_RE = /^\/api\/v1\/ws\/session\/([0-9a-f-]{36})(?:\?.*)?$/;
 
@@ -39,7 +40,8 @@ export function attachSessionWs(server: Server): void {
 
 async function authenticate(req: IncomingMessage): Promise<{ userId: string } | null> {
   // dev プロファイル: token 検証を飛ばして固定 dev ユーザを返す (cernereAuth と対)。
-  if (config.devAuth) return { userId: config.devUserId };
+  const devUserId = devAuthUserId();
+  if (devUserId) return { userId: devUserId };
 
   // Bearer header or ?token=... を許容 (WS では Authorization が乗らない場合あり)
   const auth = req.headers['authorization'];

@@ -24,10 +24,12 @@ LUDIARS の面接練習アプリ。
 
 ## ステータス
 
-設計フェーズ。実装は spec/ 確定後。
+ローカル実装フェーズ。server / desktop / companies / voice / llm / training の基本実装と CI は存在する。
 
 - `spec/` — AIFormat 準拠の構造化仕様 (schema / web / code / module)
 - `DESIGN.md` — 機能要件と予約フロー設計
+- `apps/server` — API / WS / SQLite 既定のバックエンド
+- `apps/desktop` — Vite + React + Tauri のフロントエンド
 
 ---
 

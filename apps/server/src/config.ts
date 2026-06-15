@@ -1,17 +1,14 @@
-// ローカルツールモード: SQLite + devAuth 固定、Cernere/Nuntius/Memoria 連携なし。
-// LLM 設定のみ npm run config-setup で注入する。secrets/hydrate.ts 参照。
+// 企業DBは public read、面接/予約/評価/クロール操作は Cernere 認証付き。
+// ローカル開発だけ TIROCINIUM_DEV_AUTH=1 で固定 dev user を使える。
 
 export const config = {
   port: 8084,
-  // devAuth=true (全認証バイパス) で起動するため、既定は loopback のみに bind し
-  // ネットワーク到達不能にする。外部公開が必要な場合のみ TIROCINIUM_HOST で上書きする。
+  // 既定は loopback。外部公開する場合は TIROCINIUM_HOST と Cernere 設定を必ず入れる。
   host: '127.0.0.1',
   databaseUrl: '',  // 空 = SQLite (data/tirocinium.sqlite)。db/index.ts 参照。
-  // Cernere 認証は devAuth=true で常にバイパス (ローカルツールモード)。
-  // 下記フィールドは cernere.ts の型要件のみ残す (実際には参照されない)。
   cernerePublicKey: '',
   cernereAudience: 'tirocinium',
-  devAuth: true,
+  devAuth: false,
   devUserId: '00000000-0000-0000-0000-000000000001',
   llmBackend: 'api' as 'api' | 'cli',
   slotDurationMin: 30,

@@ -18,11 +18,29 @@ declare module 'hono' {
   }
 }
 
+function isLoopbackHost(host: string): boolean {
+  const h = host.trim().toLowerCase().replace(/^\[|\]$/g, '');
+  return h === '127.0.0.1' || h === 'localhost' || h === '::1';
+}
+
+export function assertSafeAuthConfig(): void {
+  if (config.devAuth && !isLoopbackHost(config.host)) {
+    throw new Error('TIROCINIUM_DEV_AUTH=1 is only allowed on loopback hosts');
+  }
+}
+
+export function devAuthUserId(): string | null {
+  if (!config.devAuth) return null;
+  assertSafeAuthConfig();
+  return config.devUserId;
+}
+
 export const cernereAuth: MiddlewareHandler = async (c, next) => {
   // dev プロファイル: Cernere を持たない 1 台環境用に固定 dev ユーザで素通し。
-  // TIROCINIUM_DEV_AUTH=1 のときのみ。本番では必ず off。
-  if (config.devAuth) {
-    c.set('user', { id: config.devUserId });
+  // TIROCINIUM_DEV_AUTH=1 かつ loopback bind のときのみ。本番では必ず off。
+  const devUserId = devAuthUserId();
+  if (devUserId) {
+    c.set('user', { id: devUserId });
     await next();
     return;
   }
