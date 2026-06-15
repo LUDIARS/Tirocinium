@@ -20,6 +20,8 @@ export function Companies() {
   const [onlyGenerated, setOnlyGenerated] = useState(false);
   // 既定はノイズ (どのゲームにも未紐付け) を除外。 ユーザが明示したときだけ全件表示。
   const [showNoise, setShowNoise] = useState(false);
+  // 既定は情報なし (会社概要が空) を除外。 チェック時のみ表示 (enrich 対象を見たいとき)。
+  const [showNoInfo, setShowNoInfo] = useState(false);
 
   const [profiles, setProfiles] = useState<Record<string, CompanyProfile>>({});
   const [newgradImages, setNewgradImages] = useState<Record<string, NewgradRoleImage[]>>({});
@@ -30,7 +32,7 @@ export function Companies() {
   const reload = async (query = q) => {
     try {
       const search = query.trim();
-      const r = await api.list({ limit: 200, q: search || undefined, quality: !showNoise });
+      const r = await api.list({ limit: 200, q: search || undefined, quality: !showNoise, summarized: !showNoInfo });
       setCompanies(r.companies);
       setTotal(r.total);
     } catch (e) {
@@ -44,7 +46,7 @@ export function Companies() {
     }, 250);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, showNoise]);
+  }, [q, showNoise, showNoInfo]);
 
   // 自動 enrich キューの状態をポーリング (30 秒ごと)。
   useEffect(() => {
@@ -118,8 +120,8 @@ export function Companies() {
     .filter((c) => (onlyGenerated ? c.has_profile || c.has_newgrad_image : true))
     .filter((c) => {
       if (!needle) return true;
-      // 検索時は概要なしの企業を出さない (ノイズ回避)。 一覧ブラウズでは表示し enrich 対象にする。
-      if (!c.description.trim()) return false;
+      // 情報なし (概要空) は既定で除外 (サーバ summarized と整合)。 チェック時のみ表示。
+      if (!showNoInfo && !c.description.trim()) return false;
       const hay = [c.name, c.description, c.industry, ...c.roles, ...tagWords(c)]
         .filter(Boolean)
         .join(' ')
@@ -259,13 +261,17 @@ export function Companies() {
             <input type="checkbox" checked={onlyGenerated} onChange={(e) => setOnlyGenerated(e.target.checked)} />
             生成済みデータがある企業のみ表示
           </label>
-          <label style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }} title="既定ではいずれかのゲームに紐付く企業のみ表示します (概要の有無は問いません)">
+          <label style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }} title="既定では会社概要のある企業のみ表示します。 チェックで概要未取得 (enrich 待ち) の企業も表示します">
+            <input type="checkbox" checked={showNoInfo} onChange={(e) => setShowNoInfo(e.target.checked)} />
+            情報がない会社も表示
+          </label>
+          <label style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }} title="既定ではいずれかのゲームに紐付く企業のみ表示します">
             <input type="checkbox" checked={showNoise} onChange={(e) => setShowNoise(e.target.checked)} />
             ゲーム未紐付けの企業も表示
           </label>
         </div>
         {visible.length === 0 && (
-          <p>{q.trim() || onlyGenerated || !showNoise ? '条件に一致する企業がありません' : 'まだ企業がありません'}</p>
+          <p>{q.trim() || onlyGenerated || !showNoise || !showNoInfo ? '条件に一致する企業がありません' : 'まだ企業がありません'}</p>
         )}
         <div className="company-grid">
           {visible.map((c) => (
