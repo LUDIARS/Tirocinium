@@ -12,6 +12,12 @@ describe('normalizeName', () => {
   it('treats legal-variant names as the same key', () => {
     expect(normalizeName('株式会社テスト')).toBe(normalizeName('テスト株式会社'));
   });
+
+  it('strips parenthetical annotations so seed↔research names join', () => {
+    expect(normalizeName('グリー株式会社（グリーホールディングス株式会社）')).toBe(normalizeName('グリー株式会社'));
+    expect(normalizeName('株式会社ディー・エヌ・エー（DeNA）')).toBe(normalizeName('株式会社ディー・エヌ・エー'));
+    expect(normalizeName('株式会社ビサイド (BeXide Inc.)')).toBe(normalizeName('株式会社ビサイド'));
+  });
 });
 
 describe('normalizeRoles', () => {
@@ -62,6 +68,8 @@ describe('dedupeCompanies', () => {
       tags: [],
       location: '',
       size: '',
+      employee_count: 0,
+      listing_market: '',
       source: 's',
       source_url: '',
     });

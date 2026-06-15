@@ -5,6 +5,7 @@
 // クロール経路 (extract.ts / listing.ts) とは別系統 — 取得済データの取り込み専用。
 
 import type { CompanyFlags, CompanyInput, CompanyProfileInput, RoleLens } from './types.js';
+import { extractEmployeeCount, parseListingMarket, isSMBByEmployees } from './size.js';
 
 /** data/all-companies-seed.json の 1 レコード (調査の一次整形)。 */
 export type GameCompanySeedRecord = {
@@ -38,6 +39,8 @@ export type GameCompanyResearchRecord = {
 export type GameSeedMapped = {
   input: CompanyInput;
   flags: CompanyFlags;
+  /** 上場しているか (listing_market が判定できたか)。 */
+  isListed: boolean;
   recruitUrl: string;
   stockReason: string;
   profile: CompanyProfileInput;
@@ -128,6 +131,12 @@ export function mapGameCompanySeed(
   const hasOpening = (research.recruiting_status ?? '').includes('募集中');
   const isNewgrad = /新卒/.test(`${research.recruiting_note ?? ''} ${seed.roles ?? ''} ${research.features ?? ''}`);
 
+  // 会社規模 (従業員数) と上場区分 (research 優先、 無ければ seed.tag を補助に)。
+  const employeeCount = extractEmployeeCount(research.size);
+  const listingMarket = parseListingMarket(research.ir_recent, seed.tag);
+  const isSMB = isSMBByEmployees(employeeCount);
+  const isListed = listingMarket !== '';
+
   const stockReason = uniqStrings([
     'ゲーム企業',
     hasOpening ? '募集中' : '',
@@ -143,6 +152,8 @@ export function mapGameCompanySeed(
     tags: buildTags(seed, research),
     location: seed.location ?? '',
     size: shortSize(research.size),
+    employeeCount,
+    listingMarket,
     source: 'game-seed',
     source_url: (seed.company_url ?? '').trim(),
   };
@@ -157,7 +168,8 @@ export function mapGameCompanySeed(
 
   return {
     input,
-    flags: { isNewgrad, isGame: true, hasOpening },
+    flags: { isNewgrad, isGame: true, hasOpening, isSMB },
+    isListed,
     recruitUrl,
     stockReason,
     profile,

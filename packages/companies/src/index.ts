@@ -44,6 +44,14 @@ export {
   type StockOptions,
 } from './classify.js';
 export { mergeSources, coerceSources } from './provenance.js';
+export {
+  SMB_EMPLOYEE_MAX,
+  isSMBByEmployees,
+  extractEmployeeCount,
+  parseListingMarket,
+  listingLabel,
+  type ListingMarket,
+} from './size.js';
 export { parseRobots, isAllowed, pathOf } from './robots.js';
 export {
   extractAnchors,

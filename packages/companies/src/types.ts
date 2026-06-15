@@ -19,6 +19,10 @@ export type CompanyInput = {
   location?: string;
   /** 社員規模など (例 '50-200名') */
   size?: string;
+  /** 従業員数 (migration 008)。 0 = 不明 → 中小扱い。 */
+  employeeCount?: number;
+  /** 上場市場区分 (migration 008)。 prime/growth/standard/other / '' = 非上場・不明。 */
+  listingMarket?: string;
   /** 抽出元 source id (例 'manual' / 'seed-file') */
   source?: string;
   source_url?: string;
@@ -36,6 +40,10 @@ export type NormalizedCompany = {
   tags: string[];
   location: string;
   size: string;
+  /** 従業員数 (migration 008)。 0 = 不明。 */
+  employee_count: number;
+  /** 上場市場区分 (migration 008)。 '' = 非上場・不明。 */
+  listing_market: string;
   source: string;
   source_url: string;
 };
@@ -58,9 +66,9 @@ export type Company = NormalizedCompany & {
   stock_reason: string;
   /** 横断 provenance (migration 007)。 複数ソースに出た会社の出所を累積。 */
   sources: CompanySource[];
-  /** 中小フラグ (migration 007)。 非上場 ∧ 大手非該当 で立つ。 */
+  /** 中小フラグ。 会社規模 (従業員数) 駆動 — 不明(0) or {@link SMB_EMPLOYEE_MAX} 以下で true (migration 008 で意味を従業員数基準に変更)。 */
   is_smb: boolean;
-  /** 上場シグナル (migration 007)。 中小判定の材料。 */
+  /** 上場シグナル (migration 007)。 listing_market が空でなければ true。 */
   is_listed: boolean;
   crawled_at: string;
   updated_at: string;

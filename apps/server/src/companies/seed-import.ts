@@ -83,6 +83,8 @@ export async function importGameCompanySeeds(opts: SeedImportOptions = {}): Prom
       isNewgrad: mapped.flags.isNewgrad,
       isGame: mapped.flags.isGame,
       hasOpening: mapped.flags.hasOpening,
+      isSMB: mapped.flags.isSMB,
+      isListed: mapped.isListed,
       recruitUrl: mapped.recruitUrl,
       stockReason: mapped.stockReason,
     });
