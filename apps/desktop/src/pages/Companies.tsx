@@ -116,18 +116,36 @@ export function Companies() {
 
   // 検索はサーバ側 q で候補を取り、表示中の role/tag 語だけクライアント側で補完する。
   const needle = q.trim().toLowerCase();
-  const visible = companies
+  // 社名を正規化して部分一致を緩く取る (法人格 / 記号 / 空白を落とす)。
+  const nameKey = (s: string): string =>
+    s.toLowerCase().replace(/株式会社|有限会社|合同会社|（株）|\(株\)/g, '').replace(/[\s　・,.，。]/g, '');
+  const needleKey = nameKey(q.trim());
+
+  // 名前優先のランク: 社名前方一致(0) > 社名部分一致(1) > 説明文/業界/タグのみ一致(2)。
+  const rankOf = (c: Company): number => {
+    if (!needleKey) return 0;
+    const nk = nameKey(c.name);
+    if (nk.startsWith(needleKey)) return 0;
+    if (nk.includes(needleKey)) return 1;
+    return 2;
+  };
+
+  const filtered = companies
     .filter((c) => (onlyGenerated ? c.has_profile || c.has_newgrad_image : true))
     .filter((c) => {
       if (!needle) return true;
       // 情報なし (概要空) は既定で除外 (サーバ summarized と整合)。 チェック時のみ表示。
       if (!showNoInfo && !c.description.trim()) return false;
+      // 社名一致 (正規化部分一致) を最優先で拾い、 説明文/業界/タグ一致も温存 (チップ検索用)。
+      const nameHit = needleKey !== '' && nameKey(c.name).includes(needleKey);
       const hay = [c.name, c.description, c.industry, ...c.roles, ...tagWords(c)]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
-      return hay.includes(needle);
+      return nameHit || hay.includes(needle);
     });
+  // 検索時は社名一致を上位へ (同順位はサーバ順 = updated_at を維持する安定ソート)。
+  const visible = needle ? [...filtered].sort((a, b) => rankOf(a) - rankOf(b)) : filtered;
 
   // サジェスト候補: 登録企業に実在する 職種 / 業界 / タグ語 をユニーク化し、
   // 該当社数 (= 利用頻度) を集計する。職種は優先表示するため kind を持たせる。
