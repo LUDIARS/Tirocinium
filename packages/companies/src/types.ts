@@ -84,6 +84,8 @@ export type GameInput = {
   title: string;
   series?: string;
   platform?: string;
+  /** mobile/console/pc (Wikidata P400 由来) */
+  platform_class?: string;
   genre?: string;
   release_year?: number;
   source?: string;
@@ -97,6 +99,8 @@ export type NormalizedGame = {
   normalized_title: string;
   series: string;
   platform: string;
+  /** mobile/console/pc (migration 010) */
+  platform_class: string;
   genre: string;
   release_year: number;
   source: string;

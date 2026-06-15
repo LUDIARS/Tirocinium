@@ -1,7 +1,7 @@
 // 既知企業を起点に Wikidata から games / 共演企業 / シリーズ / 取引先(開発元↔発売元) を投入する。
 // spec/companies/game-graph.md Phase2 (発見クロール)。 公開オープンデータ・決定論・LLM 不使用。
 
-import { normalizeCompany, normalizeName, normalizeGame } from '@tirocinium/companies';
+import { normalizeCompany, normalizeName, normalizeGame, classifyPlatform } from '@tirocinium/companies';
 import { allCompaniesForScoring, getCompanyByNormalizedName, upsertCompany } from './repo.js';
 import { getGameByNormalizedTitle, linkCompanyGame, linkPartner, upsertGame } from './games-repo.js';
 import { fetchGamesForCompany, cleanCompanyLabel } from './wikidata.js';
@@ -69,7 +69,8 @@ export async function runWikidataEnrich(opts: WikidataEnrichOptions = {}): Promi
     for (const g of games) {
       const series = g.series[0] ?? '';
       const ng = normalizeGame({
-        title: g.title, series, source: 'wikidata', source_url: 'https://www.wikidata.org',
+        title: g.title, series, platform_class: classifyPlatform(g.platforms),
+        source: 'wikidata', source_url: 'https://www.wikidata.org',
       });
       if (!ng) continue;
       await upsertGame(ng);

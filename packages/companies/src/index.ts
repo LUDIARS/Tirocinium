@@ -44,7 +44,17 @@ export {
   type StockOptions,
 } from './classify.js';
 export { mergeSources, coerceSources } from './provenance.js';
-export { normalizeTitle, splitTopLevel, parseGamesFromResearch, normalizeGame } from './game.js';
+export { normalizeTitle, splitTopLevel, parseGamesFromResearch, normalizeGame, classifyPlatform } from './game.js';
+export {
+  normalizeTechName,
+  normalizeTechToken,
+  parseTechStack,
+  deriveGraphicsStyle,
+  GRAPHICS_STYLE_LABEL,
+  type TechCategory,
+  type TechToken,
+} from './tech.js';
+export { TECH_INSTRUCTION, parseTechExtraction, extractTech } from './tech-extract.js';
 export {
   SMB_EMPLOYEE_MAX,
   isSMBByEmployees,

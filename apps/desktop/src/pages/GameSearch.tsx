@@ -15,10 +15,18 @@ function CompanyCard({ c }: { c: RelatedCompany }) {
         <span className="fd-chip">{c.is_smb ? '中小' : '大手'}</span>
         <span className="fd-chip">{size}</span>
         {listingLabel(c.listing_market) && <span className="fd-chip">{listingLabel(c.listing_market)}</span>}
+        {c.is_social && <span className="fd-chip">ソシャゲ</span>}
         {c.is_newgrad && <span className="fd-chip">新卒採用</span>}
         {c.has_opening && <span className="fd-chip">募集中</span>}
         {c.relation === 'direct' && c.role && <span className="fd-chip">{c.role}</span>}
       </div>
+      {c.tech && c.tech.length > 0 && (
+        <div className="company-card-badges">
+          {c.tech.slice(0, 8).map((t) => (
+            <span key={t} className="fd-chip tech">{t}</span>
+          ))}
+        </div>
+      )}
       {c.relation === 'related' && c.via_titles && c.via_titles.length > 0 && (
         <div className="company-card-desc">
           つながり {c.shared_games}: {c.via_titles.join(' / ')}
@@ -47,7 +55,8 @@ export function GameSearch() {
   const [games, setGames] = useState<GameSearchRow[]>([]);
   const [selected, setSelected] = useState<GameSearchRow | null>(null);
   const [result, setResult] = useState<RelatedResult | null>(null);
-  const [filters, setFilters] = useState({ smb: false, newgrad: false, opening: false });
+  const [filters, setFilters] = useState({ smb: false, newgrad: false, opening: false, social: false });
+  const [engine, setEngine] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -70,12 +79,12 @@ export function GameSearch() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  const loadRelated = async (game: GameSearchRow, f = filters) => {
+  const loadRelated = async (game: GameSearchRow, f = filters, eng = engine) => {
     setSelected(game);
     setBusy(true);
     setError(null);
     try {
-      setResult(await api.related(game.id, f));
+      setResult(await api.related(game.id, { ...f, engine: eng || undefined }));
     } catch (e) {
       setError(e instanceof Error ? e.message : '取得失敗');
     } finally {
@@ -86,7 +95,13 @@ export function GameSearch() {
   const toggleFilter = (k: keyof typeof filters) => {
     const next = { ...filters, [k]: !filters[k] };
     setFilters(next);
-    if (selected) void loadRelated(selected, next);
+    if (selected) void loadRelated(selected, next, engine);
+  };
+
+  const toggleEngine = (e: string) => {
+    const next = engine === e ? '' : e;
+    setEngine(next);
+    if (selected) void loadRelated(selected, filters, next);
   };
 
   return (
@@ -137,6 +152,18 @@ export function GameSearch() {
             </button>
             <button className={filters.opening ? 'fd-chip active' : 'fd-chip'} onClick={() => toggleFilter('opening')}>
               募集中
+            </button>
+            <button className={filters.social ? 'fd-chip active' : 'fd-chip'} onClick={() => toggleFilter('social')}>
+              ソシャゲ
+            </button>
+            <button className={engine === 'Unity' ? 'fd-chip active' : 'fd-chip'} onClick={() => toggleEngine('Unity')}>
+              Unity
+            </button>
+            <button className={engine === 'Unreal' ? 'fd-chip active' : 'fd-chip'} onClick={() => toggleEngine('Unreal')}>
+              Unreal
+            </button>
+            <button className={engine === 'C++' ? 'fd-chip active' : 'fd-chip'} onClick={() => toggleEngine('C++')}>
+              C++
             </button>
           </div>
 

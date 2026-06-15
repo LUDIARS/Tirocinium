@@ -1,5 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeTitle, splitTopLevel, parseGamesFromResearch, normalizeGame } from './game.js';
+import { normalizeTitle, splitTopLevel, parseGamesFromResearch, normalizeGame, classifyPlatform } from './game.js';
+
+describe('classifyPlatform', () => {
+  it('mobile-only → mobile', () => {
+    expect(classifyPlatform(['Android', 'iOS'])).toBe('mobile');
+  });
+  it('has console → console (even with mobile)', () => {
+    expect(classifyPlatform(['Nintendo Switch', 'iOS'])).toBe('console');
+    expect(classifyPlatform(['PlayStation 5'])).toBe('console');
+  });
+  it('pc only → pc', () => {
+    expect(classifyPlatform(['Microsoft Windows', 'Steam'])).toBe('pc');
+  });
+  it('unknown → empty', () => {
+    expect(classifyPlatform([])).toBe('');
+  });
+});
 
 describe('normalizeTitle', () => {
   it('lowercases, strips spaces/symbols, NFKC', () => {

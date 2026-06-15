@@ -6,6 +6,8 @@ import {
   selectEnrichmentLinks,
   enrichmentFetchList,
   extractProfile,
+  extractTech,
+  parseTechStack,
   htmlToText,
   type Company,
 } from '@tirocinium/companies';
@@ -13,12 +15,15 @@ import { config } from '../config.js';
 import { PoliteFetcher } from './fetcher.js';
 import { companiesNeedingEnrichment, getCompany } from './repo.js';
 import { upsertProfile } from './profile-repo.js';
+import { applyCompanyTech } from './tech-repo.js';
 
 export type EnrichSummary = {
   targets: number;
   enriched: number;
   skipped: number;
   pagesFetched: number;
+  /** 採用ページ等から張った company_tech edge 数 */
+  techEdges: number;
   robotsBlocked: number;
   errors: { company: string; message: string }[];
 };
@@ -30,6 +35,7 @@ export async function runEnrichment(opts: { companyId?: string; limit?: number }
     enriched: 0,
     skipped: 0,
     pagesFetched: 0,
+    techEdges: 0,
     robotsBlocked: 0,
     errors: [],
   };
@@ -103,11 +109,23 @@ async function enrichOne(
     fetchedUrls.push(u);
   }
 
-  const profile = await extractProfile(client, MODEL.EXTRACTOR, sections.join('\n\n---\n\n'));
-  // 何も取れなければ skip 扱い (空 profile を保存しない)
-  if (!profile.philosophy && !profile.ir_summary && !profile.business && (profile.values?.length ?? 0) === 0) {
-    return false;
+  const pageText = sections.join('\n\n---\n\n');
+  const profile = await extractProfile(client, MODEL.EXTRACTOR, pageText);
+
+  // 採用ページ/技術ブログ本文から使用技術を抽出して company_tech へ (tech レイヤー)。
+  let techApplied = 0;
+  try {
+    const rawTech = await extractTech(client, MODEL.EXTRACTOR, pageText);
+    const tokens = parseTechStack(rawTech);
+    if (tokens.length) techApplied = await applyCompanyTech(company.id, tokens, 'recruit-page');
+    summary.techEdges += techApplied;
+  } catch {
+    // tech 抽出失敗は profile を妨げない。
   }
-  await upsertProfile(company.id, { ...profile, sources: fetchedUrls });
-  return true;
+
+  const hasProfile =
+    Boolean(profile.philosophy || profile.ir_summary || profile.business) || (profile.values?.length ?? 0) > 0;
+  if (hasProfile) await upsertProfile(company.id, { ...profile, sources: fetchedUrls });
+  // profile か tech のどちらかが取れれば enriched 扱い。
+  return hasProfile || techApplied > 0;
 }

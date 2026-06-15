@@ -63,6 +63,25 @@ export function parseGamesFromResearch(research: GameCompanyResearchRecord): Gam
   return out;
 }
 
+const MOBILE_RE = /android|\bios\b|iphone|ipad|スマートフォン|モバイル|携帯/i;
+const CONSOLE_RE = /switch|playstation|\bps[1-5]\b|プレイステーション|xbox|wii|ニンテンドー|nintendo|3ds|ゲームボーイ|game\s?boy|サターン|ドリームキャスト|アーケード/i;
+const PC_RE = /windows|\bpc\b|steam|mac\b|macos|linux|ブラウザ|browser/i;
+
+/**
+ * Wikidata P400 等の対応機種ラベル群を mobile/console/pc に分類する。
+ * モバイル専用 → 'mobile' (ソシャゲ signal)、 コンシューマ含む → 'console'、 PC のみ → 'pc'。
+ */
+export function classifyPlatform(labels: string[]): '' | 'mobile' | 'console' | 'pc' {
+  const t = labels.join(' ');
+  const mobile = MOBILE_RE.test(t);
+  const console_ = CONSOLE_RE.test(t);
+  const pc = PC_RE.test(t);
+  if (mobile && !console_) return 'mobile';
+  if (console_) return 'console';
+  if (pc) return 'pc';
+  return '';
+}
+
 function str(v: string | undefined, max: number): string {
   return (v ?? '').trim().slice(0, max);
 }
@@ -78,6 +97,7 @@ export function normalizeGame(input: GameInput): NormalizedGame | null {
     normalized_title,
     series: str(input.series, 120),
     platform: str(input.platform, 60),
+    platform_class: str(input.platform_class, 20),
     genre: str(input.genre, 80),
     release_year:
       Number.isFinite(input.release_year) && (input.release_year ?? 0) > 0
