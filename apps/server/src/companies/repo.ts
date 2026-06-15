@@ -1,10 +1,16 @@
 import { sql, isSqlite } from '../db/index.js';
-import { coerceSources, mergeSources, type Company, type NormalizedCompany } from '@tirocinium/companies';
+import {
+  coerceSources,
+  mergeSources,
+  isSMBByEmployees,
+  type Company,
+  type NormalizedCompany,
+} from '@tirocinium/companies';
 
 // 遅延評価: sql は initSql() 後にしか呼べない (module-load 時点では未初期化)。
 const selectCols = () => sql`
   id, name, normalized_name, url, industry, description,
-  roles, tags, location, size, source, source_url,
+  roles, tags, location, size, employee_count, listing_market, source, source_url,
   is_newgrad, is_game, has_opening, recruit_url, stock_reason,
   sources, is_smb, is_listed,
   crawled_at, updated_at
@@ -33,7 +39,7 @@ export async function listCompanies(filter: CompanyFilter = {}): Promise<Company
   return sql<CompanyWithStats[]>`
     SELECT
       c.id, c.name, c.normalized_name, c.url, c.industry, c.description,
-      c.roles, c.tags, c.location, c.size, c.source, c.source_url,
+      c.roles, c.tags, c.location, c.size, c.employee_count, c.listing_market, c.source, c.source_url,
       c.is_newgrad, c.is_game, c.has_opening, c.recruit_url, c.stock_reason,
       c.sources, c.is_smb, c.is_listed,
       c.crawled_at, c.updated_at,
@@ -122,7 +128,8 @@ export type DiscoverySignals = {
  * normalized_name で upsert する。 既存なら空でない値だけ更新 (クロール毎の劣化を防ぐ)。
  * フラグは OR でマージし、 一度立った新卒/ゲーム/募集は温存する。
  * 出所 (sources) は既存 + 今回分を read-merge-write で累積する (§2②)。
- * is_smb は「一度も上場と判定されていない」場合のみ true とする (§2④)。
+ * 会社規模は従業員数 (employee_count) 駆動で is_smb を決める (不明(0) or {@link SMB_EMPLOYEE_MAX} 以下→中小)。
+ * 上場区分は listing_market タグ (prime/growth/standard/other)、 is_listed はその有無。
  * @returns 'inserted' | 'updated'
  */
 export async function upsertCompany(
@@ -132,8 +139,10 @@ export async function upsertCompany(
   const isNewgrad = signals.isNewgrad ?? false;
   const isGame = signals.isGame ?? false;
   const hasOpening = signals.hasOpening ?? false;
-  const isSMB = signals.isSMB ?? false;
-  const isListed = signals.isListed ?? false;
+  // is_smb は会社規模 (従業員数) で決まる。 不明(0) or 上限以下 → 中小 (ユーザ定義)。
+  // 上場や heuristic とは独立 (上場有無は listing_market / is_listed で別管理)。
+  const isSMB = isSMBByEmployees(c.employee_count);
+  const isListed = signals.isListed ?? c.listing_market !== '';
   const recruitUrl = signals.recruitUrl ?? '';
   const stockReason = signals.stockReason ?? '';
 
@@ -149,11 +158,13 @@ export async function upsertCompany(
 
   await sql`
     INSERT INTO companies
-      (name, normalized_name, url, industry, description, roles, tags, location, size, source, source_url,
+      (name, normalized_name, url, industry, description, roles, tags, location, size,
+       employee_count, listing_market, source, source_url,
        is_newgrad, is_game, has_opening, recruit_url, stock_reason, sources, is_smb, is_listed)
     VALUES (
       ${c.name}, ${c.normalized_name}, ${c.url}, ${c.industry}, ${c.description},
-      ${c.roles}, ${c.tags}, ${c.location}, ${c.size}, ${c.source}, ${c.source_url},
+      ${c.roles}, ${c.tags}, ${c.location}, ${c.size},
+      ${c.employee_count}, ${c.listing_market}, ${c.source}, ${c.source_url},
       ${isNewgrad}, ${isGame}, ${hasOpening}, ${recruitUrl}, ${stockReason},
       ${sql.json(merged)}, ${isSMB}, ${isListed}
     )
@@ -166,6 +177,8 @@ export async function upsertCompany(
       tags        = CASE WHEN cardinality(EXCLUDED.tags) > 0 THEN EXCLUDED.tags ELSE companies.tags END,
       location    = COALESCE(NULLIF(EXCLUDED.location, ''), companies.location),
       size        = COALESCE(NULLIF(EXCLUDED.size, ''), companies.size),
+      employee_count = CASE WHEN EXCLUDED.employee_count > 0 THEN EXCLUDED.employee_count ELSE companies.employee_count END,
+      listing_market = COALESCE(NULLIF(EXCLUDED.listing_market, ''), companies.listing_market),
       source      = EXCLUDED.source,
       source_url  = COALESCE(NULLIF(EXCLUDED.source_url, ''), companies.source_url),
       is_newgrad  = companies.is_newgrad OR EXCLUDED.is_newgrad,
@@ -175,7 +188,8 @@ export async function upsertCompany(
       stock_reason= COALESCE(NULLIF(EXCLUDED.stock_reason, ''), companies.stock_reason),
       sources     = EXCLUDED.sources,
       is_listed   = companies.is_listed OR EXCLUDED.is_listed,
-      is_smb      = (companies.is_smb OR EXCLUDED.is_smb) AND NOT (companies.is_listed OR EXCLUDED.is_listed),
+      -- is_smb は「最終的な従業員数」から純粋導出 (不明=0 も中小)。 SMB_EMPLOYEE_MAX=300。
+      is_smb      = CASE WHEN (CASE WHEN EXCLUDED.employee_count > 0 THEN EXCLUDED.employee_count ELSE companies.employee_count END) <= 300 THEN TRUE ELSE FALSE END,
       updated_at  = now()
   `;
   return wasPresent ? 'updated' : 'inserted';
