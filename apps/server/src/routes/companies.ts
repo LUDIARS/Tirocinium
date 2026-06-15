@@ -11,6 +11,7 @@ import { loadListingSources, selectActiveSources } from '../companies/listing-co
 import { getProfile } from '../companies/profile-repo.js';
 import { getNewgradRoleImages } from '../companies/newgrad-repo.js';
 import { searchGames, relatedCompaniesByGame, companiesByTech } from '../companies/games-repo.js';
+import { getObSummary, getObPlacements, topCompaniesByOb } from '../companies/ob-repo.js';
 
 /**
  * 企業プール (companies) の参照とクロール起動。
@@ -92,6 +93,19 @@ companies.get('/by-tech', async (c) => {
     limit: c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined,
   });
   return c.json({ companies: rows });
+});
+
+/** GET /api/v1/companies/ob/top — OB 就職者数の多い企業ランキング */
+companies.get('/ob/top', async (c) => {
+  const limit = c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined;
+  return c.json({ companies: await topCompaniesByOb(limit) });
+});
+
+/** GET /api/v1/companies/:id/ob — 企業の OB 就職実績 (集計サマリ + 内訳セル、 個人なし) */
+companies.get('/:id/ob', async (c) => {
+  const id = c.req.param('id');
+  const [summary, placements] = await Promise.all([getObSummary(id), getObPlacements(id)]);
+  return c.json({ summary, placements });
 });
 
 /** GET /api/v1/companies/:id/profile — 企業の IR/理念 profile */

@@ -141,6 +141,8 @@ export type RelatedCompany = {
   recruit_url: string;
   is_social: boolean;
   primary_platform: string;
+  /** OB 就職者数 (company_ob_placement 集計、 0=データ無し) */
+  ob_total: number;
   /** direct=このゲームに直接関与 / related=作り手と他作品を共作 */
   relation: 'direct' | 'related';
   /** direct のとき: 役割 (developer/support 等) */
@@ -166,7 +168,8 @@ export type RelatedFilters = {
 const COMPANY_SEL = () => sql`
   c.id, c.name, c.location, c.url, c.industry, c.is_smb, c.is_listed,
   c.employee_count, c.listing_market, c.is_newgrad, c.has_opening, c.recruit_url,
-  c.is_social, c.primary_platform
+  c.is_social, c.primary_platform,
+  (SELECT COALESCE(sum(op.headcount), 0) FROM company_ob_placement op WHERE op.company_id = c.id) AS ob_total
 `;
 
 const toBool = (v: unknown): boolean => v === true || v === 1 || v === '1' || v === 't';
@@ -192,7 +195,7 @@ export async function relatedCompaniesByGame(
   const direct: RelatedCompany[] = directRows.map((r) => ({
     ...r, is_smb: toBool(r.is_smb), is_listed: toBool(r.is_listed), is_newgrad: toBool(r.is_newgrad),
     has_opening: toBool(r.has_opening), is_social: toBool(r.is_social), employee_count: Number(r.employee_count),
-    relation: 'direct',
+    ob_total: Number(r.ob_total), relation: 'direct',
   }));
 
   const byId = new Map<string, RelatedCompany>();
@@ -205,6 +208,7 @@ export async function relatedCompaniesByGame(
         is_smb: toBool(row.is_smb), is_listed: toBool(row.is_listed), employee_count: Number(row.employee_count),
         listing_market: row.listing_market, is_newgrad: toBool(row.is_newgrad), has_opening: toBool(row.has_opening),
         is_social: toBool(row.is_social), primary_platform: row.primary_platform,
+        ob_total: Number(row.ob_total),
         recruit_url: row.recruit_url, relation: 'related', shared_games: 0, via_titles: [],
       };
       byId.set(row.id, rc);
@@ -289,7 +293,7 @@ export async function companiesByTech(
   let out = rows.map((r) => ({
     ...r, is_smb: toBool(r.is_smb), is_listed: toBool(r.is_listed), is_newgrad: toBool(r.is_newgrad),
     has_opening: toBool(r.has_opening), is_social: toBool(r.is_social), employee_count: Number(r.employee_count),
-    relation: 'related' as const,
+    ob_total: Number(r.ob_total), relation: 'related' as const,
   }));
   if (filters.smb) out = out.filter((r) => r.is_smb);
   if (filters.social) out = out.filter((r) => r.is_social);

@@ -206,5 +206,5 @@ API: `POST /api/v1/companies/related { seed: {game?|series?|company?}, hops?: 2,
 
 1. **Game DB + edge 基盤**: `games`/`company_game`/`company_partner` migration + `normalizeTitle`/`parseGamesFromResearch` + research からの初期投入 + 反映。
 2. **スタッフロール発見クロール**: `staff-credits` source + `parseStaffCredits` → credited edge + 新企業発見。
-3. **OB 集計インポータ**: `company_ob_placement` migration + ユーザデータ取込 CLI + 集計取得 API。
+3. **OB 集計インポータ** ✅ 実装済: `company_ob_placement` migration (011) + 取込 CLI (`companies:ob-import`、 CSV/JSON 自動判別) + 集計 API (`GET /:id/ob`・`GET /ob/top`) + 検索表示 (関連会社カードに OB 累計 chip + 内訳)。 純パース/集計は `@tirocinium/companies` の `ob.ts`。 個人列は列名で拾わず構造的に排除 (§2.1)。 k-匿名性 (人数1 セル) の表示方針は §7 のとおり未確定 (現状は実数表示)。
 4. **関係性レコメンド + IR 従業員裏取り**: `/companies/related` 探索 API + `extractEmployeeFromIR` クロール。
