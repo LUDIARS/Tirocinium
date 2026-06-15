@@ -110,6 +110,17 @@ export type EnrichQueueStatus = {
   attempted: number;
 };
 
+export type MapMarker = {
+  id: string;
+  name: string;
+  location: string;
+  lat: number;
+  lng: number;
+  is_smb: boolean;
+  is_social: boolean;
+  game_count: number;
+};
+
 export function useCompaniesApi() {
   const { token } = useAuth();
 
@@ -134,6 +145,12 @@ export function useCompaniesApi() {
     },
     async enrichQueueStatus(): Promise<EnrichQueueStatus> {
       return fetchJson('/api/v1/companies/enrich-queue/status', token);
+    },
+    async mapConfig(): Promise<{ enabled: boolean; apiKey: string }> {
+      return fetchJson('/api/v1/companies/map-config', token);
+    },
+    async mapMarkers(): Promise<{ enabled: boolean; markers: MapMarker[]; pendingLocations: number }> {
+      return fetchJson('/api/v1/companies/map-markers', token);
     },
     async crawl(input: { source: string; urls?: string[]; maxPages?: number }): Promise<{
       summary: CrawlSummary;

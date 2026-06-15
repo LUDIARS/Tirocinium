@@ -76,6 +76,7 @@ export {
   parseLinkContribution,
   type LinkContribution,
 } from './contribute.js';
+export { parseGeocodeResult, type LatLng } from './geocode.js';
 export {
   normalizeCorporateNumber,
   gbizHojinUrl,

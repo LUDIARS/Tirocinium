@@ -91,6 +91,7 @@ export function applyServerConfig(
   });
   setBool('COMPANY_REQUIRE_SMB', (v) => { cfg.companyCrawl.requireSMB = v; });
   setNum('COMPANY_LISTING_CHUNK_CHARS', (v) => { cfg.companyCrawl.listingChunkChars = v; });
+  set('GOOGLE_MAPS_API_KEY', (v) => { cfg.googleMaps.apiKey = v; });
   set('GBIZINFO_TOKEN', (v) => { cfg.gbiz.token = v; });
   setNum('GBIZINFO_MIN_INTERVAL_MS', (v) => { cfg.gbiz.minIntervalMs = v; });
   set('GBIZINFO_DEFAULT_INDUSTRY', (v) => { cfg.gbiz.defaultIndustry = v; });
