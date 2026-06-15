@@ -16,6 +16,8 @@ export function Companies() {
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [onlyGenerated, setOnlyGenerated] = useState(false);
+  // 既定はノイズ (どのゲームにも未紐付け) を除外。 ユーザが明示したときだけ全件表示。
+  const [showNoise, setShowNoise] = useState(false);
 
   const [profiles, setProfiles] = useState<Record<string, CompanyProfile>>({});
   const [newgradImages, setNewgradImages] = useState<Record<string, NewgradRoleImage[]>>({});
@@ -24,7 +26,7 @@ export function Companies() {
   const reload = async (query = q) => {
     try {
       const search = query.trim();
-      const r = await api.list({ limit: 200, q: search || undefined });
+      const r = await api.list({ limit: 200, q: search || undefined, quality: !showNoise });
       setCompanies(r.companies);
       setTotal(r.total);
     } catch (e) {
@@ -33,17 +35,12 @@ export function Companies() {
   };
 
   useEffect(() => {
-    void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
     const timer = window.setTimeout(() => {
       void reload(q);
     }, 250);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [q, showNoise]);
 
   const wrap = async (key: string, fn: () => Promise<void>) => {
     setBusy(key);
@@ -230,9 +227,13 @@ export function Companies() {
             <input type="checkbox" checked={onlyGenerated} onChange={(e) => setOnlyGenerated(e.target.checked)} />
             生成済みデータがある企業のみ表示
           </label>
+          <label style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }} title="既定ではいずれかのゲームに紐付く企業のみ表示します (概要の有無は問いません)">
+            <input type="checkbox" checked={showNoise} onChange={(e) => setShowNoise(e.target.checked)} />
+            ゲーム未紐付けの企業も表示
+          </label>
         </div>
         {visible.length === 0 && (
-          <p>{q.trim() || onlyGenerated ? '条件に一致する企業がありません' : 'まだ企業がありません'}</p>
+          <p>{q.trim() || onlyGenerated || !showNoise ? '条件に一致する企業がありません' : 'まだ企業がありません'}</p>
         )}
         <div className="company-grid">
           {visible.map((c) => (
@@ -244,6 +245,7 @@ export function Companies() {
                 {c.is_newgrad && <Badge color="#1565c0">新卒採用あり</Badge>}
                 {!c.is_newgrad && <Badge color="#757575">新卒採用不明</Badge>}
                 {c.is_game && <Badge color="#6a1b9a">ゲーム</Badge>}
+                {c.game_count > 0 && <Badge color="#5e35b1">ゲーム {c.game_count} 本</Badge>}
                 {c.has_opening && <Badge color="#2e7d32">募集中</Badge>}
                 {c.article_count > 0 && (
                   <Badge color="#e65100">記事 {c.article_count} 件</Badge>
