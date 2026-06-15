@@ -25,12 +25,32 @@ export type RelatedCompany = {
   recruit_url: string;
   is_social: boolean;
   primary_platform: string;
+  ob_total: number;
   relation: 'direct' | 'related';
   role?: string;
   shared_games?: number;
   via_titles?: string[];
   tech?: string[];
 };
+
+/** 企業の OB 就職実績 (集計のみ・個人なし)。 */
+export type ObSummary = {
+  total: number;
+  cells: number;
+  by_year: { join_year: number; headcount: number }[];
+  by_role: { role: string; headcount: number }[];
+  by_class: { class_name: string; headcount: number }[];
+};
+
+export type ObPlacement = {
+  join_year: number;
+  class_name: string;
+  role: string;
+  headcount: number;
+  source: string;
+};
+
+export type ObResult = { summary: ObSummary; placements: ObPlacement[] };
 
 export type RelatedResult = {
   game: { id: string; title: string; series: string; platform: string; release_year: number } | null;
@@ -55,6 +75,9 @@ export function useGamesApi() {
       if (f.engine) qs.set('engine', f.engine);
       const suffix = qs.toString() ? `?${qs.toString()}` : '';
       return fetchJson(`/api/v1/companies/games/${gameId}/related${suffix}`, token);
+    },
+    async ob(companyId: string): Promise<ObResult> {
+      return fetchJson(`/api/v1/companies/${companyId}/ob`, token);
     },
   };
 }

@@ -1,11 +1,58 @@
 import { useEffect, useState } from 'react';
-import { useGamesApi, type GameSearchRow, type RelatedCompany, type RelatedResult } from '../api/games.js';
+import {
+  useGamesApi,
+  type GameSearchRow,
+  type ObResult,
+  type RelatedCompany,
+  type RelatedResult,
+} from '../api/games.js';
 
 const listingLabel = (m: string): string =>
   ({ prime: '一部上場', growth: 'マザーズ', standard: '二部', other: '上場' } as Record<string, string>)[m] ?? '';
 
+function ObBreakdown({ ob }: { ob: ObResult }) {
+  const { summary } = ob;
+  if (summary.total === 0) {
+    return <div className="company-card-desc">OB 就職実績データはまだありません。</div>;
+  }
+  return (
+    <div className="company-card-desc company-ob-detail">
+      <div>OB 就職者 累計 <strong>{summary.total}名</strong> ({summary.cells}区分)</div>
+      {summary.by_year.length > 0 && (
+        <div>年別: {summary.by_year.map((y) => `${y.join_year || '不明'}年 ${y.headcount}名`).join(' / ')}</div>
+      )}
+      {summary.by_role.length > 0 && (
+        <div>職種別: {summary.by_role.map((r) => `${r.role} ${r.headcount}名`).join(' / ')}</div>
+      )}
+      {summary.by_class.length > 0 && (
+        <div>クラス別: {summary.by_class.map((k) => `${k.class_name} ${k.headcount}名`).join(' / ')}</div>
+      )}
+    </div>
+  );
+}
+
 function CompanyCard({ c }: { c: RelatedCompany }) {
+  const api = useGamesApi();
   const size = c.employee_count > 0 ? `${c.employee_count}名` : '規模不明';
+  const [ob, setOb] = useState<ObResult | null>(null);
+  const [obOpen, setObOpen] = useState(false);
+  const [obBusy, setObBusy] = useState(false);
+
+  const toggleOb = async () => {
+    const next = !obOpen;
+    setObOpen(next);
+    if (next && !ob && !obBusy) {
+      setObBusy(true);
+      try {
+        setOb(await api.ob(c.id));
+      } catch {
+        /* OB 取得失敗は無視 (任意データ) */
+      } finally {
+        setObBusy(false);
+      }
+    }
+  };
+
   return (
     <div className="card company-card">
       <div className="company-card-head">
@@ -18,8 +65,14 @@ function CompanyCard({ c }: { c: RelatedCompany }) {
         {c.is_social && <span className="fd-chip">ソシャゲ</span>}
         {c.is_newgrad && <span className="fd-chip">新卒採用</span>}
         {c.has_opening && <span className="fd-chip">募集中</span>}
+        {c.ob_total > 0 && (
+          <button className="fd-chip ob" onClick={() => void toggleOb()}>
+            OB {c.ob_total}名{obOpen ? ' ▲' : ' ▼'}
+          </button>
+        )}
         {c.relation === 'direct' && c.role && <span className="fd-chip">{c.role}</span>}
       </div>
+      {obOpen && (obBusy ? <div className="company-card-desc">OB 集計 読み込み中…</div> : ob && <ObBreakdown ob={ob} />)}
       {c.tech && c.tech.length > 0 && (
         <div className="company-card-badges">
           {c.tech.slice(0, 8).map((t) => (
