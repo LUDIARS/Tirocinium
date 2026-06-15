@@ -21,7 +21,7 @@ function CompanyCard({ c }: { c: RelatedCompany }) {
       </div>
       {c.relation === 'related' && c.via_titles && c.via_titles.length > 0 && (
         <div className="company-card-desc">
-          共作 {c.shared_games}本: {c.via_titles.join(' / ')}
+          つながり {c.shared_games}: {c.via_titles.join(' / ')}
         </div>
       )}
       <div className="company-card-meta">{c.location || '所在地不明'}</div>
@@ -151,9 +151,9 @@ export function GameSearch() {
                 ))}
               </div>
 
-              <h3>作り手と他作品を共作した会社 ({result.related.length})</h3>
+              <h3>関連する会社 — 共作 / 同シリーズ / 取引先 ({result.related.length})</h3>
               {result.related.length === 0 ? (
-                <p className="company-suggest-count">共作ネットワークはまだ見つかりません (データ拡充で増えます)。</p>
+                <p className="company-suggest-count">関連ネットワークはまだ見つかりません (データ拡充で増えます)。</p>
               ) : (
                 <div className="company-grid">
                   {result.related.map((c) => (

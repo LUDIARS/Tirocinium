@@ -13,6 +13,7 @@
     "seed-personas": "tsx ../../scripts/seed-personas/index.ts",
     "companies:seed-import": "tsx ../../scripts/companies-seed-import/index.ts",
     "companies:newgrad-crawl": "tsx ../../scripts/companies-newgrad-crawl/index.ts",
+    "companies:wikidata-enrich": "tsx ../../scripts/companies-wikidata-enrich/index.ts",
     "ft-loop": "tsx ../../scripts/ft-loop/index.ts",
     "test": "vitest run",
     "bench": "tsx bench/request-latency.ts"
