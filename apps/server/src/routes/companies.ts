@@ -10,6 +10,7 @@ import { runEnrichment } from '../companies/enrich.js';
 import { loadListingSources, selectActiveSources } from '../companies/listing-config.js';
 import { getProfile } from '../companies/profile-repo.js';
 import { getNewgradRoleImages } from '../companies/newgrad-repo.js';
+import { searchGames, relatedCompaniesByGame } from '../companies/games-repo.js';
 
 /**
  * 企業プール (companies) の参照とクロール起動。
@@ -56,6 +57,26 @@ companies.get('/listing-sources', async (c) => {
   return c.json({
     sources: all.map((s) => ({ id: s.id, kind: s.kind, urls: s.urls.length, active: active.has(s.id), note: s.note })),
   });
+});
+
+/** GET /api/v1/companies/games/search?q=... — ゲームをタイトルで検索 (関連会社さがしの入口) */
+companies.get('/games/search', async (c) => {
+  const q = (c.req.query('q') ?? '').trim();
+  if (!q) return c.json({ games: [] });
+  const limit = c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined;
+  return c.json({ games: await searchGames(q, limit) });
+});
+
+/** GET /api/v1/companies/games/:gameId/related — ゲーム起点の関連会社探索 (direct + related) */
+companies.get('/games/:gameId/related', async (c) => {
+  const truthy = (v: string | undefined): boolean => v === '1' || v === 'true';
+  const result = await relatedCompaniesByGame(c.req.param('gameId'), {
+    smb: truthy(c.req.query('smb')),
+    newgrad: truthy(c.req.query('newgrad')),
+    opening: truthy(c.req.query('opening')),
+    limit: c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined,
+  });
+  return result.game ? c.json(result) : c.json({ error: 'not_found' }, 404);
 });
 
 /** GET /api/v1/companies/:id/profile — 企業の IR/理念 profile */
