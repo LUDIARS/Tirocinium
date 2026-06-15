@@ -10,7 +10,8 @@ import { runEnrichment } from '../companies/enrich.js';
 import { loadListingSources, selectActiveSources } from '../companies/listing-config.js';
 import { getProfile } from '../companies/profile-repo.js';
 import { getNewgradRoleImages } from '../companies/newgrad-repo.js';
-import { searchGames, relatedCompaniesByGame } from '../companies/games-repo.js';
+import { searchGames, relatedCompaniesByGame, companiesByTech } from '../companies/games-repo.js';
+import { getObSummary, getObPlacements, topCompaniesByOb } from '../companies/ob-repo.js';
 
 /**
  * 企業プール (companies) の参照とクロール起動。
@@ -74,9 +75,37 @@ companies.get('/games/:gameId/related', async (c) => {
     smb: truthy(c.req.query('smb')),
     newgrad: truthy(c.req.query('newgrad')),
     opening: truthy(c.req.query('opening')),
+    social: truthy(c.req.query('social')),
+    engine: c.req.query('engine') || undefined,
     limit: c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined,
   });
   return result.game ? c.json(result) : c.json({ error: 'not_found' }, 404);
+});
+
+/** GET /api/v1/companies/by-tech?tech=Unreal — 技術名で企業を引く (技術グラフ直接クエリ) */
+companies.get('/by-tech', async (c) => {
+  const tech = (c.req.query('tech') ?? '').trim();
+  if (!tech) return c.json({ companies: [] });
+  const truthy = (v: string | undefined): boolean => v === '1' || v === 'true';
+  const rows = await companiesByTech(tech, {
+    smb: truthy(c.req.query('smb')),
+    social: truthy(c.req.query('social')),
+    limit: c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined,
+  });
+  return c.json({ companies: rows });
+});
+
+/** GET /api/v1/companies/ob/top — OB 就職者数の多い企業ランキング */
+companies.get('/ob/top', async (c) => {
+  const limit = c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined;
+  return c.json({ companies: await topCompaniesByOb(limit) });
+});
+
+/** GET /api/v1/companies/:id/ob — 企業の OB 就職実績 (集計サマリ + 内訳セル、 個人なし) */
+companies.get('/:id/ob', async (c) => {
+  const id = c.req.param('id');
+  const [summary, placements] = await Promise.all([getObSummary(id), getObPlacements(id)]);
+  return c.json({ summary, placements });
 });
 
 /** GET /api/v1/companies/:id/profile — 企業の IR/理念 profile */

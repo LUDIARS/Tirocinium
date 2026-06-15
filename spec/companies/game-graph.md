@@ -194,7 +194,7 @@ API: `POST /api/v1/companies/related { seed: {game?|series?|company?}, hops?: 2,
 
 ## 7. 未確定 / 将来
 
-- **OB の k-匿名性**: 人数 1 のセルの扱い (丸め / 「数名」表記 / 非表示閾値)。ユーザ確認事項。
+- ~~**OB の k-匿名性**: 人数 1 のセルの扱い~~ → **決定 (2026-06-15): 実数表示のまま**。OB は集計のみ・個人特定不可のため、人数 1 でも丸めず実数を出す (丸め / 「数名」表記 / 非表示閾値は導入しない)。
 - ゲーム名・社名の**表記揺れ名寄せ** (FF/ファイナルファンタジー、英⇔カナ社名)。series 軸 + 別名辞書で緩和、最終は corporate_number ([[spec/companies/gbizinfo.md]])。
 - publisher edge の網羅 (research に publisher 情報が薄い → スタッフロール/Wikidata 補完)。
 - 純グラフクエリが必要になった場合の **Kuzu 移行** (edge テーブルをそのまま移送)。
@@ -206,5 +206,5 @@ API: `POST /api/v1/companies/related { seed: {game?|series?|company?}, hops?: 2,
 
 1. **Game DB + edge 基盤**: `games`/`company_game`/`company_partner` migration + `normalizeTitle`/`parseGamesFromResearch` + research からの初期投入 + 反映。
 2. **スタッフロール発見クロール**: `staff-credits` source + `parseStaffCredits` → credited edge + 新企業発見。
-3. **OB 集計インポータ**: `company_ob_placement` migration + ユーザデータ取込 CLI + 集計取得 API。
+3. **OB 集計インポータ** ✅ 実装済: `company_ob_placement` migration (011) + 取込 CLI (`companies:ob-import`、 CSV/JSON 自動判別) + 集計 API (`GET /:id/ob`・`GET /ob/top`) + 検索表示 (関連会社カードに OB 累計 chip + 内訳)。 純パース/集計は `@tirocinium/companies` の `ob.ts`。 個人列は列名で拾わず構造的に排除 (§2.1)。 k-匿名性 (人数1 セル) は §7 のとおり実数表示で確定 (2026-06-15)。
 4. **関係性レコメンド + IR 従業員裏取り**: `/companies/related` 探索 API + `extractEmployeeFromIR` クロール。

@@ -956,6 +956,21 @@ button.fd-chip {
   color: #fff;
   border-color: var(--c-accent, #3b82f6);
 }
+.fd-chip.tech {
+  background: transparent;
+  color: var(--c-text-muted, #64748b);
+  font-size: 0.7rem;
+}
+.fd-chip.ob {
+  background: var(--c-accent-soft, #ecfdf5);
+  color: var(--c-accent-strong, #047857);
+  border-color: var(--c-accent-strong, #047857);
+}
+.company-ob-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 
 /* 関連会社さがし (game-search) */
 .game-search {

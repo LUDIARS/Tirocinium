@@ -70,6 +70,8 @@ export type Company = NormalizedCompany & {
   is_smb: boolean;
   /** 上場シグナル (migration 007)。 listing_market が空でなければ true。 */
   is_listed: boolean;
+  /** 法人番号 (migration 012、 gBizINFO 由来)。 '' = 未取得。 名寄せ用の安定キー。 */
+  corporate_number: string;
   crawled_at: string;
   updated_at: string;
 };
@@ -84,6 +86,8 @@ export type GameInput = {
   title: string;
   series?: string;
   platform?: string;
+  /** mobile/console/pc (Wikidata P400 由来) */
+  platform_class?: string;
   genre?: string;
   release_year?: number;
   source?: string;
@@ -97,6 +101,8 @@ export type NormalizedGame = {
   normalized_title: string;
   series: string;
   platform: string;
+  /** mobile/console/pc (migration 010) */
+  platform_class: string;
   genre: string;
   release_year: number;
   source: string;
@@ -222,6 +228,57 @@ export type CompanyProfileInput = {
 export type CompanyProfile = CompanyProfileInput & {
   company_id: string;
   fetched_at: string;
+};
+
+// ── OB 就職実績 (集計のみ・個人なし、 spec/companies/game-graph.md §2.1 / §3.4) ──
+
+/** ユーザ付与の OB 就職実績 1 行 (取込前の生入力)。 個人列は受け取らない。 */
+export type ObPlacementInput = {
+  /** 会社名 (社名正規化で company_id に解決する) */
+  company: string;
+  /** 入社年 (0/未指定 = 不明) */
+  join_year?: number;
+  /** クラス (例 'ゲームプランナー専攻 2024') */
+  class_name?: string;
+  /** 役職 / 職種 */
+  role?: string;
+  /** 人数 (集計)。 1 以上のみ有効。 */
+  headcount?: number;
+};
+
+/** 正規化済 OB 集計レコード (DB 投入前)。 company は normalized_name で保持。 */
+export type NormalizedObPlacement = {
+  /** 入力の社名 (表示 / 未解決報告用) */
+  company_name: string;
+  /** 社名正規化キー (companies.normalized_name に突合) */
+  normalized_name: string;
+  join_year: number;
+  class_name: string;
+  role: string;
+  headcount: number;
+};
+
+/** DB から読み出した OB 集計 1 行。 */
+export type ObPlacement = {
+  join_year: number;
+  class_name: string;
+  role: string;
+  headcount: number;
+  source: string;
+};
+
+/** 企業の OB 集計サマリ (集計ビュー)。 */
+export type ObSummary = {
+  /** 総就職者数 (headcount 合算) */
+  total: number;
+  /** 行数 (セル数) */
+  cells: number;
+  /** 入社年ごとの人数 (新しい年順) */
+  by_year: { join_year: number; headcount: number }[];
+  /** 役職ごとの人数 (多い順) */
+  by_role: { role: string; headcount: number }[];
+  /** クラスごとの人数 (多い順) */
+  by_class: { class_name: string; headcount: number }[];
 };
 
 /** robots.txt の評価ルール (特定 UA 向けに畳んだもの)。 */

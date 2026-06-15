@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useGamesApi, type GameSearchRow, type RelatedCompany, type RelatedResult } from '../api/games.js';
+import {
+  useGamesApi,
+  type GameSearchRow,
+  type ObResult,
+  type RelatedCompany,
+  type RelatedResult,
+} from '../api/games.js';
 import { GameGraph } from './GameGraph.js';
 
 type ResultView = 'card' | 'graph';
@@ -7,8 +13,49 @@ type ResultView = 'card' | 'graph';
 const listingLabel = (m: string): string =>
   ({ prime: '一部上場', growth: 'マザーズ', standard: '二部', other: '上場' } as Record<string, string>)[m] ?? '';
 
+function ObBreakdown({ ob }: { ob: ObResult }) {
+  const { summary } = ob;
+  if (summary.total === 0) {
+    return <div className="company-card-desc">OB 就職実績データはまだありません。</div>;
+  }
+  return (
+    <div className="company-card-desc company-ob-detail">
+      <div>OB 就職者 累計 <strong>{summary.total}名</strong> ({summary.cells}区分)</div>
+      {summary.by_year.length > 0 && (
+        <div>年別: {summary.by_year.map((y) => `${y.join_year || '不明'}年 ${y.headcount}名`).join(' / ')}</div>
+      )}
+      {summary.by_role.length > 0 && (
+        <div>職種別: {summary.by_role.map((r) => `${r.role} ${r.headcount}名`).join(' / ')}</div>
+      )}
+      {summary.by_class.length > 0 && (
+        <div>クラス別: {summary.by_class.map((k) => `${k.class_name} ${k.headcount}名`).join(' / ')}</div>
+      )}
+    </div>
+  );
+}
+
 function CompanyCard({ c }: { c: RelatedCompany }) {
+  const api = useGamesApi();
   const size = c.employee_count > 0 ? `${c.employee_count}名` : '規模不明';
+  const [ob, setOb] = useState<ObResult | null>(null);
+  const [obOpen, setObOpen] = useState(false);
+  const [obBusy, setObBusy] = useState(false);
+
+  const toggleOb = async () => {
+    const next = !obOpen;
+    setObOpen(next);
+    if (next && !ob && !obBusy) {
+      setObBusy(true);
+      try {
+        setOb(await api.ob(c.id));
+      } catch {
+        /* OB 取得失敗は無視 (任意データ) */
+      } finally {
+        setObBusy(false);
+      }
+    }
+  };
+
   return (
     <div className="card company-card">
       <div className="company-card-head">
@@ -18,13 +65,27 @@ function CompanyCard({ c }: { c: RelatedCompany }) {
         <span className="fd-chip">{c.is_smb ? '中小' : '大手'}</span>
         <span className="fd-chip">{size}</span>
         {listingLabel(c.listing_market) && <span className="fd-chip">{listingLabel(c.listing_market)}</span>}
+        {c.is_social && <span className="fd-chip">ソシャゲ</span>}
         {c.is_newgrad && <span className="fd-chip">新卒採用</span>}
         {c.has_opening && <span className="fd-chip">募集中</span>}
+        {c.ob_total > 0 && (
+          <button className="fd-chip ob" onClick={() => void toggleOb()}>
+            OB {c.ob_total}名{obOpen ? ' ▲' : ' ▼'}
+          </button>
+        )}
         {c.relation === 'direct' && c.role && <span className="fd-chip">{c.role}</span>}
       </div>
+      {obOpen && (obBusy ? <div className="company-card-desc">OB 集計 読み込み中…</div> : ob && <ObBreakdown ob={ob} />)}
+      {c.tech && c.tech.length > 0 && (
+        <div className="company-card-badges">
+          {c.tech.slice(0, 8).map((t) => (
+            <span key={t} className="fd-chip tech">{t}</span>
+          ))}
+        </div>
+      )}
       {c.relation === 'related' && c.via_titles && c.via_titles.length > 0 && (
         <div className="company-card-desc">
-          共作 {c.shared_games}本: {c.via_titles.join(' / ')}
+          つながり {c.shared_games}: {c.via_titles.join(' / ')}
         </div>
       )}
       <div className="company-card-meta">{c.location || '所在地不明'}</div>
@@ -50,7 +111,8 @@ export function GameSearch() {
   const [games, setGames] = useState<GameSearchRow[]>([]);
   const [selected, setSelected] = useState<GameSearchRow | null>(null);
   const [result, setResult] = useState<RelatedResult | null>(null);
-  const [filters, setFilters] = useState({ smb: false, newgrad: false, opening: false });
+  const [filters, setFilters] = useState({ smb: false, newgrad: false, opening: false, social: false });
+  const [engine, setEngine] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState<ResultView>('card');
@@ -75,13 +137,13 @@ export function GameSearch() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  const loadRelated = async (game: GameSearchRow, f = filters) => {
+  const loadRelated = async (game: GameSearchRow, f = filters, eng = engine) => {
     setSelected(game);
     setBusy(true);
     setError(null);
     setGraphPick(null);
     try {
-      setResult(await api.related(game.id, f));
+      setResult(await api.related(game.id, { ...f, engine: eng || undefined }));
     } catch (e) {
       setError(e instanceof Error ? e.message : '取得失敗');
     } finally {
@@ -92,7 +154,13 @@ export function GameSearch() {
   const toggleFilter = (k: keyof typeof filters) => {
     const next = { ...filters, [k]: !filters[k] };
     setFilters(next);
-    if (selected) void loadRelated(selected, next);
+    if (selected) void loadRelated(selected, next, engine);
+  };
+
+  const toggleEngine = (e: string) => {
+    const next = engine === e ? '' : e;
+    setEngine(next);
+    if (selected) void loadRelated(selected, filters, next);
   };
 
   return (
@@ -143,6 +211,18 @@ export function GameSearch() {
             </button>
             <button className={filters.opening ? 'fd-chip active' : 'fd-chip'} onClick={() => toggleFilter('opening')}>
               募集中
+            </button>
+            <button className={filters.social ? 'fd-chip active' : 'fd-chip'} onClick={() => toggleFilter('social')}>
+              ソシャゲ
+            </button>
+            <button className={engine === 'Unity' ? 'fd-chip active' : 'fd-chip'} onClick={() => toggleEngine('Unity')}>
+              Unity
+            </button>
+            <button className={engine === 'Unreal' ? 'fd-chip active' : 'fd-chip'} onClick={() => toggleEngine('Unreal')}>
+              Unreal
+            </button>
+            <button className={engine === 'C++' ? 'fd-chip active' : 'fd-chip'} onClick={() => toggleEngine('C++')}>
+              C++
             </button>
           </div>
 

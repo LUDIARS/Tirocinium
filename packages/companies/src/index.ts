@@ -44,7 +44,17 @@ export {
   type StockOptions,
 } from './classify.js';
 export { mergeSources, coerceSources } from './provenance.js';
-export { normalizeTitle, splitTopLevel, parseGamesFromResearch, normalizeGame } from './game.js';
+export { normalizeTitle, splitTopLevel, parseGamesFromResearch, normalizeGame, classifyPlatform } from './game.js';
+export {
+  normalizeTechName,
+  normalizeTechToken,
+  parseTechStack,
+  deriveGraphicsStyle,
+  GRAPHICS_STYLE_LABEL,
+  type TechCategory,
+  type TechToken,
+} from './tech.js';
+export { TECH_INSTRUCTION, parseTechExtraction, extractTech } from './tech-extract.js';
 export {
   SMB_EMPLOYEE_MAX,
   isSMBByEmployees,
@@ -61,6 +71,21 @@ export {
 } from './links.js';
 export { LISTING_INSTRUCTION, parseListing, extractListing, chunkText } from './listing.js';
 export { PROFILE_INSTRUCTION, parseProfile, extractProfile } from './profile.js';
+export {
+  normalizeCorporateNumber,
+  gbizHojinUrl,
+  gbizInfoRecordToCompany,
+  type GBizHojin,
+} from './gbizinfo.js';
+export {
+  normalizeObPlacement,
+  parseCsv,
+  parseObCsv,
+  parseObJson,
+  parseObInput,
+  dedupeObPlacements,
+  buildObSummary,
+} from './ob.js';
 export {
   mapGameCompanySeed,
   type GameCompanySeedRecord,
