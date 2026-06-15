@@ -968,3 +968,106 @@ button.fd-chip {
 .game-search h3 {
   margin: 16px 0 4px;
 }
+
+/* === 関連会社グラフビュー === */
+.game-view-toggle {
+  margin-top: 8px;
+  padding: 0;
+}
+
+.game-graph-layout {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-top: 12px;
+}
+
+.game-graph {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.game-graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  font-size: 0.78rem;
+  color: var(--c-subtle);
+}
+.game-graph-legend .dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.game-graph-legend .dot-game { background: var(--c-accent); }
+.game-graph-legend .dot-direct { background: #34d399; }
+.game-graph-legend .dot-related { background: #a78bfa; }
+.game-graph-hint { margin-left: auto; opacity: 0.8; }
+
+.game-graph-svg {
+  width: 100%;
+  height: 540px;
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  touch-action: none;
+}
+
+.graph-edge {
+  stroke: var(--c-border);
+  stroke-width: 1.4;
+  transition: stroke 0.12s, stroke-width 0.12s, opacity 0.12s;
+}
+.graph-edge-related { stroke-dasharray: 4 4; opacity: 0.7; }
+.graph-edge.active {
+  stroke: var(--c-accent);
+  stroke-width: 2.2;
+  opacity: 1;
+}
+
+.graph-node { cursor: pointer; }
+.graph-node:focus { outline: none; }
+.graph-node-circle {
+  stroke: var(--c-surface);
+  stroke-width: 2;
+  transition: opacity 0.12s, stroke 0.12s;
+}
+.graph-node:hover .graph-node-circle,
+.graph-node:focus .graph-node-circle {
+  stroke: var(--c-text);
+}
+.graph-node.selected .graph-node-circle {
+  stroke: var(--c-accent);
+  stroke-width: 3.5;
+}
+.graph-node.dimmed { opacity: 0.28; }
+.graph-node-opening { fill: #f59e0b; stroke: var(--c-surface); stroke-width: 1.5; }
+.graph-node-label {
+  fill: var(--c-text);
+  font-size: 12px;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--c-bg);
+  stroke-width: 3px;
+}
+.graph-node-game .graph-node-label { font-weight: 700; }
+
+.game-graph-detail {
+  width: 300px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 12px;
+}
+
+@media (max-width: 760px) {
+  .game-graph-layout { flex-direction: column; }
+  .game-graph-detail { width: 100%; position: static; }
+  .game-graph-svg { height: 420px; }
+}
