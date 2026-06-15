@@ -6,7 +6,8 @@ import { AuthProvider } from './auth/AuthContext.js';
 import { LoginGate } from './auth/LoginGate.js';
 import { Recommend } from './pages/Recommend.js';
 import { Companies } from './pages/Companies.js';
-import { GameSearch } from './pages/GameSearch.js';
+import { GameSearchList } from './pages/GameSearchList.js';
+import { GameRelated } from './pages/GameRelated.js';
 import { CompanyMap } from './pages/CompanyMap.js';
 import { HomePage } from './pages/HomePage.js';
 // 面接ページ (履歴から復元)。ナビには載せず URL 直アクセスのみで開く (配線しない)。
@@ -24,7 +25,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/" element={<App />}>
               <Route index element={<HomePage />} />
               <Route path="companies" element={<Companies />} />
-              <Route path="game-search" element={<GameSearch />} />
+              <Route path="game-search">
+                <Route index element={<GameSearchList />} />
+                <Route path=":gameId" element={<GameRelated />} />
+              </Route>
               <Route path="map" element={<CompanyMap />} />
               <Route path="recommend" element={<Recommend />} />
               {/* 面接ページ: URL 直アクセス用 (ナビリンクは張らない)。入口は /session/start */}
