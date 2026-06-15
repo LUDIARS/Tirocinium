@@ -1000,6 +1000,33 @@ button.fd-chip {
 }
 .game-list li { margin: 0; }
 
+/* 自動 enrich キューの状態バナー */
+.enrich-queue-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: var(--c-muted);
+  border: 1px solid var(--c-border);
+  font-size: 0.82rem;
+  color: var(--c-subtle);
+}
+.enrich-queue-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #34d399;
+  animation: enrich-pulse 1.4s ease-in-out infinite;
+}
+.enrich-queue-last { opacity: 0.8; }
+@keyframes enrich-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 /* トップ (未検索) の空状態ガイド — 空白をグラフと誤認させない */
 .game-search-empty {
   border: 1px dashed var(--c-border);
