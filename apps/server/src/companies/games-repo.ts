@@ -3,9 +3,10 @@
 
 import { sql, isSqlite } from '../db/index.js';
 import { coerceSources, mergeSources, type Game, type NormalizedGame } from '@tirocinium/companies';
+import { getCompanyTechMap } from './tech-repo.js';
 
 const gameCols = () => sql`
-  id, title, normalized_title, series, platform, genre, release_year,
+  id, title, normalized_title, series, platform, platform_class, genre, release_year,
   source, source_url, sources, crawled_at, updated_at
 `;
 
@@ -32,16 +33,17 @@ export async function upsertGame(g: NormalizedGame): Promise<'inserted' | 'updat
   );
   await sql`
     INSERT INTO games
-      (title, normalized_title, series, platform, genre, release_year, source, source_url, sources)
+      (title, normalized_title, series, platform, platform_class, genre, release_year, source, source_url, sources)
     VALUES (
-      ${g.title}, ${g.normalized_title}, ${g.series}, ${g.platform}, ${g.genre},
+      ${g.title}, ${g.normalized_title}, ${g.series}, ${g.platform}, ${g.platform_class}, ${g.genre},
       ${g.release_year}, ${g.source}, ${g.source_url}, ${sql.json(merged)}
     )
     ON CONFLICT (normalized_title) DO UPDATE SET
-      title        = EXCLUDED.title,
-      series       = COALESCE(NULLIF(EXCLUDED.series, ''), games.series),
-      platform     = COALESCE(NULLIF(EXCLUDED.platform, ''), games.platform),
-      genre        = COALESCE(NULLIF(EXCLUDED.genre, ''), games.genre),
+      title          = EXCLUDED.title,
+      series         = COALESCE(NULLIF(EXCLUDED.series, ''), games.series),
+      platform       = COALESCE(NULLIF(EXCLUDED.platform, ''), games.platform),
+      platform_class = COALESCE(NULLIF(EXCLUDED.platform_class, ''), games.platform_class),
+      genre          = COALESCE(NULLIF(EXCLUDED.genre, ''), games.genre),
       release_year = CASE WHEN EXCLUDED.release_year > 0 THEN EXCLUDED.release_year ELSE games.release_year END,
       source       = EXCLUDED.source,
       source_url   = COALESCE(NULLIF(EXCLUDED.source_url, ''), games.source_url),
@@ -137,6 +139,8 @@ export type RelatedCompany = {
   is_newgrad: boolean;
   has_opening: boolean;
   recruit_url: string;
+  is_social: boolean;
+  primary_platform: string;
   /** direct=このゲームに直接関与 / related=作り手と他作品を共作 */
   relation: 'direct' | 'related';
   /** direct のとき: 役割 (developer/support 等) */
@@ -144,14 +148,25 @@ export type RelatedCompany = {
   /** related のとき: 共作本数 と 接点ゲーム名 */
   shared_games?: number;
   via_titles?: string[];
+  /** 技術タグ (engine/language/dcc/cloud)。 検索結果に付与。 */
+  tech?: string[];
 };
 
-export type RelatedFilters = { smb?: boolean; newgrad?: boolean; opening?: boolean; limit?: number };
+export type RelatedFilters = {
+  smb?: boolean;
+  newgrad?: boolean;
+  opening?: boolean;
+  social?: boolean;
+  /** エンジン等の技術名で絞る (部分一致、 例 'Unreal' / 'C++') */
+  engine?: string;
+  limit?: number;
+};
 
 // 遅延評価 (initSql 後にのみ sql を呼べる)。
 const COMPANY_SEL = () => sql`
   c.id, c.name, c.location, c.url, c.industry, c.is_smb, c.is_listed,
-  c.employee_count, c.listing_market, c.is_newgrad, c.has_opening, c.recruit_url
+  c.employee_count, c.listing_market, c.is_newgrad, c.has_opening, c.recruit_url,
+  c.is_social, c.primary_platform
 `;
 
 const toBool = (v: unknown): boolean => v === true || v === 1 || v === '1' || v === 't';
@@ -176,7 +191,8 @@ export async function relatedCompaniesByGame(
   `;
   const direct: RelatedCompany[] = directRows.map((r) => ({
     ...r, is_smb: toBool(r.is_smb), is_listed: toBool(r.is_listed), is_newgrad: toBool(r.is_newgrad),
-    has_opening: toBool(r.has_opening), employee_count: Number(r.employee_count), relation: 'direct',
+    has_opening: toBool(r.has_opening), is_social: toBool(r.is_social), employee_count: Number(r.employee_count),
+    relation: 'direct',
   }));
 
   const byId = new Map<string, RelatedCompany>();
@@ -188,6 +204,7 @@ export async function relatedCompaniesByGame(
         id: row.id, name: row.name, location: row.location, url: row.url, industry: row.industry,
         is_smb: toBool(row.is_smb), is_listed: toBool(row.is_listed), employee_count: Number(row.employee_count),
         listing_market: row.listing_market, is_newgrad: toBool(row.is_newgrad), has_opening: toBool(row.has_opening),
+        is_social: toBool(row.is_social), primary_platform: row.primary_platform,
         recruit_url: row.recruit_url, relation: 'related', shared_games: 0, via_titles: [],
       };
       byId.set(row.id, rc);
@@ -231,13 +248,54 @@ export async function relatedCompaniesByGame(
   `;
   for (const r of partners) addReason(r, '取引先');
 
-  let related = [...byId.values()].map((r) => ({ ...r, shared_games: r.via_titles!.length }));
+  let related: RelatedCompany[] = [...byId.values()].map((r) => ({ ...r, shared_games: r.via_titles!.length }));
   if (filters.smb) related = related.filter((r) => r.is_smb);
   if (filters.newgrad) related = related.filter((r) => r.is_newgrad);
   if (filters.opening) related = related.filter((r) => r.has_opening);
+  if (filters.social) related = related.filter((r) => r.is_social);
   related.sort((a, b) => (b.shared_games ?? 0) - (a.shared_games ?? 0));
+  related = related.slice(0, 200); // tech 付与前に候補を上限で絞る
+
+  // 技術タグを付与 (direct + related)。 engine フィルタは tech 付与後に適用。
+  const techMap = await getCompanyTechMap([...direct.map((d) => d.id), ...related.map((r) => r.id)]);
+  const attach = (c: RelatedCompany): RelatedCompany => ({
+    ...c, tech: (techMap.get(c.id) ?? []).map((t) => t.name),
+  });
+  const directOut = direct.map(attach);
+  related = related.map(attach);
+  if (filters.engine) {
+    const needle = filters.engine.toLowerCase();
+    related = related.filter((r) => (r.tech ?? []).some((t) => t.toLowerCase().includes(needle)));
+  }
   const lim = Math.min(Math.max(filters.limit ?? 30, 1), 100);
   related = related.slice(0, lim).map((r) => ({ ...r, via_titles: r.via_titles!.slice(0, 5) }));
 
-  return { game, direct, related };
+  return { game, direct: directOut, related };
+}
+
+/** 技術名 (engine/language 等) で企業を引く (技術グラフの直接クエリ)。 */
+export async function companiesByTech(
+  techName: string,
+  filters: { smb?: boolean; social?: boolean; limit?: number } = {},
+): Promise<RelatedCompany[]> {
+  const lim = Math.min(Math.max(filters.limit ?? 50, 1), 200);
+  const rows = await sql<RelatedCompany[]>`
+    SELECT ${COMPANY_SEL()}
+    FROM company_tech ct
+    JOIN tech t ON t.id = ct.tech_id
+    JOIN companies c ON c.id = ct.company_id
+    WHERE ${isSqlite ? sql`t.name LIKE ${'%' + techName + '%'}` : sql`t.name ILIKE ${'%' + techName + '%'}`}
+  `;
+  let out = rows.map((r) => ({
+    ...r, is_smb: toBool(r.is_smb), is_listed: toBool(r.is_listed), is_newgrad: toBool(r.is_newgrad),
+    has_opening: toBool(r.has_opening), is_social: toBool(r.is_social), employee_count: Number(r.employee_count),
+    relation: 'related' as const,
+  }));
+  if (filters.smb) out = out.filter((r) => r.is_smb);
+  if (filters.social) out = out.filter((r) => r.is_social);
+  // 重複社を畳む
+  const seen = new Set<string>();
+  out = out.filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)));
+  const techMap = await getCompanyTechMap(out.map((r) => r.id));
+  return out.slice(0, lim).map((r) => ({ ...r, tech: (techMap.get(r.id) ?? []).map((t) => t.name) }));
 }

@@ -23,10 +23,13 @@ export type RelatedCompany = {
   is_newgrad: boolean;
   has_opening: boolean;
   recruit_url: string;
+  is_social: boolean;
+  primary_platform: string;
   relation: 'direct' | 'related';
   role?: string;
   shared_games?: number;
   via_titles?: string[];
+  tech?: string[];
 };
 
 export type RelatedResult = {
@@ -35,7 +38,7 @@ export type RelatedResult = {
   related: RelatedCompany[];
 };
 
-export type RelatedFilters = { smb?: boolean; newgrad?: boolean; opening?: boolean };
+export type RelatedFilters = { smb?: boolean; newgrad?: boolean; opening?: boolean; social?: boolean; engine?: string };
 
 export function useGamesApi() {
   const { token } = useAuth();
@@ -48,6 +51,8 @@ export function useGamesApi() {
       if (f.smb) qs.set('smb', '1');
       if (f.newgrad) qs.set('newgrad', '1');
       if (f.opening) qs.set('opening', '1');
+      if (f.social) qs.set('social', '1');
+      if (f.engine) qs.set('engine', f.engine);
       const suffix = qs.toString() ? `?${qs.toString()}` : '';
       return fetchJson(`/api/v1/companies/games/${gameId}/related${suffix}`, token);
     },

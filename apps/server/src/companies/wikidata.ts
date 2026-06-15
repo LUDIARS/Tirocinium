@@ -14,6 +14,8 @@ export type WikidataGame = {
   developers: string[];
   publishers: string[];
   series: string[];
+  /** 対応機種ラベル (P400)。 platform 分類の材料。 */
+  platforms: string[];
 };
 
 /** 企業名 (label 突合用) を Wikidata の label に寄せる (法人格/括弧除去)。 */
@@ -38,12 +40,13 @@ export function parseGameRows(bindings: Binding[]): WikidataGame[] {
     if (!title || !gameUri) continue;
     let g = byKey.get(gameUri);
     if (!g) {
-      g = { title, developers: [], publishers: [], series: [] };
+      g = { title, developers: [], publishers: [], series: [], platforms: [] };
       byKey.set(gameUri, g);
     }
     uniqPush(g.developers, b['devLabel']?.value);
     uniqPush(g.publishers, b['pubLabel']?.value);
     uniqPush(g.series, b['seriesLabel']?.value);
+    uniqPush(g.platforms, b['platLabel']?.value);
   }
   return [...byKey.values()];
 }
@@ -60,13 +63,14 @@ export async function fetchGamesForCompany(
   if (!label) return [];
   const limit = Math.min(Math.max(opts.limit ?? 200, 1), 500);
   const query = `
-    SELECT ?game ?gameLabel ?devLabel ?pubLabel ?seriesLabel WHERE {
+    SELECT ?game ?gameLabel ?devLabel ?pubLabel ?seriesLabel ?platLabel WHERE {
       ?company rdfs:label ${JSON.stringify(label)}@ja .
       { ?game wdt:P178 ?company } UNION { ?game wdt:P123 ?company } .
       ?game wdt:P31/wdt:P279* wd:Q7889 .
       OPTIONAL { ?game wdt:P178 ?dev }
       OPTIONAL { ?game wdt:P123 ?pub }
       OPTIONAL { ?game wdt:P179 ?series }
+      OPTIONAL { ?game wdt:P400 ?plat }
       SERVICE wikibase:label { bd:serviceParam wikibase:language "ja,en". }
     } LIMIT ${limit}`;
   const url = `${ENDPOINT}?format=json&query=${encodeURIComponent(query)}`;
@@ -88,6 +92,7 @@ export async function fetchGamesForCompany(
         developers: g.developers.filter((d) => !isRawQid(d)),
         publishers: g.publishers.filter((p) => !isRawQid(p)),
         series: g.series.filter((s) => !isRawQid(s)),
+        platforms: g.platforms.filter((p) => !isRawQid(p)),
       }));
   } finally {
     clearTimeout(timer);

@@ -10,7 +10,7 @@ import { runEnrichment } from '../companies/enrich.js';
 import { loadListingSources, selectActiveSources } from '../companies/listing-config.js';
 import { getProfile } from '../companies/profile-repo.js';
 import { getNewgradRoleImages } from '../companies/newgrad-repo.js';
-import { searchGames, relatedCompaniesByGame } from '../companies/games-repo.js';
+import { searchGames, relatedCompaniesByGame, companiesByTech } from '../companies/games-repo.js';
 
 /**
  * 企業プール (companies) の参照とクロール起動。
@@ -74,9 +74,24 @@ companies.get('/games/:gameId/related', async (c) => {
     smb: truthy(c.req.query('smb')),
     newgrad: truthy(c.req.query('newgrad')),
     opening: truthy(c.req.query('opening')),
+    social: truthy(c.req.query('social')),
+    engine: c.req.query('engine') || undefined,
     limit: c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined,
   });
   return result.game ? c.json(result) : c.json({ error: 'not_found' }, 404);
+});
+
+/** GET /api/v1/companies/by-tech?tech=Unreal — 技術名で企業を引く (技術グラフ直接クエリ) */
+companies.get('/by-tech', async (c) => {
+  const tech = (c.req.query('tech') ?? '').trim();
+  if (!tech) return c.json({ companies: [] });
+  const truthy = (v: string | undefined): boolean => v === '1' || v === 'true';
+  const rows = await companiesByTech(tech, {
+    smb: truthy(c.req.query('smb')),
+    social: truthy(c.req.query('social')),
+    limit: c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined,
+  });
+  return c.json({ companies: rows });
 });
 
 /** GET /api/v1/companies/:id/profile — 企業の IR/理念 profile */
