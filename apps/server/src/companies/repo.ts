@@ -12,7 +12,7 @@ const selectCols = () => sql`
   id, name, normalized_name, url, industry, description,
   roles, tags, location, size, employee_count, listing_market, source, source_url,
   is_newgrad, is_game, has_opening, recruit_url, stock_reason,
-  sources, is_smb, is_listed,
+  sources, is_smb, is_listed, corporate_number,
   crawled_at, updated_at
 `;
 
@@ -41,7 +41,7 @@ export async function listCompanies(filter: CompanyFilter = {}): Promise<Company
       c.id, c.name, c.normalized_name, c.url, c.industry, c.description,
       c.roles, c.tags, c.location, c.size, c.employee_count, c.listing_market, c.source, c.source_url,
       c.is_newgrad, c.is_game, c.has_opening, c.recruit_url, c.stock_reason,
-      c.sources, c.is_smb, c.is_listed,
+      c.sources, c.is_smb, c.is_listed, c.corporate_number,
       c.crawled_at, c.updated_at,
       (SELECT count(*) FROM company_interview_articles a WHERE a.company_id = c.id) AS article_count,
       CASE WHEN EXISTS(SELECT 1 FROM company_newgrad_role_images r WHERE r.company_id = c.id)
@@ -93,6 +93,16 @@ export async function getCompanyByNormalizedName(normalizedName: string): Promis
   return rows[0] ?? null;
 }
 
+/** 法人番号で 1 社引く (名寄せ用)。 '' は対象外。 複数該当時は最初の 1 件。 */
+export async function getCompanyByCorporateNumber(corporateNumber: string): Promise<Company | null> {
+  const n = (corporateNumber ?? '').trim();
+  if (!n) return null;
+  const rows = await sql<Company[]>`
+    SELECT ${selectCols()} FROM companies WHERE corporate_number = ${n} LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
 /** recommend 用に全件 (上限あり) を取得する。 candidate scoring 対象。 */
 export async function allCompaniesForScoring(limit = 1000): Promise<Company[]> {
   return sql<Company[]>`
@@ -122,6 +132,8 @@ export type DiscoverySignals = {
   isListed?: boolean;
   recruitUrl?: string;
   stockReason?: string;
+  /** 法人番号 (gBizINFO 由来、 migration 012)。 名寄せ用の安定キー。 */
+  corporateNumber?: string;
 };
 
 /**
@@ -145,6 +157,7 @@ export async function upsertCompany(
   const isListed = signals.isListed ?? c.listing_market !== '';
   const recruitUrl = signals.recruitUrl ?? '';
   const stockReason = signals.stockReason ?? '';
+  const corporateNumber = signals.corporateNumber ?? '';
 
   // 出所累積: 既存 sources を読み、 今回の {source, url} をマージする (PG/SQLite 共通の read-merge-write)。
   const existing = await sql<{ sources: unknown }[]>`
@@ -160,13 +173,15 @@ export async function upsertCompany(
     INSERT INTO companies
       (name, normalized_name, url, industry, description, roles, tags, location, size,
        employee_count, listing_market, source, source_url,
-       is_newgrad, is_game, has_opening, recruit_url, stock_reason, sources, is_smb, is_listed)
+       is_newgrad, is_game, has_opening, recruit_url, stock_reason, sources, is_smb, is_listed,
+       corporate_number)
     VALUES (
       ${c.name}, ${c.normalized_name}, ${c.url}, ${c.industry}, ${c.description},
       ${c.roles}, ${c.tags}, ${c.location}, ${c.size},
       ${c.employee_count}, ${c.listing_market}, ${c.source}, ${c.source_url},
       ${isNewgrad}, ${isGame}, ${hasOpening}, ${recruitUrl}, ${stockReason},
-      ${sql.json(merged)}, ${isSMB}, ${isListed}
+      ${sql.json(merged)}, ${isSMB}, ${isListed},
+      ${corporateNumber}
     )
     ON CONFLICT (normalized_name) DO UPDATE SET
       name        = EXCLUDED.name,
@@ -187,6 +202,7 @@ export async function upsertCompany(
       recruit_url = COALESCE(NULLIF(EXCLUDED.recruit_url, ''), companies.recruit_url),
       stock_reason= COALESCE(NULLIF(EXCLUDED.stock_reason, ''), companies.stock_reason),
       sources     = EXCLUDED.sources,
+      corporate_number = COALESCE(NULLIF(EXCLUDED.corporate_number, ''), companies.corporate_number),
       is_listed   = companies.is_listed OR EXCLUDED.is_listed,
       -- is_smb は「最終的な従業員数」から純粋導出 (不明=0 も中小)。 SMB_EMPLOYEE_MAX=300。
       is_smb      = CASE WHEN (CASE WHEN EXCLUDED.employee_count > 0 THEN EXCLUDED.employee_count ELSE companies.employee_count END) <= 300 THEN TRUE ELSE FALSE END,

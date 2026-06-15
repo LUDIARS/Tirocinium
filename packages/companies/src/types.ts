@@ -70,6 +70,8 @@ export type Company = NormalizedCompany & {
   is_smb: boolean;
   /** 上場シグナル (migration 007)。 listing_market が空でなければ true。 */
   is_listed: boolean;
+  /** 法人番号 (migration 012、 gBizINFO 由来)。 '' = 未取得。 名寄せ用の安定キー。 */
+  corporate_number: string;
   crawled_at: string;
   updated_at: string;
 };

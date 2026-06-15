@@ -41,6 +41,13 @@ export const config = {
     listingMaxChars: 120_000,
     listingMaxChunks: 12,
   },
+  // gBizINFO (経産省 法人情報 API)。 token は secret 経由 (env 不使用)、 空なら gbiz-import は起動しない。
+  gbiz: {
+    token: '',
+    minIntervalMs: 3_000,
+    // 既定の粗フィルタ業種コード (情報通信業系)。 実 API で最適コードを確定する。
+    defaultIndustry: '',
+  },
   sessionRateLimit: {
     windowMs: 60_000,
     max: 10,

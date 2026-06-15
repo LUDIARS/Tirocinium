@@ -91,6 +91,9 @@ export function applyServerConfig(
   });
   setBool('COMPANY_REQUIRE_SMB', (v) => { cfg.companyCrawl.requireSMB = v; });
   setNum('COMPANY_LISTING_CHUNK_CHARS', (v) => { cfg.companyCrawl.listingChunkChars = v; });
+  set('GBIZINFO_TOKEN', (v) => { cfg.gbiz.token = v; });
+  setNum('GBIZINFO_MIN_INTERVAL_MS', (v) => { cfg.gbiz.minIntervalMs = v; });
+  set('GBIZINFO_DEFAULT_INDUSTRY', (v) => { cfg.gbiz.defaultIndustry = v; });
   setNum('SESSION_RATELIMIT_WINDOW_MS', (v) => { cfg.sessionRateLimit.windowMs = v; });
   setNum('SESSION_RATELIMIT_MAX', (v) => { cfg.sessionRateLimit.max = v; });
 
