@@ -35,6 +35,15 @@ GBizInfoSource.discover(query)          ← Canalis (汎用・決定論・LLM不
 
 `GBizInfoSource` は `@ludiars/canalis` 側、契約は既存 Source IF に合わせる。Notion と同様 **fake client で単体テスト可能**にする (実 API なしで discover をテスト)。
 
+### 実装状況 (2026-06-15、PR #80)
+- **取得層は Tr 側に実装** (`apps/server/src/companies/gbizinfo.ts`)。 既存 Wikidata source と同じく adapter を Tr に置く方針を踏襲 (Canalis publish を伴う cross-repo 化を避け 1 PR に収めるため)。 将来 Canalis 共有 lib へ昇格する場合も IF は据え置き可能。
+- `GBizClient` を DI 可能にし `createGBizFetchClient` (token header `X-hojinInfo-api-token` + page走査 + `minIntervalMs` レート間隔) と `discoverHojin` (法人番号 dedup + max打ち切り) を分離。 **fake client で単体テスト済**。
+- ②決定論マッピング `gbizInfoRecordToCompany` は **純パッケージ `@tirocinium/companies/gbizinfo.ts`** に配置 (representative 等の個人列は写さない)。
+- **法人番号は専用カラム** `companies.corporate_number` (migration 012) に保持 (source_url の `hojinBango` 詳細URLと二重)。 `getCompanyByCorporateNumber` で名寄せ lookup 可能 (既存重複社の自動マージ=「本対応」は未実装)。
+- ③ `upsertCompany` が `employee_number` から **is_smb を権威確定** (中小=従業員 300 以下、 [[size.ts]] `isSMBByEmployees`)。
+- CLI `npm run companies:gbiz-import -- (--industry|--name|--prefecture) [--max]`。 token は `GBIZINFO_TOKEN` (secret 経由、 env 平文不可)。
+- ⚠️ **未検証**: 実 API レスポンス (company_url 充足率 / industry コード粒度 / レート上限) は token 取得後に裏取りが必要 (§2 の注記)。 現状はドキュメント schema 準拠 + フィールド名揺れに寛容 (`hojin-infos`/`hojinInfos`/`results`)。 CLI は company_url 充足率 50% 未満で警告を出す。
+
 ---
 
 ## 2. gBizINFO API (実装前に実物で確認すべき点つき)

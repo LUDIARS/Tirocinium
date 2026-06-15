@@ -72,6 +72,12 @@ export {
 export { LISTING_INSTRUCTION, parseListing, extractListing, chunkText } from './listing.js';
 export { PROFILE_INSTRUCTION, parseProfile, extractProfile } from './profile.js';
 export {
+  normalizeCorporateNumber,
+  gbizHojinUrl,
+  gbizInfoRecordToCompany,
+  type GBizHojin,
+} from './gbizinfo.js';
+export {
   normalizeObPlacement,
   parseCsv,
   parseObCsv,
