@@ -69,6 +69,9 @@ export function applyServerConfig(
 
   set('TIROCINIUM_HOST', (v) => { cfg.host = v; });
   setNum('TIROCINIUM_PORT', (v) => { cfg.port = v; });
+  setBool('TIROCINIUM_DEV_AUTH', (v) => { cfg.devAuth = v; });
+  set('CERNERE_PUBLIC_KEY', (v) => { cfg.cernerePublicKey = v; });
+  set('CERNERE_AUDIENCE', (v) => { cfg.cernereAudience = v; });
   set('TIROCINIUM_LLM_BACKEND', (v) => { cfg.llmBackend = v as 'api' | 'cli'; });
   setNum('SLOT_DURATION_MIN', (v) => { cfg.slotDurationMin = v; });
   setNum('SLOT_CAPACITY', (v) => { cfg.slotCapacity = v; });

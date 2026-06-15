@@ -85,15 +85,17 @@ export function useCompaniesApi() {
   const { token } = useAuth();
 
   return {
-    async list(params: { role?: string; tag?: string; q?: string; limit?: number } = {}): Promise<{
+    async list(params: { role?: string; tag?: string; industry?: string; q?: string; limit?: number; offset?: number } = {}): Promise<{
       companies: Company[];
       total: number;
     }> {
       const qs = new URLSearchParams();
       if (params.role) qs.set('role', params.role);
       if (params.tag) qs.set('tag', params.tag);
+      if (params.industry) qs.set('industry', params.industry);
       if (params.q) qs.set('q', params.q);
       if (params.limit) qs.set('limit', String(params.limit));
+      if (params.offset) qs.set('offset', String(params.offset));
       const suffix = qs.toString() ? `?${qs.toString()}` : '';
       return fetchJson(`/api/v1/companies${suffix}`, token);
     },

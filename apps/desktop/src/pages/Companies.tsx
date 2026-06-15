@@ -21,10 +21,10 @@ export function Companies() {
   const [newgradImages, setNewgradImages] = useState<Record<string, NewgradRoleImage[]>>({});
   const [newgradModal, setNewgradModal] = useState<{ id: string; name: string } | null>(null);
 
-  const reload = async () => {
+  const reload = async (query = q) => {
     try {
-      // プール全件を取得し、絞り込みはクライアント側フィルタで行う。
-      const r = await api.list({ limit: 200 });
+      const search = query.trim();
+      const r = await api.list({ limit: 200, q: search || undefined });
       setCompanies(r.companies);
       setTotal(r.total);
     } catch (e) {
@@ -36,6 +36,14 @@ export function Companies() {
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void reload(q);
+    }, 250);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
 
   const wrap = async (key: string, fn: () => Promise<void>) => {
     setBusy(key);
@@ -94,7 +102,7 @@ export function Companies() {
     return t;
   };
 
-  // 検索はクライアント側フィルタ。名前 / 説明 / 業界 / 職種 / タグを横断して部分一致。
+  // 検索はサーバ側 q で候補を取り、表示中の role/tag 語だけクライアント側で補完する。
   const needle = q.trim().toLowerCase();
   const visible = companies
     .filter((c) => (onlyGenerated ? c.has_profile || c.has_newgrad_image : true))

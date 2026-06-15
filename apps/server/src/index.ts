@@ -16,10 +16,12 @@ import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
 import { startDiscordBridge } from './discord/bridge.js';
 import { hydrateSecrets } from './secrets/hydrate.js';
 import { initSql } from './db/index.js';
+import { assertSafeAuthConfig } from './auth/cernere.js';
 
 // 起動順: hydrateSecrets → initSql → serve → Discord
 // hydrateSecrets が失敗 (secret-agent 不通) したら起動を止める。
 await hydrateSecrets();
+assertSafeAuthConfig();
 initSql();
 
 const app = new Hono();

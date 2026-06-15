@@ -25,7 +25,7 @@ export type CompanyWithStats = Company & {
   has_profile: boolean;
 };
 
-/** フィルタ付き企業一覧。 role/tag は配列包含、 q は name/description の部分一致。
+/** フィルタ付き企業一覧。 role/tag は配列包含、 q は name/description/industry/role/tag の部分一致。
  *  article_count (記事数) / has_newgrad_image (新卒像) / has_profile (IR・理念クロール済) を付加。 */
 export async function listCompanies(filter: CompanyFilter = {}): Promise<CompanyWithStats[]> {
   const limit = Math.min(Math.max(filter.limit ?? 50, 1), 200);
@@ -43,13 +43,34 @@ export async function listCompanies(filter: CompanyFilter = {}): Promise<Company
       CASE WHEN EXISTS(SELECT 1 FROM company_profiles p WHERE p.company_id = c.id)
            THEN TRUE ELSE FALSE END AS has_profile
     FROM companies c
+    ${companyFilterSql(filter)}
+    ORDER BY c.updated_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `;
+}
+
+function companyFilterSql(filter: CompanyFilter) {
+  const like = filter.q ? '%' + filter.q + '%' : '';
+  return sql`
     WHERE TRUE
       ${filter.role ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(c.roles) WHERE value = ${filter.role})` : sql`AND ${filter.role} = ANY(c.roles)`) : sql``}
       ${filter.tag ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(c.tags) WHERE value = ${filter.tag})` : sql`AND ${filter.tag} = ANY(c.tags)`) : sql``}
       ${filter.industry ? sql`AND c.industry = ${filter.industry}` : sql``}
-      ${filter.q ? (isSqlite ? sql`AND (c.name LIKE ${'%' + filter.q + '%'} OR c.description LIKE ${'%' + filter.q + '%'})` : sql`AND (c.name ILIKE ${'%' + filter.q + '%'} OR c.description ILIKE ${'%' + filter.q + '%'})`) : sql``}
-    ORDER BY c.updated_at DESC
-    LIMIT ${limit} OFFSET ${offset}
+      ${filter.q ? (isSqlite
+        ? sql`AND (
+            c.name LIKE ${like}
+            OR c.description LIKE ${like}
+            OR c.industry LIKE ${like}
+            OR EXISTS (SELECT 1 FROM json_each(c.roles) WHERE value LIKE ${like})
+            OR EXISTS (SELECT 1 FROM json_each(c.tags) WHERE value LIKE ${like})
+          )`
+        : sql`AND (
+            c.name ILIKE ${like}
+            OR c.description ILIKE ${like}
+            OR c.industry ILIKE ${like}
+            OR EXISTS (SELECT 1 FROM unnest(c.roles) AS role WHERE role ILIKE ${like})
+            OR EXISTS (SELECT 1 FROM unnest(c.tags) AS tag WHERE tag ILIKE ${like})
+          )`) : sql``}
   `;
 }
 
@@ -75,8 +96,12 @@ export async function allCompaniesForScoring(limit = 1000): Promise<Company[]> {
   `;
 }
 
-export async function countCompanies(): Promise<number> {
-  const rows = await sql<{ count: string }[]>`SELECT count(*)::text AS count FROM companies`;
+export async function countCompanies(filter: CompanyFilter = {}): Promise<number> {
+  const rows = await sql<{ count: string }[]>`
+    SELECT count(*)::text AS count
+    FROM companies c
+    ${companyFilterSql(filter)}
+  `;
   return Number(rows[0]?.count ?? 0);
 }
 
