@@ -32,6 +32,9 @@ interface Layout {
 
 const CANVAS = 900; // レイアウト計算用の論理領域 (正方)
 const ITERATIONS = 320;
+// 中心 (ゲームノード) への弱い引き戻し。 各企業ノードはゲームへの 1 本のエッジしか
+// 持たないため、 混雑差で一部が遠方へドリフトし viewBox が縮む。 距離比例の重力で抑える。
+const GRAVITY = 0.08;
 
 /** 企業規模からノード半径を決める (不明は既定)。 */
 function nodeRadius(c: RelatedCompany): number {
@@ -120,6 +123,12 @@ function computeLayout(result: RelatedResult): Layout {
       e.a.dy -= uy;
       e.b.dx += ux;
       e.b.dy += uy;
+    }
+    // 重力 (中心への距離比例の引き戻し)。 遠方ノードほど強く引かれ、 外れ値の発散を抑える。
+    for (const n of nodes) {
+      if (n.kind === 'game') continue;
+      n.dx -= n.x * GRAVITY;
+      n.dy -= n.y * GRAVITY;
     }
     // 変位を temp で制限して適用。 game ノードは中心固定。
     for (const n of nodes) {
