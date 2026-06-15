@@ -193,8 +193,10 @@ company_recommendations に保存 (履歴)
 | 1 会社マスタ | `companies` (社名/業種/規模/URL) | Web crawl / Notion / **gBizINFO** | 会社選択 | 本書 + [`gbizinfo.md`](./gbizinfo.md) |
 | 2 企業プロファイル | `company_profiles` (理念/IR/事業) | HP enrich (§3.5.3) | **ES添削の背景 RAG** | 本書 §3.5.3 |
 | 3 面接質問プール | `company_interview_questions` | ユーザ投稿 + Notion 取込 | **面接質問リストの優先素材** | [`interview-questions.md`](./interview-questions.md) |
+| 4 関係グラフ | `games` / `company_game` / `company_partner` / `company_ob_placement` | research / スタッフロール crawl / ユーザ付与(OB) | **関係性レコメンド「○○に関わりたい→この会社」+ 未検知企業発見** | [`game-graph.md`](./game-graph.md) |
 
 - **中小/ベンチャーを増やす主軸は gBizINFO**(layer 1)。粗く集めて HP で裏取り。詳細は [`gbizinfo.md`](./gbizinfo.md)。
+- **企業×ゲームの関係グラフ**(layer 4)で「作りたい作品/関わりたい会社」起点の探索とスタッフロール由来の企業発見を行う。詳細は [`game-graph.md`](./game-graph.md)。
 - ES添削の特化(背景情報入り)は **layer 2 をそのまま RAG に使う**(新規データ源不要)。
 - 面接の「その会社で実際に受けた質問」は **layer 3** で新設(本人 past_qa とは別スコープ)。詳細は [`interview-questions.md`](./interview-questions.md)。
 
