@@ -24,6 +24,8 @@ export const LOCAL_SECRET_KEYS = new Set([
   'TIROCINIUM_DISCORD_BOT_TOKEN',
   'NUNTIUS_API_KEY',
   'CERNERE_PUBLIC_KEY',
+  'GOOGLE_MAPS_API_KEY',
+  'GBIZINFO_TOKEN',
 ]);
 
 const STORE_OPTS: StoreOptions = {
