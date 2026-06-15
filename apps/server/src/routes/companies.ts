@@ -32,14 +32,17 @@ function canCrawl(userId: string): boolean {
 /** GET /api/v1/companies — 企業一覧 (role/tag/industry/q/limit/offset) */
 companies.get('/', async (c) => {
   const q = c.req.query();
-  // quality=1 でノイズ (どのゲームにも未紐付け) を除外。 list/count 双方に適用して total を整合。
+  // quality=1 でノイズ (どのゲームにも未紐付け) を除外、 summarized=1 で情報なし (概要空) を除外。
+  // list/count 双方に適用して total を整合。
   const quality = q['quality'] === '1' || q['quality'] === 'true';
+  const summarized = q['summarized'] === '1' || q['summarized'] === 'true';
   const filter = {
     role: q['role'],
     tag: q['tag'],
     industry: q['industry'],
     q: q['q'],
     quality,
+    summarized,
   };
   const rows = await listCompanies({
     ...filter,

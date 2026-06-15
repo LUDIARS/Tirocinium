@@ -23,6 +23,8 @@ export type CompanyFilter = {
   q?: string;
   /** ノイズ除外: いずれかのゲームに紐付く企業のみ (概要の有無は問わない — 未取得は enrich 対象)。 */
   quality?: boolean;
+  /** 情報あり (会社概要 description が非空) の企業のみ。 未取得は除外 (チェックで解除)。 */
+  summarized?: boolean;
   limit?: number;
   offset?: number;
 };
@@ -75,6 +77,7 @@ function companyFilterSql(filter: CompanyFilter) {
       ${filter.quality ? sql`
         AND EXISTS (SELECT 1 FROM company_game cg WHERE cg.company_id = c.id)
       ` : sql``}
+      ${filter.summarized ? sql`AND c.description <> ''` : sql``}
       ${filter.q ? (isSqlite
         ? sql`AND (
             c.name LIKE ${like}
