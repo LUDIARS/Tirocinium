@@ -125,7 +125,7 @@ export function useCompaniesApi() {
   const { token } = useAuth();
 
   return {
-    async list(params: { role?: string; tag?: string; industry?: string; q?: string; quality?: boolean; limit?: number; offset?: number } = {}): Promise<{
+    async list(params: { role?: string; tag?: string; industry?: string; q?: string; quality?: boolean; summarized?: boolean; limit?: number; offset?: number } = {}): Promise<{
       companies: Company[];
       total: number;
     }> {
@@ -135,6 +135,7 @@ export function useCompaniesApi() {
       if (params.industry) qs.set('industry', params.industry);
       if (params.q) qs.set('q', params.q);
       if (params.quality) qs.set('quality', '1');
+      if (params.summarized) qs.set('summarized', '1');
       if (params.limit) qs.set('limit', String(params.limit));
       if (params.offset) qs.set('offset', String(params.offset));
       const suffix = qs.toString() ? `?${qs.toString()}` : '';
