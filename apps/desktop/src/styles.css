@@ -984,6 +984,33 @@ button.fd-chip {
   margin: 16px 0 4px;
 }
 
+/* トップ (未検索) の空状態ガイド — 空白をグラフと誤認させない */
+.game-search-empty {
+  border: 1px dashed var(--c-border);
+  border-radius: 12px;
+  padding: 20px 18px;
+  background: var(--c-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.game-search-empty-lead {
+  margin: 0;
+  color: var(--c-subtle);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.game-search-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.game-search-examples-label {
+  font-size: 0.8rem;
+  color: var(--c-subtle);
+}
+
 /* === 関連会社グラフビュー === */
 .game-view-toggle {
   margin-top: 8px;

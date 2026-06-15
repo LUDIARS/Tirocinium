@@ -21,6 +21,8 @@ export type CompanyFilter = {
   tag?: string;
   industry?: string;
   q?: string;
+  /** ノイズ除外: いずれかのゲームに紐付く企業のみ (概要の有無は問わない — 未取得は enrich 対象)。 */
+  quality?: boolean;
   limit?: number;
   offset?: number;
 };
@@ -29,6 +31,8 @@ export type CompanyWithStats = Company & {
   article_count: number;
   has_newgrad_image: boolean;
   has_profile: boolean;
+  /** 関与ゲーム数 (company_game edge 数)。 0 = どのゲームにも未紐付け。 */
+  game_count: number;
 };
 
 /** フィルタ付き企業一覧。 role/tag は配列包含、 q は name/description/industry/role/tag の部分一致。
@@ -36,7 +40,7 @@ export type CompanyWithStats = Company & {
 export async function listCompanies(filter: CompanyFilter = {}): Promise<CompanyWithStats[]> {
   const limit = Math.min(Math.max(filter.limit ?? 50, 1), 200);
   const offset = Math.max(filter.offset ?? 0, 0);
-  return sql<CompanyWithStats[]>`
+  const rows = await sql<CompanyWithStats[]>`
     SELECT
       c.id, c.name, c.normalized_name, c.url, c.industry, c.description,
       c.roles, c.tags, c.location, c.size, c.employee_count, c.listing_market, c.source, c.source_url,
@@ -47,12 +51,18 @@ export async function listCompanies(filter: CompanyFilter = {}): Promise<Company
       CASE WHEN EXISTS(SELECT 1 FROM company_newgrad_role_images r WHERE r.company_id = c.id)
            THEN TRUE ELSE FALSE END AS has_newgrad_image,
       CASE WHEN EXISTS(SELECT 1 FROM company_profiles p WHERE p.company_id = c.id)
-           THEN TRUE ELSE FALSE END AS has_profile
+           THEN TRUE ELSE FALSE END AS has_profile,
+      (SELECT count(*) FROM company_game cg WHERE cg.company_id = c.id) AS game_count
     FROM companies c
     ${companyFilterSql(filter)}
     ORDER BY c.updated_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
+  return rows.map((r) => ({
+    ...r,
+    article_count: Number(r.article_count),
+    game_count: Number(r.game_count),
+  }));
 }
 
 function companyFilterSql(filter: CompanyFilter) {
@@ -62,6 +72,9 @@ function companyFilterSql(filter: CompanyFilter) {
       ${filter.role ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(c.roles) WHERE value = ${filter.role})` : sql`AND ${filter.role} = ANY(c.roles)`) : sql``}
       ${filter.tag ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(c.tags) WHERE value = ${filter.tag})` : sql`AND ${filter.tag} = ANY(c.tags)`) : sql``}
       ${filter.industry ? sql`AND c.industry = ${filter.industry}` : sql``}
+      ${filter.quality ? sql`
+        AND EXISTS (SELECT 1 FROM company_game cg WHERE cg.company_id = c.id)
+      ` : sql``}
       ${filter.q ? (isSqlite
         ? sql`AND (
             c.name LIKE ${like}
