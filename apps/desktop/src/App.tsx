@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 const navItems: { to: string; label: string }[] = [
   { to: '/companies', label: '企業プール' },
+  { to: '/game-search', label: '関連会社さがし' },
   { to: '/recommend', label: 'おすすめ企業' },
 ];
 
