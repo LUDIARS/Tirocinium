@@ -72,6 +72,15 @@ export {
 export { LISTING_INSTRUCTION, parseListing, extractListing, chunkText } from './listing.js';
 export { PROFILE_INSTRUCTION, parseProfile, extractProfile } from './profile.js';
 export {
+  normalizeObPlacement,
+  parseCsv,
+  parseObCsv,
+  parseObJson,
+  parseObInput,
+  dedupeObPlacements,
+  buildObSummary,
+} from './ob.js';
+export {
   mapGameCompanySeed,
   type GameCompanySeedRecord,
   type GameCompanyResearchRecord,
