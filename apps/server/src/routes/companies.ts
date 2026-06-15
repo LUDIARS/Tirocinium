@@ -17,7 +17,6 @@ import { getNewgradRoleImages } from '../companies/newgrad-repo.js';
  * COMPANY_CRAWL_ADMIN_IDS が設定されていればその user のみに制限する。
  */
 export const companies = new Hono();
-companies.use('*', cernereAuth);
 
 /** クロール許可判定。 admin allowlist 未設定なら全 authed user 可 (dev)。 */
 function canCrawl(userId: string): boolean {
@@ -36,7 +35,15 @@ companies.get('/', async (c) => {
     limit: q['limit'] ? Number.parseInt(q['limit'], 10) : undefined,
     offset: q['offset'] ? Number.parseInt(q['offset'], 10) : undefined,
   });
-  return c.json({ companies: rows, total: await countCompanies() });
+  return c.json({
+    companies: rows,
+    total: await countCompanies({
+      role: q['role'],
+      tag: q['tag'],
+      industry: q['industry'],
+      q: q['q'],
+    }),
+  });
 });
 
 /** GET /api/v1/companies/sources — 単体取得 (manual/seed-file) クロールソース一覧 */
@@ -70,7 +77,7 @@ companies.get('/:id', async (c) => {
 });
 
 /** POST /api/v1/companies/crawl — クロール起動 { source, urls?, maxPages? } */
-companies.post('/crawl', async (c) => {
+companies.post('/crawl', cernereAuth, async (c) => {
   const user = c.get('user');
   if (!canCrawl(user.id)) return c.json({ error: 'forbidden' }, 403);
 
@@ -102,7 +109,7 @@ companies.post('/crawl', async (c) => {
 });
 
 /** POST /api/v1/companies/crawl-listing — 新卒/ゲーム企業を listing から発見してストック { source? } */
-companies.post('/crawl-listing', async (c) => {
+companies.post('/crawl-listing', cernereAuth, async (c) => {
   const user = c.get('user');
   if (!canCrawl(user.id)) return c.json({ error: 'forbidden' }, 403);
   const body = (await c.req.json().catch(() => null)) as { source?: string } | null;
@@ -115,7 +122,7 @@ companies.post('/crawl-listing', async (c) => {
 });
 
 /** POST /api/v1/companies/enrich — 企業サイトを巡回し IR/理念を取得 { company_id?, limit? } */
-companies.post('/enrich', async (c) => {
+companies.post('/enrich', cernereAuth, async (c) => {
   const user = c.get('user');
   if (!canCrawl(user.id)) return c.json({ error: 'forbidden' }, 403);
   const body = (await c.req.json().catch(() => null)) as { company_id?: string; limit?: number } | null;
