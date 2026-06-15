@@ -29,22 +29,23 @@ function canCrawl(userId: string): boolean {
 /** GET /api/v1/companies — 企業一覧 (role/tag/industry/q/limit/offset) */
 companies.get('/', async (c) => {
   const q = c.req.query();
-  const rows = await listCompanies({
+  // quality=1 でノイズ (どのゲームにも未紐付け) を除外。 list/count 双方に適用して total を整合。
+  const quality = q['quality'] === '1' || q['quality'] === 'true';
+  const filter = {
     role: q['role'],
     tag: q['tag'],
     industry: q['industry'],
     q: q['q'],
+    quality,
+  };
+  const rows = await listCompanies({
+    ...filter,
     limit: q['limit'] ? Number.parseInt(q['limit'], 10) : undefined,
     offset: q['offset'] ? Number.parseInt(q['offset'], 10) : undefined,
   });
   return c.json({
     companies: rows,
-    total: await countCompanies({
-      role: q['role'],
-      tag: q['tag'],
-      industry: q['industry'],
-      q: q['q'],
-    }),
+    total: await countCompanies(filter),
   });
 });
 

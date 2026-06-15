@@ -23,6 +23,8 @@ export type Company = {
   article_count: number;
   has_newgrad_image: boolean;
   has_profile: boolean;
+  /** 関与ゲーム数 (0 = どのゲームにも未紐付け) */
+  game_count: number;
 };
 
 export type NewgradRoleImage = {
@@ -85,7 +87,7 @@ export function useCompaniesApi() {
   const { token } = useAuth();
 
   return {
-    async list(params: { role?: string; tag?: string; industry?: string; q?: string; limit?: number; offset?: number } = {}): Promise<{
+    async list(params: { role?: string; tag?: string; industry?: string; q?: string; quality?: boolean; limit?: number; offset?: number } = {}): Promise<{
       companies: Company[];
       total: number;
     }> {
@@ -94,6 +96,7 @@ export function useCompaniesApi() {
       if (params.tag) qs.set('tag', params.tag);
       if (params.industry) qs.set('industry', params.industry);
       if (params.q) qs.set('q', params.q);
+      if (params.quality) qs.set('quality', '1');
       if (params.limit) qs.set('limit', String(params.limit));
       if (params.offset) qs.set('offset', String(params.offset));
       const suffix = qs.toString() ? `?${qs.toString()}` : '';

@@ -179,7 +179,7 @@ export function GameSearch() {
 
       {error && <div className="company-suggest-count">⚠ {error}</div>}
 
-      {!selected && games.length > 0 && (
+      {!selected && q.trim() !== '' && games.length > 0 && (
         <div className="company-suggest">
           {games.map((g) => (
             <button key={g.id} className="company-suggest-item" onClick={() => void loadRelated(g)}>
@@ -190,6 +190,27 @@ export function GameSearch() {
               <span className="company-suggest-count">{g.company_count}社</span>
             </button>
           ))}
+        </div>
+      )}
+
+      {!selected && q.trim() !== '' && games.length === 0 && (
+        <p className="company-suggest-count">「{q.trim()}」に一致するゲームが見つかりません。</p>
+      )}
+
+      {/* トップ (未検索) の空白を埋める導線。 グラフ領域と誤認させないための初期表示。 */}
+      {!selected && q.trim() === '' && (
+        <div className="game-search-empty">
+          <p className="game-search-empty-lead">
+            ゲーム名を入力すると、 そのゲームに関わった会社と、 共作・同シリーズ・取引でつながる会社をたどれます。
+          </p>
+          <div className="game-search-examples">
+            <span className="game-search-examples-label">例:</span>
+            {['ファイナルファンタジー', 'ドラゴンクエスト', 'モンスターハンター', 'ポケットモンスター'].map((title) => (
+              <button key={title} type="button" className="fd-chip" onClick={() => setQ(title)}>
+                {title}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
