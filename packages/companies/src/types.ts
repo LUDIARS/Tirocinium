@@ -74,6 +74,53 @@ export type Company = NormalizedCompany & {
   updated_at: string;
 };
 
+// ── 企業×ゲーム グラフ (migration 009 / spec/companies/game-graph.md) ──────
+
+/** 企業↔ゲーム の関係種別。 */
+export type CompanyGameRole = 'developer' | 'publisher' | 'credited' | 'support';
+
+/** ゲームの正規化前入力。 */
+export type GameInput = {
+  title: string;
+  series?: string;
+  platform?: string;
+  genre?: string;
+  release_year?: number;
+  source?: string;
+  source_url?: string;
+};
+
+/** 正規化済ゲーム (DB 投入前)。 */
+export type NormalizedGame = {
+  title: string;
+  /** dedup キー (記号/版表記/全角半角除去) */
+  normalized_title: string;
+  series: string;
+  platform: string;
+  genre: string;
+  release_year: number;
+  source: string;
+  source_url: string;
+};
+
+/** DB から読み出したゲーム (id 付き)。 */
+export type Game = NormalizedGame & {
+  id: string;
+  sources: CompanySource[];
+  crawled_at: string;
+  updated_at: string;
+};
+
+/** research の代表作テキストから導出した「企業→ゲーム」リンク (発見段)。 */
+export type GameLink = {
+  title: string;
+  role: CompanyGameRole;
+  /** リリース年 (0 = 不明) */
+  year: number;
+  /** ゲーム種別 (company の game_kind 由来) */
+  kind: string;
+};
+
 /** クロールの seed (取得対象 URL)。 */
 export type CrawlSeed = {
   url: string;

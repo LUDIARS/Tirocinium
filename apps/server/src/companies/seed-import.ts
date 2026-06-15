@@ -9,11 +9,14 @@ import {
   mapGameCompanySeed,
   normalizeCompany,
   normalizeName,
+  parseGamesFromResearch,
+  normalizeGame,
   type GameCompanyResearchRecord,
   type GameCompanySeedRecord,
 } from '@tirocinium/companies';
 import { getCompanyByNormalizedName, upsertCompany } from './repo.js';
 import { upsertProfile } from './profile-repo.js';
+import { getGameByNormalizedTitle, linkCompanyGame, upsertGame } from './games-repo.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // apps/server/src/companies → repo 直下 data/
@@ -31,6 +34,10 @@ export type SeedImportSummary = {
   inserted: number;
   updated: number;
   profiles: number;
+  /** 投入した games 数 (重複含む upsert 試行) */
+  games: number;
+  /** 張った company_game edge 数 */
+  edges: number;
   skipped: number;
 };
 
@@ -69,7 +76,9 @@ export async function importGameCompanySeeds(opts: SeedImportOptions = {}): Prom
   const research = await readJsonArray<GameCompanyResearchRecord>(opts.researchPath ?? DEFAULT_RESEARCH_PATH);
   const merged = mergeByName(seeds, research);
 
-  const summary: SeedImportSummary = { total: merged.length, inserted: 0, updated: 0, profiles: 0, skipped: 0 };
+  const summary: SeedImportSummary = {
+    total: merged.length, inserted: 0, updated: 0, profiles: 0, games: 0, edges: 0, skipped: 0,
+  };
 
   for (const { seed, research: r } of merged) {
     const mapped = mapGameCompanySeed(seed, r);
@@ -91,11 +100,34 @@ export async function importGameCompanySeeds(opts: SeedImportOptions = {}): Prom
     if (status === 'inserted') summary.inserted++;
     else summary.updated++;
 
-    if (hasProfileContent(mapped.profile)) {
-      const company = await getCompanyByNormalizedName(normalized.normalized_name);
-      if (company) {
-        await upsertProfile(company.id, mapped.profile);
-        summary.profiles++;
+    // company id は profile / game edge 双方で必要なので、 どちらかがあれば 1 回引く。
+    const gameLinks = parseGamesFromResearch(r);
+    const needCompany = hasProfileContent(mapped.profile) || gameLinks.length > 0;
+    const company = needCompany ? await getCompanyByNormalizedName(normalized.normalized_name) : null;
+
+    if (company && hasProfileContent(mapped.profile)) {
+      await upsertProfile(company.id, mapped.profile);
+      summary.profiles++;
+    }
+
+    // 企業×ゲーム グラフ: research の代表作 → games upsert + developer/support edge。
+    if (company) {
+      for (const link of gameLinks) {
+        const game = normalizeGame({
+          title: link.title,
+          platform: link.kind, // game_kind を platform ヒントに (暫定)
+          release_year: link.year,
+          source: 'game-seed',
+          source_url: company.url,
+        });
+        if (!game) continue;
+        await upsertGame(game);
+        summary.games++;
+        const node = await getGameByNormalizedTitle(game.normalized_title);
+        if (node) {
+          await linkCompanyGame(company.id, node.id, link.role, 'game-seed');
+          summary.edges++;
+        }
       }
     }
   }
