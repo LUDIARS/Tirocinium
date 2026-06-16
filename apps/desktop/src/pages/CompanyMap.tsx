@@ -8,7 +8,8 @@ declare global {
   interface Window { google?: any; __trMapsLoading?: Promise<void> }
 }
 
-/** Google Maps JS を 1 回だけ読み込む (多重 script 注入を防ぐ)。 */
+const LABEL_ZOOM = 13; // この zoom 以上で企業名ラベルを表示 (Google Maps の店名と同水準)
+
 function loadMaps(apiKey: string): Promise<void> {
   if (window.google?.maps) return Promise.resolve();
   if (window.__trMapsLoading) return window.__trMapsLoading;
@@ -28,6 +29,7 @@ export function CompanyMap() {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapObj = useRef<any>(null);
   const drawn = useRef<Set<string>>(new Set());
+  const markersRef = useRef<{ marker: any; labelText: string }[]>([]);
   const [status, setStatus] = useState<'loading' | 'disabled' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string>('');
   const [count, setCount] = useState(0);
@@ -47,25 +49,29 @@ export function CompanyMap() {
     }
   };
 
-  // マーカーを地図に足す (既描画は skip)。
+  const makeLabelObj = (text: string) => ({
+    text,
+    fontSize: '10px',
+    fontWeight: '600',
+    color: '#1a1a2e',
+  });
+
   const addMarkers = (markers: MapMarker[]) => {
     const g = window.google;
     if (!g || !mapObj.current) return;
+    const currentZoom: number = mapObj.current.getZoom() ?? 5;
+    const showLabel = currentZoom >= LABEL_ZOOM;
+
     for (const m of markers) {
       if (drawn.current.has(m.id)) continue;
       drawn.current.add(m.id);
       const color = m.is_social ? '#6a1b9a' : m.is_smb ? '#1565c0' : '#2e7d32';
-      const label = m.name.length > 10 ? `${m.name.slice(0, 10)}…` : m.name;
+      const labelText = m.name.length > 12 ? `${m.name.slice(0, 12)}…` : m.name;
       const marker = new g.maps.Marker({
         position: { lat: m.lat, lng: m.lng },
         map: mapObj.current,
         title: m.name,
-        label: {
-          text: label,
-          fontSize: '10px',
-          fontWeight: '600',
-          color: '#1a1a2e',
-        },
+        label: showLabel ? makeLabelObj(labelText) : null,
         icon: {
           path: g.maps.SymbolPath.CIRCLE,
           scale: 6,
@@ -77,6 +83,7 @@ export function CompanyMap() {
         },
       });
       marker.addListener('click', () => void openDetail(m.id));
+      markersRef.current.push({ marker, labelText });
     }
     setCount(drawn.current.size);
   };
@@ -89,7 +96,6 @@ export function CompanyMap() {
       const r = await api.mapMarkers();
       if (cancelled) return;
       addMarkers(r.markers);
-      // 未 geocode が残っていれば少し待って再取得 (サーバ側で順次解決)。
       if (r.pendingLocations > 0) pollTimer = window.setTimeout(() => void fillMarkers(), 3000);
     };
 
@@ -104,10 +110,18 @@ export function CompanyMap() {
         await loadMaps(cfg.apiKey);
         if (cancelled || !mapRef.current) return;
         mapObj.current = new window.google.maps.Map(mapRef.current, {
-          center: { lat: 36.2, lng: 138.25 }, // 日本全体
+          center: { lat: 36.2, lng: 138.25 },
           zoom: 5,
           mapTypeControl: false,
           streetViewControl: false,
+        });
+        // ズームレベル変化でラベル表示を切り替える
+        mapObj.current.addListener('zoom_changed', () => {
+          const zoom: number = mapObj.current.getZoom() ?? 5;
+          const show = zoom >= LABEL_ZOOM;
+          for (const { marker, labelText } of markersRef.current) {
+            marker.setLabel(show ? makeLabelObj(labelText) : null);
+          }
         });
         setStatus('ready');
         await fillMarkers();
