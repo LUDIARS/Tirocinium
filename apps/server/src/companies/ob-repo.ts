@@ -2,12 +2,19 @@
 // 個人レコードは持たない。 PK (company_id, join_year, class_name, role) で冪等 upsert。
 
 import { sql } from '../db/index.js';
-import { buildObSummary, type NormalizedObPlacement, type ObPlacement, type ObSummary } from '@tirocinium/companies';
+import { buildObSummary, pickRepresentativeGames, type NormalizedObPlacement, type ObPlacement, type ObSummary } from '@tirocinium/companies';
+import { getGamesByCompany, type CompanyGame } from './games-repo.js';
+
+/** upsert / delete に必要な集計セルの最小形 (company_id 解決済のため社名は不要)。 */
+export type ObPlacementCell = Pick<NormalizedObPlacement, 'join_year' | 'class_name' | 'role' | 'headcount'>;
+
+/** Sheet 同期の差分計算で使う company_id 付きセル (prev 側)。 */
+export type ObCellRow = { company_id: string; join_year: number; class_name: string; role: string; headcount: number };
 
 /** OB 集計セルを upsert する (PK で冪等。 再取込時は headcount を上書き)。 */
 export async function upsertObPlacement(
   companyId: string,
-  rec: NormalizedObPlacement,
+  rec: ObPlacementCell,
   source = 'user',
 ): Promise<void> {
   await sql`
@@ -48,6 +55,30 @@ export async function getObTotals(): Promise<{ cells: number; companies: number;
   return { cells: Number(r?.cells ?? 0), companies: Number(r?.companies ?? 0), headcount: Number(r?.headcount ?? 0) };
 }
 
+/** 指定 source の全 OB セルを返す (Sheet 同期の差分計算 prev 側)。 */
+export async function getObPlacementsBySource(source: string): Promise<ObCellRow[]> {
+  const rows = await sql<ObCellRow[]>`
+    SELECT company_id, join_year, class_name, role, headcount
+    FROM company_ob_placement
+    WHERE source = ${source}
+  `;
+  return rows.map((r) => ({ ...r, join_year: Number(r.join_year), headcount: Number(r.headcount) }));
+}
+
+/** OB 集計セルを 1 件削除する (Sheet から消えたセルの同期削除)。 */
+export async function deleteObPlacement(
+  companyId: string,
+  joinYear: number,
+  className: string,
+  role: string,
+): Promise<void> {
+  await sql`
+    DELETE FROM company_ob_placement
+    WHERE company_id = ${companyId} AND join_year = ${joinYear}
+      AND class_name = ${className} AND role = ${role}
+  `;
+}
+
 /** OB 就職者数の多い企業ランキング (検索表示の補助)。 */
 export type ObRankRow = { id: string; name: string; ob_total: number };
 
@@ -62,4 +93,21 @@ export async function topCompaniesByOb(limit = 30): Promise<ObRankRow[]> {
     LIMIT ${lim}
   `;
   return rows.map((r) => ({ ...r, ob_total: Number(r.ob_total) }));
+}
+
+/** OB 輩出スタジオ 1 件 (OB 累計 + 代表作)。 個人なし。 */
+export type ObStudio = ObRankRow & { games: CompanyGame[] };
+
+/**
+ * OB を輩出した企業を OB 数順に並べ、 各社の代表作 (company_game) を付けて返す。
+ * OB→会社 (集計) と 会社→ゲーム を結合した「OB 輩出スタジオ × 代表作」ビュー (個人照合なし・§2.1 準拠)。
+ */
+export async function topObStudios(limit = 20, gamesPerStudio = 4): Promise<ObStudio[]> {
+  const studios = await topCompaniesByOb(limit);
+  const out: ObStudio[] = [];
+  for (const s of studios) {
+    const games = await getGamesByCompany(s.id);
+    out.push({ ...s, games: pickRepresentativeGames(games, gamesPerStudio) });
+  }
+  return out;
 }

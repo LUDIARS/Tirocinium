@@ -44,7 +44,16 @@ export {
   type StockOptions,
 } from './classify.js';
 export { mergeSources, coerceSources } from './provenance.js';
-export { normalizeTitle, normalizeSeries, splitTopLevel, parseGamesFromResearch, normalizeGame, classifyPlatform } from './game.js';
+export {
+  normalizeTitle,
+  normalizeSeries,
+  splitTopLevel,
+  parseGamesFromResearch,
+  normalizeGame,
+  classifyPlatform,
+  pickRepresentativeGames,
+  type RepresentativeGameInput,
+} from './game.js';
 export {
   parseStaffCredits,
   type StaffCredit,
@@ -99,6 +108,13 @@ export {
   dedupeObPlacements,
   buildObSummary,
 } from './ob.js';
+export {
+  parseObSheetValues,
+  aggregateObPersons,
+  diffObCells,
+  type ObPersonRow,
+  type ObCellDiffResult,
+} from './ob-sheet.js';
 export {
   mapGameCompanySeed,
   type GameCompanySeedRecord,

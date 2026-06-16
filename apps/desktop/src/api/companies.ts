@@ -119,6 +119,14 @@ export type CompanyGame = {
   role: string;
 };
 
+/** OB 輩出スタジオ 1 件 (OB 累計 + 代表作、 個人なし)。 */
+export type ObStudio = {
+  id: string;
+  name: string;
+  ob_total: number;
+  games: CompanyGame[];
+};
+
 export type CompanyArticle = {
   url: string;
   title: string;
@@ -212,6 +220,9 @@ export function useCompaniesApi() {
     },
     async games(id: string): Promise<{ games: CompanyGame[] }> {
       return fetchJson(`/api/v1/companies/${id}/games`, token);
+    },
+    async obStudios(limit = 12, games = 4): Promise<{ studios: ObStudio[] }> {
+      return fetchJson(`/api/v1/companies/ob/studios?limit=${limit}&games=${games}`, token);
     },
     async articles(id: string): Promise<{ articles: CompanyArticle[] }> {
       return fetchJson(`/api/v1/companies/${id}/articles`, token);

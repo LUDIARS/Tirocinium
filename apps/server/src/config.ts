@@ -46,6 +46,13 @@ export const config = {
   googleMaps: {
     apiKey: '',
   },
+  // OB 合格リスト同期。 非公開 Google Sheet を service account で読み、 氏名を破棄して集計のみ DB へ。
+  // creds / id は secret 経由 (リポ非コミット)。 serviceAccountJson か spreadsheetId 空なら同期は起動しない。
+  obSheet: {
+    serviceAccountJson: '',
+    spreadsheetId: '',
+    range: 'A:Z',
+  },
   // gBizINFO (経産省 法人情報 API)。 token は secret 経由 (env 不使用)、 空なら gbiz-import は起動しない。
   gbiz: {
     token: '',
