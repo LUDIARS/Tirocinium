@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeTitle, splitTopLevel, parseGamesFromResearch, normalizeGame, classifyPlatform } from './game.js';
+import { normalizeTitle, normalizeSeries, splitTopLevel, parseGamesFromResearch, normalizeGame, classifyPlatform } from './game.js';
 
 describe('classifyPlatform', () => {
   it('mobile-only → mobile', () => {
@@ -63,11 +63,42 @@ describe('parseGamesFromResearch', () => {
   });
 });
 
+describe('normalizeSeries', () => {
+  it('mechanically normalizes (NFKC + lower + strip シリーズ/spaces/symbols)', () => {
+    expect(normalizeSeries('ロックマン シリーズ')).toBe('ロックマン');
+    expect(normalizeSeries('Ｍｅｔａｌ Ｇｅａｒ')).toBe('metalgear');
+  });
+  it('folds known aliases / 略称 to the parent key', () => {
+    expect(normalizeSeries('FF')).toBe('ファイナルファンタジー');
+    expect(normalizeSeries('ファイナルファンタジー')).toBe('ファイナルファンタジー');
+    expect(normalizeSeries('Final Fantasy')).toBe('ファイナルファンタジー');
+    expect(normalizeSeries('ドラクエ')).toBe('ドラゴンクエスト');
+  });
+  it('folds a sub-series into its parent (ファブラ ノヴァ クリスタリス FF → FF)', () => {
+    expect(normalizeSeries('ファブラ ノヴァ クリスタリス FF')).toBe('ファイナルファンタジー');
+    expect(normalizeSeries('FF')).toBe(normalizeSeries('ファブラ ノヴァ クリスタリス FF'));
+  });
+  it('does NOT over-merge unknown series (mechanical only)', () => {
+    expect(normalizeSeries('オリジナル新規IP')).toBe('オリジナル新規ip');
+    expect(normalizeSeries('未知シリーズA')).not.toBe(normalizeSeries('未知シリーズB'));
+  });
+  it('returns empty for empty / junk', () => {
+    expect(normalizeSeries('')).toBe('');
+    expect(normalizeSeries('・・・')).toBe('');
+  });
+});
+
 describe('normalizeGame', () => {
   it('builds normalized game, null on empty title', () => {
     const g = normalizeGame({ title: '神託のメソロギア', release_year: 2025, source: 'game-seed' });
     expect(g?.normalized_title).toBe(normalizeTitle('神託のメソロギア'));
     expect(g?.release_year).toBe(2025);
     expect(normalizeGame({ title: '' })).toBeNull();
+  });
+  it('derives normalized_series from series (folds 略称)', () => {
+    const g = normalizeGame({ title: 'ファイナルファンタジーXVI', series: 'FF', source: 'wikidata' });
+    expect(g?.series).toBe('FF');
+    expect(g?.normalized_series).toBe('ファイナルファンタジー');
+    expect(normalizeGame({ title: '無印', source: 'x' })?.normalized_series).toBe('');
   });
 });

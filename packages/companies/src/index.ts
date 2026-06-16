@@ -44,7 +44,7 @@ export {
   type StockOptions,
 } from './classify.js';
 export { mergeSources, coerceSources } from './provenance.js';
-export { normalizeTitle, splitTopLevel, parseGamesFromResearch, normalizeGame, classifyPlatform } from './game.js';
+export { normalizeTitle, normalizeSeries, splitTopLevel, parseGamesFromResearch, normalizeGame, classifyPlatform } from './game.js';
 export {
   normalizeTechName,
   normalizeTechToken,

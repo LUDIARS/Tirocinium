@@ -196,6 +196,7 @@ API: `POST /api/v1/companies/related { seed: {game?|series?|company?}, hops?: 2,
 
 - ~~**OB の k-匿名性**: 人数 1 のセルの扱い~~ → **決定 (2026-06-15): 実数表示のまま**。OB は集計のみ・個人特定不可のため、人数 1 でも丸めず実数を出す (丸め / 「数名」表記 / 非表示閾値は導入しない)。
 - ゲーム名・社名の**表記揺れ名寄せ** (FF/ファイナルファンタジー、英⇔カナ社名)。series 軸 + 別名辞書で緩和、最終は corporate_number ([[spec/companies/gbizinfo.md]])。
+  - series 軸は ✅ 実装済 (2026-06-16, #202): 純関数 `normalizeSeries` (NFKC + 機械正規化 + 主要フランチャイズの別名/略称/下位シリーズを親キーへ畳む明示対応表。過剰マージ回避のため未知シリーズは機械正規化のみ)。`games.normalized_series` 列 (migration 016) に materialize し、同シリーズ判定 (`relatedCompaniesByGame`) で使用。backfill 前は raw series へ degrade。既存行は CLI `companies:series-normalize` で埋める。社名の英⇔カナ名寄せ (#197) は別途。
 - publisher edge の網羅 (research に publisher 情報が薄い → スタッフロール/Wikidata 補完)。
 - 純グラフクエリが必要になった場合の **Kuzu 移行** (edge テーブルをそのまま移送)。
 - フロント: グラフ可視化 (企業—ゲームの関係ネットワーク表示) は別途。
