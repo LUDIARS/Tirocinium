@@ -91,5 +91,6 @@ npm run companies:gbiz-import -- --industry <code> [--name ゲーム] [--max <n>
 ## 5. 未確定 / 将来
 
 - gBizINFO の `company_url` 欠落 record に対する「社名→公式HP特定」検索ステップの実装(ToS の緩い経路を選定)。
+  - Wikidata 発見社 (url 無) 向けは ✅ 実装済 (2026-06-16, #198): Wikidata の official website (P856) を社名ラベル (組織 Q43229 限定) で引く決定論ステップ。純関数 `parseOfficialSite`/`fetchOfficialSite` (`wikidata.ts`) + DB 非依存オーケストレーション `runWikidataUrlFill` (`wikidata-url.ts`) + CLI `companies:wikidata-url` (token 不要)。url が埋まると以後の自動 enrich キューに乗る。gBizINFO 欠落 record / 非 Wikidata 経路の汎用検索は引き続き未確定。
 - 業種粗フィルタの最適コードセット(実 API で確定)。
 - VC/アクセラレータ portfolio ソース(高シグナルなベンチャー)を別 listing source として追加(本書とは独立)。

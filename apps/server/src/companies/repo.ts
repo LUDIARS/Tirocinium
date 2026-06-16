@@ -304,6 +304,22 @@ export async function companiesNeedingEnrichment(limit = 50): Promise<Company[]>
   `;
 }
 
+// ── Wikidata 公式HP (P856) 補完 (spec/companies/game-graph.md §0 / 名寄れ補完) ──
+
+/**
+ * Wikidata 発見社で url 未取得の企業を返す (社名→公式HP 特定の対象)。
+ * source='wikidata' ∧ url='' を更新が古い順に。 url が埋まると以後の自動 enrich 対象になる。
+ */
+export async function companiesNeedingUrlFromWikidata(limit = 50): Promise<Company[]> {
+  return sql<Company[]>`
+    SELECT ${selectCols()} FROM companies c
+    WHERE c.url = ''
+      AND c.source = 'wikidata'
+    ORDER BY c.updated_at ASC
+    LIMIT ${Math.min(Math.max(limit, 1), 500)}
+  `;
+}
+
 // ── IR 従業員数 裏取り (spec/companies/game-graph.md §5.4 Phase4) ──
 
 /**
