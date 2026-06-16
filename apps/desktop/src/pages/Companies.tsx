@@ -22,6 +22,9 @@ export function Companies() {
   const [showNoise, setShowNoise] = useState(false);
   // 既定は情報なし (会社概要が空) を除外。 チェック時のみ表示 (enrich 対象を見たいとき)。
   const [showNoInfo, setShowNoInfo] = useState(false);
+  // 新卒採用あり / 募集中 で絞り込む (既定は両方 off = 全件、 ただし該当は優先ソートで上位に出る)。
+  const [onlyNewgrad, setOnlyNewgrad] = useState(false);
+  const [onlyOpening, setOnlyOpening] = useState(false);
 
   const [profiles, setProfiles] = useState<Record<string, CompanyProfile>>({});
   const [newgradImages, setNewgradImages] = useState<Record<string, NewgradRoleImage[]>>({});
@@ -32,7 +35,7 @@ export function Companies() {
   const reload = async (query = q) => {
     try {
       const search = query.trim();
-      const r = await api.list({ limit: 200, q: search || undefined, quality: !showNoise, summarized: !showNoInfo });
+      const r = await api.list({ limit: 200, q: search || undefined, quality: !showNoise, summarized: !showNoInfo, newgrad: onlyNewgrad, opening: onlyOpening });
       setCompanies(r.companies);
       setTotal(r.total);
     } catch (e) {
@@ -46,7 +49,7 @@ export function Companies() {
     }, 250);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, showNoise, showNoInfo]);
+  }, [q, showNoise, showNoInfo, onlyNewgrad, onlyOpening]);
 
   // 自動 enrich キューの状態をポーリング (30 秒ごと)。
   useEffect(() => {
@@ -287,9 +290,17 @@ export function Companies() {
             <input type="checkbox" checked={showNoise} onChange={(e) => setShowNoise(e.target.checked)} />
             ゲーム未紐付けの企業も表示
           </label>
+          <label style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }} title="新卒採用がある (と判定された) 企業のみに絞り込みます">
+            <input type="checkbox" checked={onlyNewgrad} onChange={(e) => setOnlyNewgrad(e.target.checked)} />
+            新卒採用ありのみ
+          </label>
+          <label style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }} title="現在募集中 (と判定された) 企業のみに絞り込みます。 判定はキーワードベースのため目安です">
+            <input type="checkbox" checked={onlyOpening} onChange={(e) => setOnlyOpening(e.target.checked)} />
+            募集中のみ
+          </label>
         </div>
         {visible.length === 0 && (
-          <p>{q.trim() || onlyGenerated || !showNoise || !showNoInfo ? '条件に一致する企業がありません' : 'まだ企業がありません'}</p>
+          <p>{q.trim() || onlyGenerated || onlyNewgrad || onlyOpening || !showNoise || !showNoInfo ? '条件に一致する企業がありません' : 'まだ企業がありません'}</p>
         )}
         <div className="company-grid">
           {visible.map((c) => (

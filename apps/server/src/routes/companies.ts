@@ -36,6 +36,9 @@ companies.get('/', async (c) => {
   // list/count 双方に適用して total を整合。
   const quality = q['quality'] === '1' || q['quality'] === 'true';
   const summarized = q['summarized'] === '1' || q['summarized'] === 'true';
+  // newgrad=1 で新卒採用あり、 opening=1 で募集中だけに絞る (既定の優先ソートとは独立)。
+  const newgrad = q['newgrad'] === '1' || q['newgrad'] === 'true';
+  const opening = q['opening'] === '1' || q['opening'] === 'true';
   const filter = {
     role: q['role'],
     tag: q['tag'],
@@ -43,6 +46,8 @@ companies.get('/', async (c) => {
     q: q['q'],
     quality,
     summarized,
+    newgrad,
+    opening,
   };
   const rows = await listCompanies({
     ...filter,
