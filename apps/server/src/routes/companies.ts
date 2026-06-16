@@ -12,6 +12,7 @@ import { getProfile } from '../companies/profile-repo.js';
 import { getNewgradRoleImages, listInterviewArticles } from '../companies/newgrad-repo.js';
 import { searchGames, relatedCompaniesByGame, companiesByTech, getGamesByCompany } from '../companies/games-repo.js';
 import { getObSummary, getObPlacements, topCompaniesByOb } from '../companies/ob-repo.js';
+import { syncObFromSheet } from '../companies/ob-sheet-sync-wire.js';
 import { runContribute } from '../companies/contribute.js';
 import { enrichQueueStatus } from '../companies/enrich-queue.js';
 import { buildMapMarkers } from '../companies/geocode.js';
@@ -236,5 +237,21 @@ companies.post('/enrich', cernereAuth, async (c) => {
     return c.json({ summary }, 200);
   } catch (err) {
     return c.json({ error: 'enrich_failed', detail: (err as Error).message }, 502);
+  }
+});
+
+/**
+ * POST /api/v1/companies/ob/sync — 非公開 Sheet (合格リスト) から OB 集計を差分同期 (admin 専用) { dryRun? }。
+ * 氏名は集計に畳む過程で破棄され、 DB / レスポンスには集計しか出ない (個人データ境界 §2.1)。
+ */
+companies.post('/ob/sync', cernereAuth, async (c) => {
+  const user = c.get('user');
+  if (!canCrawl(user.id)) return c.json({ error: 'forbidden' }, 403);
+  const body = (await c.req.json().catch(() => null)) as { dryRun?: boolean } | null;
+  try {
+    const summary = await syncObFromSheet({ dryRun: body?.dryRun === true });
+    return c.json({ summary }, 200);
+  } catch (err) {
+    return c.json({ error: 'ob_sync_failed', detail: (err as Error).message }, 502);
   }
 });

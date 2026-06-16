@@ -100,6 +100,13 @@ export {
   buildObSummary,
 } from './ob.js';
 export {
+  parseObSheetValues,
+  aggregateObPersons,
+  diffObCells,
+  type ObPersonRow,
+  type ObCellDiffResult,
+} from './ob-sheet.js';
+export {
   mapGameCompanySeed,
   type GameCompanySeedRecord,
   type GameCompanyResearchRecord,

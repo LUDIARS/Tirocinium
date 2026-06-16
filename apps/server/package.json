@@ -16,6 +16,7 @@
     "companies:wikidata-enrich": "tsx ../../scripts/companies-wikidata-enrich/index.ts",
     "companies:tech-build": "tsx ../../scripts/companies-tech-build/index.ts",
     "companies:ob-import": "tsx ../../scripts/companies-ob-import/index.ts",
+    "companies:ob-sync": "tsx ../../scripts/companies-ob-sync/index.ts",
     "companies:gbiz-import": "tsx ../../scripts/companies-gbiz-import/index.ts",
     "companies:ir-employee": "tsx ../../scripts/companies-ir-employee/index.ts",
     "companies:wikidata-url": "tsx ../../scripts/companies-wikidata-url/index.ts",

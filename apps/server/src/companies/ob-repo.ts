@@ -4,10 +4,16 @@
 import { sql } from '../db/index.js';
 import { buildObSummary, type NormalizedObPlacement, type ObPlacement, type ObSummary } from '@tirocinium/companies';
 
+/** upsert / delete に必要な集計セルの最小形 (company_id 解決済のため社名は不要)。 */
+export type ObPlacementCell = Pick<NormalizedObPlacement, 'join_year' | 'class_name' | 'role' | 'headcount'>;
+
+/** Sheet 同期の差分計算で使う company_id 付きセル (prev 側)。 */
+export type ObCellRow = { company_id: string; join_year: number; class_name: string; role: string; headcount: number };
+
 /** OB 集計セルを upsert する (PK で冪等。 再取込時は headcount を上書き)。 */
 export async function upsertObPlacement(
   companyId: string,
-  rec: NormalizedObPlacement,
+  rec: ObPlacementCell,
   source = 'user',
 ): Promise<void> {
   await sql`
@@ -46,6 +52,30 @@ export async function getObTotals(): Promise<{ cells: number; companies: number;
   `;
   const r = rows[0];
   return { cells: Number(r?.cells ?? 0), companies: Number(r?.companies ?? 0), headcount: Number(r?.headcount ?? 0) };
+}
+
+/** 指定 source の全 OB セルを返す (Sheet 同期の差分計算 prev 側)。 */
+export async function getObPlacementsBySource(source: string): Promise<ObCellRow[]> {
+  const rows = await sql<ObCellRow[]>`
+    SELECT company_id, join_year, class_name, role, headcount
+    FROM company_ob_placement
+    WHERE source = ${source}
+  `;
+  return rows.map((r) => ({ ...r, join_year: Number(r.join_year), headcount: Number(r.headcount) }));
+}
+
+/** OB 集計セルを 1 件削除する (Sheet から消えたセルの同期削除)。 */
+export async function deleteObPlacement(
+  companyId: string,
+  joinYear: number,
+  className: string,
+  role: string,
+): Promise<void> {
+  await sql`
+    DELETE FROM company_ob_placement
+    WHERE company_id = ${companyId} AND join_year = ${joinYear}
+      AND class_name = ${className} AND role = ${role}
+  `;
 }
 
 /** OB 就職者数の多い企業ランキング (検索表示の補助)。 */
