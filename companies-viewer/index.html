@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ゲーム企業リスト — 調査ビューア</title>
+<style>
+  :root {
+    --bg: #0f1115; --card: #181b22; --line: #272b34; --fg: #e6e8ee; --muted: #98a0ae;
+    --accent: #7aa2ff; --good: #4ec98a; --warn: #e0b341; --bad: #e06a6a; --chip: #232734;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.6 system-ui, "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: rgba(15,17,21,.92); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); padding: 14px 20px; }
+  h1 { font-size: 18px; margin: 0 0 10px; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input[type=search], select { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 14px; }
+  input[type=search] { min-width: 240px; flex: 1; }
+  .count { color: var(--muted); font-size: 13px; }
+  main { padding: 18px 20px 60px; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 9px; }
+  .card h2 { font-size: 16px; margin: 0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+  .label { color: var(--muted); font-size: 12px; min-width: 64px; }
+  .val { flex: 1; min-width: 0; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; font-size: 12px; color: var(--fg); }
+  .chip.kind { border-color: var(--accent); color: var(--accent); }
+  .chip.rec-募集中 { border-color: var(--good); color: var(--good); }
+  .chip.rec-募集なし { border-color: var(--bad); color: var(--bad); }
+  .chip.rec-不明 { border-color: var(--muted); color: var(--muted); }
+  .chip.conf-high { border-color: var(--good); color: var(--good); }
+  .chip.conf-medium { border-color: var(--warn); color: var(--warn); }
+  .chip.conf-low { border-color: var(--bad); color: var(--bad); }
+  .feat { color: var(--fg); font-size: 13px; }
+  .sub { color: var(--muted); font-size: 12.5px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .links a { margin-right: 10px; font-size: 12.5px; }
+  .blog { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 2px; }
+  .empty { color: var(--muted); padding: 40px; text-align: center; grid-column: 1/-1; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎮 ゲーム企業リスト — 調査ビューア <span class="count" id="count"></span></h1>
+  <div class="controls">
+    <input type="search" id="q" placeholder="社名・タイトル・技術・特色で検索…" />
+    <select id="kind"><option value="">区分: すべて</option><option>コンシューマ</option><option>ソーシャル</option><option>両方</option><option>その他</option><option>不明</option></select>
+    <select id="rec"><option value="">求人: すべて</option><option>募集中</option><option>募集なし</option><option>不明</option></select>
+    <select id="rss"><option value="">RSS: すべて</option><option value="yes">RSSあり</option><option value="no">RSSなし</option></select>
+    <label class="sub"><input type="checkbox" id="blogonly" /> 技術ブログありのみ</label>
+  </div>
+</header>
+<main id="grid"></main>
+<script src="./data.js"></script>
+<script>
+  const DATA = (window.COMPANIES || []).slice();
+  const grid = document.getElementById('grid');
+  const els = { q: document.getElementById('q'), kind: document.getElementById('kind'), rec: document.getElementById('rec'), rss: document.getElementById('rss'), blog: document.getElementById('blogonly'), count: document.getElementById('count') };
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
+  const link = (u, label) => u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(label || host(u))}</a>` : '';
+  const chips = (arr, cls = 'chip') => (arr || []).filter(Boolean).map(x => `<span class="${cls}">${esc(x)}</span>`).join('');
+
+  function card(c) {
+    const rss = (c.rss_feeds || []).filter(f => f && f.url);
+    const blogLinks = [
+      ...(c.tech_blog_urls || []).map(u => link(u, '技術ブログ')),
+      ...rss.map(f => link(f.url, 'RSS' + (f.status === 'verified' ? '✓' : '?'))),
+    ].filter(Boolean).join(' ');
+    const interviews = (c.interview_urls || []).slice(0, 3).map((u, i) => link(u, 'インタビュー' + (i + 1))).join(' ');
+    return `<div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2>${esc(c.name)}</h2>
+        <div class="chips">
+          <span class="chip kind">${esc(c.game_kind || '不明')}</span>
+          <span class="chip rec-${esc(c.recruiting_status || '不明')}">${esc(c.recruiting_status || '不明')}</span>
+          <span class="chip conf-${esc(c.confidence || 'low')}">${esc(c.confidence || '?')}</span>
+        </div>
+      </div>
+      ${c.games ? `<div class="row"><span class="label">代表作</span><span class="val sub">${esc(c.games)}</span></div>` : ''}
+      ${c.ir_recent ? `<div class="row"><span class="label">業績/IR</span><span class="val sub">${esc(c.ir_recent)}</span></div>` : ''}
+      ${c.size ? `<div class="row"><span class="label">規模</span><span class="val sub">${esc(c.size)}</span></div>` : ''}
+      ${(c.tech_stack && c.tech_stack.length) ? `<div class="row"><span class="label">技術</span><span class="val chips">${chips(c.tech_stack)}</span></div>` : ''}
+      ${c.features ? `<div class="feat">${esc(c.features)}</div>` : ''}
+      ${c.recruiting_note ? `<div class="row"><span class="label">求人</span><span class="val sub">${esc(c.recruiting_note)} ${link(c.recruit_url, '採用ページ')}</span></div>` : (c.recruit_url ? `<div class="row"><span class="label">求人</span><span class="val">${link(c.recruit_url,'採用ページ')}</span></div>` : '')}
+      ${(blogLinks || interviews) ? `<div class="blog links">${blogLinks} ${interviews}${c.no_rss_listing_url ? ' ' + link(c.no_rss_listing_url, '記事一覧(RSS無)') : ''}</div>` : ''}
+      ${(c.sources && c.sources.length) ? `<details><summary>出典 ${c.sources.length}件</summary><div class="links">${(c.sources||[]).map(u=>link(u)).join(' ')}</div></details>` : ''}
+    </div>`;
+  }
+
+  function render() {
+    const q = els.q.value.trim().toLowerCase();
+    const kind = els.kind.value, rec = els.rec.value, rss = els.rss.value, blogOnly = els.blog.checked;
+    const list = DATA.filter(c => {
+      if (kind && c.game_kind !== kind) return false;
+      if (rec && c.recruiting_status !== rec) return false;
+      const hasRss = (c.rss_feeds || []).some(f => f && f.url);
+      if (rss === 'yes' && !hasRss) return false;
+      if (rss === 'no' && hasRss) return false;
+      if (blogOnly && !c.has_tech_blog) return false;
+      if (q) {
+        const hay = [c.name, c.games, c.features, c.ir_recent, c.size, (c.tech_stack||[]).join(' ')].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    els.count.textContent = `(${list.length} / ${DATA.length} 社)`;
+    grid.innerHTML = list.length ? list.map(card).join('') : '<div class="empty">該当なし</div>';
+  }
+
+  Object.values(els).forEach(el => el.addEventListener && el.addEventListener('input', render));
+  render();
+</script>
+</body>
+</html>
