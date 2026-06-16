@@ -144,7 +144,7 @@ migration は ALTER→INDEX 順序遵守 ([[feedback_sqlite_create_index_after_a
 - `normalizeTitle(title): string` — ゲーム名 dedup キー (版/記号/全角半角/「リマスター」等の除去)。
 - `parseGamesFromResearch(research): GameLink[]` — 既存 `companies-research.json` の `games` 文 (代表作) と
   `game_kind` から Game + developer edge を導出 (Phase 1 の初期投入源)。
-- `parseStaffCredits(pageText): { game, companies[] }` — スタッフロール掲載元から Game↔企業 を抽出 (Phase 2)。
+- `parseStaffCredits(pageText): { game, companies[] }` — スタッフロール掲載元から Game↔企業 を抽出 (Phase 2)。✅ 実装済 (2026-06-16, #200): section 見出しで役割 (developer/publisher/support/credited) を切替え、 企業指標を持つ行のみ採って個人名を除外。「開発協力/外注/移植/QA」も拾い外注スタジオの発見精度を上げる (full credits)。
 - `extractEmployeeFromIR(irText): number` — IR 文から従業員数を裏取り抽出 (Phase 4、[[size.ts]] 再利用)。✅ 実装済: `extractEmployeeCount` と同じ anchor 規則で「連結/単体」併記に対応し連結 (グループ全体規模) を優先。
 
 LLM は listing 同様 **抽出段のみ**で使用可、束ね/正規化/探索は決定論 ([[Canalis]] 原則)。
@@ -164,6 +164,8 @@ MobyGames / Wikipedia(クレジット節) / 4Gamer 等の**クレジット掲載
 - 既知企業は `company_game(role='credited')` を追加、
 - **未知企業は `companies` に新規 upsert** (source='staff-credits') → **未検知企業の自動発見**。
 robots / 礼節 / opt-in は既存 `PoliteFetcher` + listing 規約を踏襲。ToS は source ごとに要確認。
+
+✅ 実装済 (2026-06-16, #200): `parseStaffCredits` (純) + DB 非依存 ingest (`staff-credits-ingest.ts`、 deps 注入) + クロール (`staff-credits-crawl.ts`) + CLI `companies:staff-credits`。kind `staff-credits` を追加し、 source template (`mobygames-credits`/`wikipedia-credits`) は **ToS 未確認のため既定 disabled** (実 URL 確定 + ToS 目視確認 → opt-in で有効化)。role は dev/pub/support/credited を張り分け、 未知企業は source='staff-credits' で自動発見。**OB 在籍証明/検索の company↔game グラフ補強**にも使う。
 
 ### 5.3 Phase3: OB 集計インポータ
 ユーザ付与の OB データ (CSV/JSON: `会社名, 入社年, クラス, 役職, 人数`) を
@@ -206,7 +208,7 @@ API: `POST /api/v1/companies/related { seed: {game?|series?|company?}, hops?: 2,
 ## 8. フェーズ (各 1 PR、[[feedback_ai_pr_size]])
 
 1. **Game DB + edge 基盤**: `games`/`company_game`/`company_partner` migration + `normalizeTitle`/`parseGamesFromResearch` + research からの初期投入 + 反映。
-2. **スタッフロール発見クロール**: `staff-credits` source + `parseStaffCredits` → credited edge + 新企業発見。
+2. **スタッフロール発見クロール** ✅ 実装済 (#200): `staff-credits` source + `parseStaffCredits` → dev/pub/support/credited edge + 未知企業の自動発見。source は ToS 未確認のため既定 disabled (opt-in で有効化)。
 3. **OB 集計インポータ** ✅ 実装済: `company_ob_placement` migration (011) + 取込 CLI (`companies:ob-import`、 CSV/JSON 自動判別) + 集計 API (`GET /:id/ob`・`GET /ob/top`) + 検索表示 (関連会社カードに OB 累計 chip + 内訳)。 純パース/集計は `@tirocinium/companies` の `ob.ts`。 個人列は列名で拾わず構造的に排除 (§2.1)。 k-匿名性 (人数1 セル) は §7 のとおり実数表示で確定 (2026-06-15)。
 4. **関係性レコメンド + IR 従業員裏取り**: `/companies/related` 探索 API + `extractEmployeeFromIR` クロール。
    - IR 従業員裏取り ✅ 実装済 (2026-06-16): 純関数 `extractEmployeeFromIR` (`size.ts`、 連結 (consolidated) 優先・決定論・LLM 不使用) + クロール CLI `companies:ir-employee`。 対象は `employee_count=0` ∧ url 有 (上場社優先)。 ホーム→同一ホストの IR/会社概要ページを巡回し従業員数を確定 → `employee_count`/`is_smb` 更新、 IR 本文は (LLM 要約が無い社のみ) `company_profiles.ir_summary` に保持。 純 IO は `ir-employee-extract.ts` に分離 (DB 非依存・テスト可能)。

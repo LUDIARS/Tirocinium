@@ -191,7 +191,7 @@ export type ListingEntry = {
 export type ListingSourceConfig = {
   id: string;
   /** 種別。 表示 / 既定の有効可否の目安 */
-  kind: 'job-aggregator' | 'game' | 'seed-list' | 'newgrad-nav' | 'gov-api';
+  kind: 'job-aggregator' | 'game' | 'seed-list' | 'newgrad-nav' | 'gov-api' | 'staff-credits';
   /** 信頼度の層。 primary=一次情報 / secondary=まとめ / structured=構造化API。 未指定は secondary 扱い。 */
   tier?: 'primary' | 'secondary' | 'structured';
   /** listing ページ URL 群 */
