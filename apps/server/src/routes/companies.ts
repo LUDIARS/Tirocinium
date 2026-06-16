@@ -11,7 +11,8 @@ import { loadListingSources, selectActiveSources } from '../companies/listing-co
 import { getProfile } from '../companies/profile-repo.js';
 import { getNewgradRoleImages, listInterviewArticles } from '../companies/newgrad-repo.js';
 import { searchGames, relatedCompaniesByGame, companiesByTech, getGamesByCompany } from '../companies/games-repo.js';
-import { getObSummary, getObPlacements, topCompaniesByOb } from '../companies/ob-repo.js';
+import { getObSummary, getObPlacements, topCompaniesByOb, topObStudios } from '../companies/ob-repo.js';
+import { syncObFromSheet } from '../companies/ob-sheet-sync-wire.js';
 import { runContribute } from '../companies/contribute.js';
 import { enrichQueueStatus } from '../companies/enrich-queue.js';
 import { buildMapMarkers } from '../companies/geocode.js';
@@ -128,6 +129,13 @@ companies.get('/ob/top', async (c) => {
   return c.json({ companies: await topCompaniesByOb(limit) });
 });
 
+/** GET /api/v1/companies/ob/studios — OB 輩出スタジオ + 代表作 (OB×ゲーム結合ビュー、 個人なし) */
+companies.get('/ob/studios', async (c) => {
+  const limit = c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined;
+  const games = c.req.query('games') ? Number.parseInt(c.req.query('games')!, 10) : undefined;
+  return c.json({ studios: await topObStudios(limit, games) });
+});
+
 /** GET /api/v1/companies/:id/ob — 企業の OB 就職実績 (集計サマリ + 内訳セル、 個人なし) */
 companies.get('/:id/ob', async (c) => {
   const id = c.req.param('id');
@@ -236,5 +244,21 @@ companies.post('/enrich', cernereAuth, async (c) => {
     return c.json({ summary }, 200);
   } catch (err) {
     return c.json({ error: 'enrich_failed', detail: (err as Error).message }, 502);
+  }
+});
+
+/**
+ * POST /api/v1/companies/ob/sync — 非公開 Sheet (合格リスト) から OB 集計を差分同期 (admin 専用) { dryRun? }。
+ * 氏名は集計に畳む過程で破棄され、 DB / レスポンスには集計しか出ない (個人データ境界 §2.1)。
+ */
+companies.post('/ob/sync', cernereAuth, async (c) => {
+  const user = c.get('user');
+  if (!canCrawl(user.id)) return c.json({ error: 'forbidden' }, 403);
+  const body = (await c.req.json().catch(() => null)) as { dryRun?: boolean } | null;
+  try {
+    const summary = await syncObFromSheet({ dryRun: body?.dryRun === true });
+    return c.json({ summary }, 200);
+  } catch (err) {
+    return c.json({ error: 'ob_sync_failed', detail: (err as Error).message }, 502);
   }
 });

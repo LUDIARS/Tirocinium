@@ -131,6 +131,52 @@ function str(v: string | undefined, max: number): string {
   return (v ?? '').trim().slice(0, max);
 }
 
+/** 代表作選定の入力 (company_game → games の最小形)。 */
+export type RepresentativeGameInput = { title: string; series: string; release_year: number; role: string };
+
+// 自社の作品とみなす role (代表作として優先する)。 support/credited は外部関与なので後回し。
+const OWN_GAME_ROLES = new Set<CompanyGameRole>(['developer', 'publisher']);
+
+/** 代表作優先度: 自社開発/発売 を上位 (1)、 関与のみ (support/credited) は 0。 */
+function representativeRank(g: RepresentativeGameInput): number {
+  return OWN_GAME_ROLES.has(g.role as CompanyGameRole) ? 1 : 0;
+}
+
+/**
+ * 企業の関与ゲーム群から「代表作」を n 件選ぶ。 純粋・決定論。
+ * - シリーズ (正規化) 単位で 1 作に畳む (同一フランチャイズの重複を避ける)。 series 空はタイトル単位。
+ * - 各グループ代表は 自社role 優先 → 新しい年 → タイトル昇順 で選ぶ。
+ * - 最終並びは 自社role 優先 → release_year 降順 → タイトル昇順。
+ */
+export function pickRepresentativeGames<T extends RepresentativeGameInput>(games: T[], n: number): T[] {
+  if (n <= 0) return [];
+  const isBetter = (a: T, b: T): boolean =>
+    representativeRank(a) !== representativeRank(b)
+      ? representativeRank(a) > representativeRank(b)
+      : a.release_year !== b.release_year
+        ? a.release_year > b.release_year
+        : normalizeTitle(a.title) < normalizeTitle(b.title);
+
+  // シリーズ / タイトルキーごとに代表 1 作を残す。
+  const byKey = new Map<string, T>();
+  for (const g of games) {
+    const skey = normalizeSeries(g.series);
+    const tkey = normalizeTitle(g.title);
+    const key = skey ? `s:${skey}` : tkey ? `t:${tkey}` : '';
+    if (!key) continue; // シリーズもタイトルも正規化後空はスキップ
+    const cur = byKey.get(key);
+    if (!cur || isBetter(g, cur)) byKey.set(key, g);
+  }
+  const merged = [...byKey.values()];
+  merged.sort(
+    (a, b) =>
+      representativeRank(b) - representativeRank(a) ||
+      b.release_year - a.release_year ||
+      a.title.localeCompare(b.title),
+  );
+  return merged.slice(0, n);
+}
+
 /** GameInput を正規化する。 title 空 / 正規化後空 → null (投入対象外)。 */
 export function normalizeGame(input: GameInput): NormalizedGame | null {
   const title = str(input.title, 200);

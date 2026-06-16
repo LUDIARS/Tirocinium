@@ -41,6 +41,10 @@ export const SECRET_KEYS = [
   'COMPANY_LISTING_CHUNK_CHARS',
   // Google Maps (企業所在地マップ)
   'GOOGLE_MAPS_API_KEY',
+  // OB 合格リスト同期 (非公開 Google Sheet。 creds/id は secret 経由・リポ非コミット)
+  'TIROCINIUM_OB_SHEET_SA_JSON',
+  'TIROCINIUM_OB_SHEET_ID',
+  'TIROCINIUM_OB_SHEET_RANGE',
   // gBizINFO (法人情報 API)
   'GBIZINFO_TOKEN',
   'GBIZINFO_MIN_INTERVAL_MS',
