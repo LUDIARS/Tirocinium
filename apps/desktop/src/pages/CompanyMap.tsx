@@ -5,10 +5,16 @@ import { CompanyDetailModal } from './CompanyDetailModal.js';
 // Google Maps JS API は型パッケージを入れず any で扱う (依存を増やさない)。
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
-  interface Window { google?: any; __trMapsLoading?: Promise<void> }
+  interface Window {
+    google?: any;
+    __trMapsLoading?: Promise<void>;
+    __trMapSelect?: (id: string) => void;
+  }
 }
 
-const LABEL_ZOOM = 13; // この zoom 以上で企業名ラベルを表示 (Google Maps の店名と同水準)
+const LABEL_ZOOM = 13; // この zoom 以上で企業名を pin に表示 (Google Maps 店名と同水準)
+// 先端が原点 (0,0)、円の中心が (0,-26)、半径 10 の水滴型ピン (Google 標準ピンと同形状)
+const PIN_PATH = 'M 0,0 C -2,-17 -10,-19 -10,-26 A 10,10 0 0,1 10,-26 C 10,-19 2,-17 0,0 Z';
 
 function loadMaps(apiKey: string): Promise<void> {
   if (window.google?.maps) return Promise.resolve();
@@ -24,10 +30,14 @@ function loadMaps(apiKey: string): Promise<void> {
   return window.__trMapsLoading;
 }
 
+/** lat/lng を 4 桁に丸めた位置キー (同建物を同一グループにまとめる)。 */
+const locKey = (m: MapMarker) => `${m.lat.toFixed(4)},${m.lng.toFixed(4)}`;
+
 export function CompanyMap() {
   const api = useCompaniesApi();
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapObj = useRef<any>(null);
+  const infoObj = useRef<any>(null);
   const drawn = useRef<Set<string>>(new Set());
   const markersRef = useRef<{ marker: any; labelText: string }[]>([]);
   const [status, setStatus] = useState<'loading' | 'disabled' | 'ready' | 'error'>('loading');
@@ -38,51 +48,80 @@ export function CompanyMap() {
 
   const openDetail = async (id: string) => {
     if (loadingId) return;
+    infoObj.current?.close();
     setLoadingId(id);
     try {
       const r = await api.get(id);
       setDetailFor(r.company);
-    } catch {
-      // 取得失敗時は無視
-    } finally {
+    } catch { /* ignore */ } finally {
       setLoadingId(null);
     }
   };
 
-  const makeLabelObj = (text: string) => ({
-    text,
-    fontSize: '10px',
-    fontWeight: '600',
-    color: '#1a1a2e',
-  });
+  const makeLabelObj = (text: string) => ({ text, fontSize: '10px', fontWeight: '600', color: '#1a1a2e' });
 
-  const addMarkers = (markers: MapMarker[]) => {
+  // バッファで受け取ったマーカーを位置でグループ化してピンを立てる。
+  // 同一位置に複数社ある場合は InfoWindow でピッカーを表示。
+  const addMarkers = (newMarkers: MapMarker[]) => {
     const g = window.google;
     if (!g || !mapObj.current) return;
+
+    // 既描画済みも含めた全マーカーデータを蓄積しておく必要があるので、
+    // ここでは新規分だけ位置キー → [MapMarker] に積んでグループを更新する。
+    const groups = new Map<string, MapMarker[]>();
+    for (const m of newMarkers) {
+      if (drawn.current.has(m.id)) continue;
+      drawn.current.add(m.id);
+      const k = locKey(m);
+      const g = groups.get(k) ?? [];
+      g.push(m);
+      groups.set(k, g);
+    }
+    if (groups.size === 0) return;
+
     const currentZoom: number = mapObj.current.getZoom() ?? 5;
     const showLabel = currentZoom >= LABEL_ZOOM;
 
-    for (const m of markers) {
-      if (drawn.current.has(m.id)) continue;
-      drawn.current.add(m.id);
-      const color = m.is_social ? '#6a1b9a' : m.is_smb ? '#1565c0' : '#2e7d32';
-      const labelText = m.name.length > 12 ? `${m.name.slice(0, 12)}…` : m.name;
+    for (const group of groups.values()) {
+      const first = group[0]!;
+      const color = first.is_social ? '#6a1b9a' : first.is_smb ? '#1565c0' : '#2e7d32';
+      const labelText = group.length > 1
+        ? `${group.length}社`
+        : (first.name.length > 10 ? `${first.name.slice(0, 10)}…` : first.name);
+
       const marker = new g.maps.Marker({
-        position: { lat: m.lat, lng: m.lng },
+        position: { lat: first.lat, lng: first.lng },
         map: mapObj.current,
-        title: m.name,
+        title: group.map((m) => m.name).join(' / '),
         label: showLabel ? makeLabelObj(labelText) : null,
         icon: {
-          path: g.maps.SymbolPath.CIRCLE,
-          scale: 6,
+          path: PIN_PATH,
           fillColor: color,
-          fillOpacity: 0.9,
+          fillOpacity: 0.92,
           strokeColor: '#fff',
           strokeWeight: 1.5,
-          labelOrigin: new g.maps.Point(0, -2),
+          scale: 1,
+          anchor: new g.maps.Point(0, 0),
+          labelOrigin: new g.maps.Point(0, -36),
         },
       });
-      marker.addListener('click', () => void openDetail(m.id));
+
+      marker.addListener('click', () => {
+        if (group.length === 1) {
+          void openDetail(group[0]!.id);
+        } else {
+          // 同一位置に複数社 → InfoWindow でピッカー表示
+          const rows = group
+            .map((m) => `<div style="padding:5px 0;border-bottom:1px solid #eee;cursor:pointer;font-size:13px"
+              onclick="window.__trMapSelect('${m.id}')">${m.name}</div>`)
+            .join('');
+          infoObj.current.setContent(
+            `<div style="min-width:160px;max-height:240px;overflow-y:auto">${rows}</div>`,
+          );
+          infoObj.current.open(mapObj.current, marker);
+        }
+      });
+
       markersRef.current.push({ marker, labelText });
     }
     setCount(drawn.current.size);
@@ -103,10 +142,7 @@ export function CompanyMap() {
       try {
         const cfg = await api.mapConfig();
         if (cancelled) return;
-        if (!cfg.enabled || !cfg.apiKey) {
-          setStatus('disabled');
-          return;
-        }
+        if (!cfg.enabled || !cfg.apiKey) { setStatus('disabled'); return; }
         await loadMaps(cfg.apiKey);
         if (cancelled || !mapRef.current) return;
         mapObj.current = new window.google.maps.Map(mapRef.current, {
@@ -115,7 +151,8 @@ export function CompanyMap() {
           mapTypeControl: false,
           streetViewControl: false,
         });
-        // ズームレベル変化でラベル表示を切り替える
+        infoObj.current = new window.google.maps.InfoWindow();
+        // ズーム変化でラベル表示を切り替え
         mapObj.current.addListener('zoom_changed', () => {
           const zoom: number = mapObj.current.getZoom() ?? 5;
           const show = zoom >= LABEL_ZOOM;
@@ -140,6 +177,13 @@ export function CompanyMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // InfoWindow の onclick が React の外から openDetail を呼べるよう global に登録
+  useEffect(() => {
+    window.__trMapSelect = (id: string) => void openDetail(id);
+    return () => { delete window.__trMapSelect; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingId]);
+
   return (
     <div>
       <h2>企業マップ</h2>
@@ -148,14 +192,12 @@ export function CompanyMap() {
         {status === 'ready' && ` (${count} 社をプロット)`}
         {loadingId && ' · 読み込み中…'}
       </p>
-
       {status === 'disabled' && (
         <div className="card">
           Google Maps の API キーが未設定です。 暗号化 config に <code>GOOGLE_MAPS_API_KEY</code> を設定すると有効になります。
         </div>
       )}
       {status === 'error' && <div className="card" style={{ color: '#c62828' }}>⚠ {error}</div>}
-
       <div
         ref={mapRef}
         style={{
