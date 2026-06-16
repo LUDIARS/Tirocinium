@@ -16,6 +16,51 @@ export function normalizeTitle(title: string): string {
     .trim();
 }
 
+// 主要フランチャイズの別名 → 正規シリーズキー。 表記揺れ・略称・下位シリーズを親へ寄せる。
+// 過剰マージを避けるため一般ヒューリスティックでは畳まず、 明示の対応表のみで畳む (キーは normalizeSeries の機械正規化後の形)。
+const SERIES_ALIASES: Record<string, string> = {
+  // ファイナルファンタジー (FF・下位シリーズ ファブラ ノヴァ クリスタリス を親へ)
+  ff: 'ファイナルファンタジー',
+  finalfantasy: 'ファイナルファンタジー',
+  ファイナルファンタジー: 'ファイナルファンタジー',
+  ファブラノヴァクリスタリスff: 'ファイナルファンタジー',
+  ファブラノヴァクリスタリス: 'ファイナルファンタジー',
+  fabulanovacrystallis: 'ファイナルファンタジー',
+  // ドラゴンクエスト
+  dq: 'ドラゴンクエスト',
+  dragonquest: 'ドラゴンクエスト',
+  ドラクエ: 'ドラゴンクエスト',
+  ドラゴンクエスト: 'ドラゴンクエスト',
+  // ゼルダの伝説
+  thelegendofzelda: 'ゼルダの伝説',
+  zelda: 'ゼルダの伝説',
+  ゼルダの伝説: 'ゼルダの伝説',
+  // ペルソナ
+  persona: 'ペルソナ',
+  ペルソナ: 'ペルソナ',
+  // ストリートファイター
+  streetfighter: 'ストリートファイター',
+  ストリートファイター: 'ストリートファイター',
+};
+
+/**
+ * シリーズ名を同シリーズ判定キーに正規化する (NFKC + lower + 記号/空白/「シリーズ」除去)。
+ * 既知フランチャイズは {@link SERIES_ALIASES} で略称・下位シリーズを親キーへ畳む。
+ * 未知シリーズは機械正規化のみ (過剰マージしない)。 空/正規化後空 → ''。 純粋・決定論。
+ */
+export function normalizeSeries(series: string): string {
+  const base = (series ?? '')
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\s　]/g, '')
+    .replace(/(シリーズ|series)$/g, '')
+    // 記号は除去するが、 長音符 'ー' は語の一部 (ファイナルファンタジー 等) なので残す。
+    .replace(/[【】「」『』（）()[\]、,，.。・:：!！?？\-‐―~〜/\\＆&]/g, '')
+    .trim();
+  if (!base) return '';
+  return SERIES_ALIASES[base] ?? base;
+}
+
 /** 括弧 (全角/半角) の深さを考慮して top-level の区切り (、,) で分割する。 */
 export function splitTopLevel(s: string): string[] {
   const out: string[] = [];
@@ -92,10 +137,12 @@ export function normalizeGame(input: GameInput): NormalizedGame | null {
   if (!title) return null;
   const normalized_title = normalizeTitle(title);
   if (!normalized_title) return null;
+  const series = str(input.series, 120);
   return {
     title,
     normalized_title,
-    series: str(input.series, 120),
+    series,
+    normalized_series: normalizeSeries(series),
     platform: str(input.platform, 60),
     platform_class: str(input.platform_class, 20),
     genre: str(input.genre, 80),
