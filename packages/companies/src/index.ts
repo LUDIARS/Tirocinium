@@ -46,6 +46,12 @@ export {
 export { mergeSources, coerceSources } from './provenance.js';
 export { normalizeTitle, normalizeSeries, splitTopLevel, parseGamesFromResearch, normalizeGame, classifyPlatform } from './game.js';
 export {
+  parseStaffCredits,
+  type StaffCredit,
+  type StaffCreditRole,
+  type StaffCredits,
+} from './staff-credits.js';
+export {
   normalizeTechName,
   normalizeTechToken,
   parseTechStack,
