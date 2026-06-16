@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGamesApi, type ObResult, type RelatedCompany } from '../api/games.js';
+import { useCompaniesApi } from '../api/companies.js';
 
 const listingLabel = (m: string): string =>
   ({ prime: '一部上場', growth: 'マザーズ', standard: '二部', other: '上場' } as Record<string, string>)[m] ?? '';
@@ -28,10 +29,13 @@ function ObBreakdown({ ob }: { ob: ObResult }) {
 /** 関連会社 1 社のカード。 OB 集計は遅延取得 (展開時のみ fetch)。 */
 export function CompanyCard({ c }: { c: RelatedCompany }) {
   const api = useGamesApi();
+  const companiesApi = useCompaniesApi();
   const size = c.employee_count > 0 ? `${c.employee_count}名` : '規模不明';
   const [ob, setOb] = useState<ObResult | null>(null);
   const [obOpen, setObOpen] = useState(false);
   const [obBusy, setObBusy] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichQueued, setEnrichQueued] = useState(false);
 
   const toggleOb = async () => {
     const next = !obOpen;
@@ -48,6 +52,21 @@ export function CompanyCard({ c }: { c: RelatedCompany }) {
     }
   };
 
+  const requestEnrich = async () => {
+    if (enriching || enrichQueued) return;
+    setEnriching(true);
+    try {
+      await companiesApi.enrich({ company_id: c.id });
+      setEnrichQueued(true);
+    } catch {
+      /* 失敗時は無視 (キューは別途自動処理) */
+    } finally {
+      setEnriching(false);
+    }
+  };
+
+  const hasInfo = c.description !== '';
+
   return (
     <div className="card company-card">
       <div className="company-card-head">
@@ -60,6 +79,8 @@ export function CompanyCard({ c }: { c: RelatedCompany }) {
         {c.is_social && <span className="fd-chip">ソシャゲ</span>}
         {c.is_newgrad && <span className="fd-chip">新卒採用</span>}
         {c.has_opening && <span className="fd-chip">募集中</span>}
+        {c.article_count > 0 && <span className="fd-chip">記事 {c.article_count}件</span>}
+        {c.has_profile && <span className="fd-chip">IR/理念済</span>}
         {c.ob_total > 0 && (
           <button className="fd-chip ob" onClick={() => void toggleOb()}>
             OB {c.ob_total}名{obOpen ? ' ▲' : ' ▼'}
@@ -68,6 +89,7 @@ export function CompanyCard({ c }: { c: RelatedCompany }) {
         {c.relation === 'direct' && c.role && <span className="fd-chip">{c.role}</span>}
       </div>
       {obOpen && (obBusy ? <div className="company-card-desc">OB 集計 読み込み中…</div> : ob && <ObBreakdown ob={ob} />)}
+      {hasInfo && <div className="company-card-desc">{c.description}</div>}
       {c.tech && c.tech.length > 0 && (
         <div className="company-card-badges">
           {c.tech.slice(0, 8).map((t) => (
@@ -91,6 +113,15 @@ export function CompanyCard({ c }: { c: RelatedCompany }) {
           <a className="fd-link-btn" href={c.recruit_url} target="_blank" rel="noreferrer">
             採用ページ
           </a>
+        )}
+        {!hasInfo && c.url && (
+          <button
+            className="fd-link-btn"
+            onClick={() => void requestEnrich()}
+            disabled={enriching || enrichQueued}
+          >
+            {enrichQueued ? '依頼済' : enriching ? 'キュー中…' : '情報クロール依頼'}
+          </button>
         )}
       </div>
     </div>
