@@ -2,11 +2,11 @@
 // upsertGame は normalized_title で冪等、 出所 (sources) を read-merge-write で累積。
 
 import { sql, isSqlite } from '../db/index.js';
-import { coerceSources, mergeSources, type Game, type NormalizedGame } from '@tirocinium/companies';
+import { coerceSources, mergeSources, normalizeSeries, type Game, type NormalizedGame } from '@tirocinium/companies';
 import { getCompanyTechMap } from './tech-repo.js';
 
 const gameCols = () => sql`
-  id, title, normalized_title, series, platform, platform_class, genre, release_year,
+  id, title, normalized_title, series, normalized_series, platform, platform_class, genre, release_year,
   source, source_url, sources, crawled_at, updated_at
 `;
 
@@ -33,14 +33,15 @@ export async function upsertGame(g: NormalizedGame): Promise<'inserted' | 'updat
   );
   await sql`
     INSERT INTO games
-      (title, normalized_title, series, platform, platform_class, genre, release_year, source, source_url, sources)
+      (title, normalized_title, series, normalized_series, platform, platform_class, genre, release_year, source, source_url, sources)
     VALUES (
-      ${g.title}, ${g.normalized_title}, ${g.series}, ${g.platform}, ${g.platform_class}, ${g.genre},
+      ${g.title}, ${g.normalized_title}, ${g.series}, ${g.normalized_series}, ${g.platform}, ${g.platform_class}, ${g.genre},
       ${g.release_year}, ${g.source}, ${g.source_url}, ${sql.json(merged)}
     )
     ON CONFLICT (normalized_title) DO UPDATE SET
       title          = EXCLUDED.title,
-      series         = COALESCE(NULLIF(EXCLUDED.series, ''), games.series),
+      series            = COALESCE(NULLIF(EXCLUDED.series, ''), games.series),
+      normalized_series = COALESCE(NULLIF(EXCLUDED.normalized_series, ''), games.normalized_series),
       platform       = COALESCE(NULLIF(EXCLUDED.platform, ''), games.platform),
       platform_class = COALESCE(NULLIF(EXCLUDED.platform_class, ''), games.platform_class),
       genre          = COALESCE(NULLIF(EXCLUDED.genre, ''), games.genre),
@@ -66,6 +67,25 @@ export async function linkCompanyGame(
     ON CONFLICT (company_id, game_id, role) DO UPDATE SET
       source = COALESCE(NULLIF(EXCLUDED.source, ''), company_game.source)
   `;
+}
+
+/**
+ * 既存 games の normalized_series を normalizeSeries(series) で埋め直す (#202 backfill)。
+ * 変化のある行だけ UPDATE する (updated_at は触らず順序を乱さない)。 冪等。
+ * @returns 更新した行数
+ */
+export async function backfillNormalizedSeries(): Promise<number> {
+  const rows = await sql<{ id: string; series: string; normalized_series: string }[]>`
+    SELECT id, series, normalized_series FROM games
+  `;
+  let updated = 0;
+  for (const r of rows) {
+    const want = normalizeSeries(r.series ?? '');
+    if (want === (r.normalized_series ?? '')) continue;
+    await sql`UPDATE games SET normalized_series = ${want} WHERE id = ${r.id}`;
+    updated++;
+  }
+  return updated;
 }
 
 export async function countGames(): Promise<number> {
@@ -243,14 +263,20 @@ export async function relatedCompaniesByGame(
   for (const r of coDev) addReason(r, `共作: ${r.via_title}`);
 
   // 2) 同シリーズの他作品の開発/発売企業 (series が分かる場合)。
+  // 正規化キー (normalized_series) で表記揺れ/略称/下位シリーズを束ねる。 backfill 前 (正規化キー空)
+  // の行は raw series へ degrade する (検索を壊さない)。 #202。
   if (game.series) {
     const sameSeries = await sql<(RelatedCompany & { via_title: string })[]>`
       SELECT ${COMPANY_SEL()}, g2.title AS via_title
       FROM games g0
-      JOIN games g2 ON g2.series = g0.series AND g2.id <> g0.id
+      JOIN games g2
+        ON (CASE WHEN g2.normalized_series <> '' THEN g2.normalized_series ELSE g2.series END)
+         = (CASE WHEN g0.normalized_series <> '' THEN g0.normalized_series ELSE g0.series END)
+         AND g2.id <> g0.id
       JOIN company_game cg ON cg.game_id = g2.id
       JOIN companies c ON c.id = cg.company_id
-      WHERE g0.id = ${gameId} AND g0.series <> ''
+      WHERE g0.id = ${gameId}
+        AND (CASE WHEN g0.normalized_series <> '' THEN g0.normalized_series ELSE g0.series END) <> ''
         AND c.id NOT IN (SELECT company_id FROM company_game WHERE game_id = ${gameId})
     `;
     for (const r of sameSeries) addReason(r, `${game.series}シリーズ: ${r.via_title}`);

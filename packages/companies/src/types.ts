@@ -99,7 +99,10 @@ export type NormalizedGame = {
   title: string;
   /** dedup キー (記号/版表記/全角半角除去) */
   normalized_title: string;
+  /** 表示用シリーズ名 (原文) */
   series: string;
+  /** 同シリーズ判定キー (表記揺れ/略称/下位シリーズを畳んだ正規キー、 migration 016) */
+  normalized_series: string;
   platform: string;
   /** mobile/console/pc (migration 010) */
   platform_class: string;
