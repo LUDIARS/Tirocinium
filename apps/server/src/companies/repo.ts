@@ -25,6 +25,10 @@ export type CompanyFilter = {
   quality?: boolean;
   /** 情報あり (会社概要 description が非空) の企業のみ。 未取得は除外 (チェックで解除)。 */
   summarized?: boolean;
+  /** 新卒採用ありの企業のみ (is_newgrad)。 既定の優先ソートとは独立した絞り込み。 */
+  newgrad?: boolean;
+  /** 現在募集中の企業のみ (has_opening)。 判定はキーワード heuristic ベースで粗め。 */
+  opening?: boolean;
   limit?: number;
   offset?: number;
 };
@@ -57,7 +61,13 @@ export async function listCompanies(filter: CompanyFilter = {}): Promise<Company
       (SELECT count(*) FROM company_game cg WHERE cg.company_id = c.id) AS game_count
     FROM companies c
     ${companyFilterSql(filter)}
-    ORDER BY c.updated_at DESC
+    -- 新卒採用あり ∧ 募集中 を最上位に出す (ユーザ要望)。 続けて新卒のみ → 募集中のみ → 更新日時。
+    -- bool は PG=true/SQLite=1 で DESC が「該当を先頭」に統一できる。
+    ORDER BY
+      (c.is_newgrad AND c.has_opening) DESC,
+      c.is_newgrad DESC,
+      c.has_opening DESC,
+      c.updated_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
   return rows.map((r) => ({
@@ -78,6 +88,8 @@ function companyFilterSql(filter: CompanyFilter) {
         AND EXISTS (SELECT 1 FROM company_game cg WHERE cg.company_id = c.id)
       ` : sql``}
       ${filter.summarized ? sql`AND c.description <> ''` : sql``}
+      ${filter.newgrad ? sql`AND c.is_newgrad` : sql``}
+      ${filter.opening ? sql`AND c.has_opening` : sql``}
       ${filter.q ? (isSqlite
         ? sql`AND (
             c.name LIKE ${like}
