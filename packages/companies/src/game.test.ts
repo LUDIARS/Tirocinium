@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeTitle, normalizeSeries, splitTopLevel, parseGamesFromResearch, normalizeGame, classifyPlatform } from './game.js';
+import { normalizeTitle, normalizeSeries, splitTopLevel, parseGamesFromResearch, normalizeGame, classifyPlatform, pickRepresentativeGames } from './game.js';
 
 describe('classifyPlatform', () => {
   it('mobile-only → mobile', () => {
@@ -100,5 +100,48 @@ describe('normalizeGame', () => {
     expect(g?.series).toBe('FF');
     expect(g?.normalized_series).toBe('ファイナルファンタジー');
     expect(normalizeGame({ title: '無印', source: 'x' })?.normalized_series).toBe('');
+  });
+});
+
+describe('pickRepresentativeGames', () => {
+  const g = (title: string, series: string, release_year: number, role: string) => ({ title, series, release_year, role });
+
+  it('シリーズ単位で 1 作 (最新年) に畳む', () => {
+    const out = pickRepresentativeGames(
+      [
+        g('FFXV', 'ファイナルファンタジー', 2016, 'developer'),
+        g('FFXVI', 'FF', 2023, 'developer'), // 同シリーズ (略称) → 畳む。 新しい 2023 が代表
+        g('ドラクエXI', 'ドラゴンクエスト', 2017, 'developer'),
+      ],
+      5,
+    );
+    expect(out).toHaveLength(2);
+    const ff = out.find((x) => x.series === 'FF' || x.series === 'ファイナルファンタジー')!;
+    expect(ff.release_year).toBe(2023);
+  });
+
+  it('自社開発/発売を関与のみ (support/credited) より優先する', () => {
+    const out = pickRepresentativeGames(
+      [
+        g('手伝った大作', '', 2024, 'support'),
+        g('自社作', '', 2020, 'developer'),
+      ],
+      2,
+    );
+    expect(out[0]!.title).toBe('自社作'); // 新しくても support は後ろ
+  });
+
+  it('n 件で打ち切り、 release_year 降順', () => {
+    const out = pickRepresentativeGames(
+      [g('A', '', 2020, 'developer'), g('B', '', 2022, 'developer'), g('C', '', 2021, 'developer')],
+      2,
+    );
+    expect(out.map((x) => x.title)).toEqual(['B', 'C']);
+  });
+
+  it('n<=0 や空は空配列、 タイトル空は除外', () => {
+    expect(pickRepresentativeGames([g('A', '', 2020, 'developer')], 0)).toEqual([]);
+    expect(pickRepresentativeGames([], 3)).toEqual([]);
+    expect(pickRepresentativeGames([g('', '', 2020, 'developer')], 3)).toEqual([]);
   });
 });

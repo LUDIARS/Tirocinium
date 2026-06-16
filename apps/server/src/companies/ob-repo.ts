@@ -2,7 +2,8 @@
 // 個人レコードは持たない。 PK (company_id, join_year, class_name, role) で冪等 upsert。
 
 import { sql } from '../db/index.js';
-import { buildObSummary, type NormalizedObPlacement, type ObPlacement, type ObSummary } from '@tirocinium/companies';
+import { buildObSummary, pickRepresentativeGames, type NormalizedObPlacement, type ObPlacement, type ObSummary } from '@tirocinium/companies';
+import { getGamesByCompany, type CompanyGame } from './games-repo.js';
 
 /** upsert / delete に必要な集計セルの最小形 (company_id 解決済のため社名は不要)。 */
 export type ObPlacementCell = Pick<NormalizedObPlacement, 'join_year' | 'class_name' | 'role' | 'headcount'>;
@@ -92,4 +93,21 @@ export async function topCompaniesByOb(limit = 30): Promise<ObRankRow[]> {
     LIMIT ${lim}
   `;
   return rows.map((r) => ({ ...r, ob_total: Number(r.ob_total) }));
+}
+
+/** OB 輩出スタジオ 1 件 (OB 累計 + 代表作)。 個人なし。 */
+export type ObStudio = ObRankRow & { games: CompanyGame[] };
+
+/**
+ * OB を輩出した企業を OB 数順に並べ、 各社の代表作 (company_game) を付けて返す。
+ * OB→会社 (集計) と 会社→ゲーム を結合した「OB 輩出スタジオ × 代表作」ビュー (個人照合なし・§2.1 準拠)。
+ */
+export async function topObStudios(limit = 20, gamesPerStudio = 4): Promise<ObStudio[]> {
+  const studios = await topCompaniesByOb(limit);
+  const out: ObStudio[] = [];
+  for (const s of studios) {
+    const games = await getGamesByCompany(s.id);
+    out.push({ ...s, games: pickRepresentativeGames(games, gamesPerStudio) });
+  }
+  return out;
 }

@@ -8,6 +8,7 @@ import {
   type NewgradRoleImage,
 } from '../api/companies.js';
 import { CompanyDetailModal } from './CompanyDetailModal.js';
+import { ObStudios } from './ObStudios.js';
 
 export function Companies() {
   const api = useCompaniesApi();
@@ -223,6 +224,8 @@ export function Companies() {
 
       {error && <p style={{ color: '#c62828' }}>{error}</p>}
       {note && <p style={{ color: '#2e7d32' }}>{note}</p>}
+
+      <ObStudios onPick={setQ} />
 
       <div className="card">
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>

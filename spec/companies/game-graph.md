@@ -185,6 +185,11 @@ service account (読み取り専用) で差分同期する admin 専用フロー
 - **差分 (Sheet 正本同期)**: `source='sheet-sync'` の DB 現状 (prev) と Sheet 全量 (next) を `diffObCells` (純) で突合 → 新規/headcount 変更 upsert + Sheet から消えたセルの削除。 手動 CSV 取込 (`source='user'`) のセルには触れない。
 - **アクセス制御**: creds/id/range は secret 経由 (`TIROCINIUM_OB_SHEET_SA_JSON` / `_ID` / `_RANGE`、 リポ非コミット)。 起動は admin (`COMPANY_CRAWL_ADMIN_IDS`) のみ — CLI `companies:ob-sync` (`--dry-run` 可) / admin API `POST /companies/ob/sync`。 公開 API には集計しか出ない。
 
+**OB×ゲーム結合ビュー (✅ 2026-06-17)**: OB を「結果にマージ」する読み出し。 OB→会社 (集計) と 会社→ゲーム (`company_game`) を**結合**し、
+「**OB 輩出スタジオ × 代表作**」を出す (`GET /companies/ob/studios`、 desktop の企業プールに `ObStudios` パネル)。 個人照合なし・§2.1 準拠。
+- 代表作選定は純関数 `pickRepresentativeGames` (シリーズ単位で 1 作に畳む + 自社開発/発売 role 優先 + 年降順)。
+- **個人名クレジット照合 (氏名 ⇄ スタッフロール) は不採用**: 個人名クレジットの構造化源 (MobyGames API) は **ToS が人物特定情報の harvest を禁止**、かつ漢字⇄ローマ字の名寄せが不安定で同姓同名誤ヒットの恐れ → 外部 ToS + `project_personal_data_rule` + 精度の三点で見送り (2026-06-17 決定)。 個人粒度が要る場合は外部 harvest せず **OB 本人申告 (Sheet に参加作品列)** の許諾ルートで持つ。
+
 ### 5.4 Phase4: IR 従業員数 裏取り
 `listing_market<>''` または research 名寄れ失敗で `employee_count=0` の社を対象に、
 IR/株価情報・会社情報ページをクロールして従業員数を確定 (`extractEmployeeFromIR`)。
