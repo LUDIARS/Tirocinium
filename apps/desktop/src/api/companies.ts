@@ -195,6 +195,9 @@ export function useCompaniesApi() {
         body: JSON.stringify(input),
       });
     },
+    async get(id: string): Promise<{ company: Company }> {
+      return fetchJson(`/api/v1/companies/${id}`, token);
+    },
     async profile(id: string): Promise<{ profile: CompanyProfile }> {
       return fetchJson(`/api/v1/companies/${id}/profile`, token);
     },

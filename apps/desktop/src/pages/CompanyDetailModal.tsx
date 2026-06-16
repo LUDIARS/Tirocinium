@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import type { RelatedCompany } from '../api/games.js';
 import {
   useCompaniesApi,
   type CompanyProfile,
@@ -8,6 +7,38 @@ import {
   type CompanyArticle,
   type ContributeSummary,
 } from '../api/companies.js';
+
+/** Company / RelatedCompany 両型を受け取れる最小共通インターフェース */
+export type CompanyModalData = {
+  id: string;
+  name: string;
+  url: string;
+  recruit_url: string;
+  has_profile: boolean;
+  description: string;
+  is_newgrad: boolean;
+  has_opening: boolean;
+  article_count: number;
+  industry: string;
+  location: string;
+  // RelatedCompany 固有 (optional)
+  is_social?: boolean;
+  is_smb?: boolean;
+  employee_count?: number;
+  listing_market?: string;
+  tech?: string[];
+  ob_total?: number;
+  relation?: string;
+  via_titles?: string[];
+  shared_games?: number;
+  role?: string;
+  // Company 固有 (optional)
+  is_game?: boolean;
+  game_count?: number;
+  has_newgrad_image?: boolean;
+  size?: string;
+  roles?: string[];
+};
 
 type Tab = 'overview' | 'profile' | 'newgrad' | 'games' | 'articles';
 
@@ -100,7 +131,7 @@ function ContributeModal({ id, name, onClose }: { id: string; name: string; onCl
   );
 }
 
-export function CompanyDetailModal({ c, onClose }: { c: RelatedCompany; onClose: () => void }) {
+export function CompanyDetailModal({ c, onClose }: { c: CompanyModalData; onClose: () => void }) {
   const api = useCompaniesApi();
   const [tab, setTab] = useState<Tab>('overview');
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
@@ -186,11 +217,16 @@ export function CompanyDetailModal({ c, onClose }: { c: RelatedCompany; onClose:
                   }
                   {c.has_opening && <span style={{ background: '#2e7d32', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 12 }}>募集中</span>}
                   {c.is_social && <span style={{ background: '#6a1b9a', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 12 }}>ソシャゲ</span>}
+                  {c.is_game && <span style={{ background: '#6a1b9a', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 12 }}>ゲーム</span>}
+                  {(c.game_count ?? 0) > 0 && <span style={{ background: '#5e35b1', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 12 }}>ゲーム {c.game_count} 本</span>}
                   {c.article_count > 0 && <span style={{ background: '#e65100', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 12 }}>記事 {c.article_count}件</span>}
                   {c.has_profile && <span style={{ background: '#37474f', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 12 }}>IR/理念済</span>}
-                  <span className="fd-chip">{c.is_smb ? '中小' : '大手'}</span>
-                  {c.employee_count > 0 && <span className="fd-chip">{c.employee_count}名</span>}
-                  {listingLabel(c.listing_market) && <span className="fd-chip">{listingLabel(c.listing_market)}</span>}
+                  {c.has_newgrad_image && <span style={{ background: '#00838f', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 12 }}>新卒像済</span>}
+                  {c.is_smb != null && <span className="fd-chip">{c.is_smb ? '中小' : '大手'}</span>}
+                  {c.size && <span className="fd-chip">{c.size}</span>}
+                  {(c.employee_count ?? 0) > 0 && <span className="fd-chip">{c.employee_count}名</span>}
+                  {c.listing_market && listingLabel(c.listing_market) && <span className="fd-chip">{listingLabel(c.listing_market)}</span>}
+                  {(c.ob_total ?? 0) > 0 && <span className="fd-chip">OB {c.ob_total}名</span>}
                 </div>
                 {c.industry && <div style={{ fontSize: 13, color: 'var(--c-subtle)', marginBottom: 8 }}>{c.industry}</div>}
                 {hasInfo
@@ -213,6 +249,9 @@ export function CompanyDetailModal({ c, onClose }: { c: RelatedCompany; onClose:
                   <div className="company-card-badges">
                     {c.tech.map((t) => <span key={t} className="fd-chip tech">{t}</span>)}
                   </div>
+                )}
+                {c.roles && c.roles.length > 0 && (
+                  <div style={{ fontSize: 13, color: 'var(--c-subtle)', marginTop: 8 }}>職種: {c.roles.join(', ')}</div>
                 )}
                 {c.location && <div style={{ fontSize: 13, color: 'var(--c-subtle)', marginTop: 8 }}>{c.location}</div>}
                 {c.relation === 'related' && c.via_titles && c.via_titles.length > 0 && (
