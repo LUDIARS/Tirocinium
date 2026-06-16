@@ -31,5 +31,21 @@
     "urls": ["https://example.com/jobs/newgrad"],
     "enabled": false,
     "note": "汎用求人aggregatorの新卒一覧。エージェント型/SPAは企業名がログイン裏で取得困難なことが多い。ログイン無しで企業名が列挙される一覧のみ対象。robots許可範囲で実URL確認後に有効化"
+  },
+  {
+    "id": "mobygames-credits",
+    "kind": "staff-credits",
+    "tier": "primary",
+    "urls": ["https://example.com/mobygames-game-credits"],
+    "enabled": false,
+    "note": "スタッフロール発見 (#200)。MobyGames のゲーム credits ページ。決定論パース parseStaffCredits で Game↔企業(dev/pub/support/credited)を抽出し外注スタジオを発見、未知企業は source=staff-credits で自動登録。OB在籍証明/検索の company↔game グラフ補強に使う。実URL未確定のためtemplate。MobyGitsのToS/robotsを目視確認し、許可範囲を確認後に実URL差し替え+ COMPANY_LISTING_OPTIN_SOURCES=mobygames-credits で opt-in 有効化"
+  },
+  {
+    "id": "wikipedia-credits",
+    "kind": "staff-credits",
+    "tier": "secondary",
+    "urls": ["https://example.com/wikipedia-game-credits"],
+    "enabled": false,
+    "note": "スタッフロール発見 (#200)。Wikipedia のゲーム記事クレジット節 (CC BY-SA・再利用可だが帰属表示要)。実URL未確定のためtemplate。節構造確認後に実URL差し替え+opt-in 有効化"
   }
 ]
