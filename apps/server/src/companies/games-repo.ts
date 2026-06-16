@@ -143,6 +143,14 @@ export type RelatedCompany = {
   primary_platform: string;
   /** OB 就職者数 (company_ob_placement 集計、 0=データ無し) */
   ob_total: number;
+  /** 企業概要 (空文字 = 未取得) */
+  description: string;
+  /** IR/理念 取得済フラグ */
+  has_profile: boolean;
+  /** 記事数 */
+  article_count: number;
+  /** 最終クロール日時 */
+  crawled_at: string | null;
   /** direct=このゲームに直接関与 / related=作り手と他作品を共作 */
   relation: 'direct' | 'related';
   /** direct のとき: 役割 (developer/support 等) */
@@ -169,6 +177,7 @@ const COMPANY_SEL = () => sql`
   c.id, c.name, c.location, c.url, c.industry, c.is_smb, c.is_listed,
   c.employee_count, c.listing_market, c.is_newgrad, c.has_opening, c.recruit_url,
   c.is_social, c.primary_platform,
+  c.description, c.has_profile, c.article_count, c.crawled_at,
   (SELECT COALESCE(sum(op.headcount), 0) FROM company_ob_placement op WHERE op.company_id = c.id) AS ob_total
 `;
 
@@ -195,7 +204,8 @@ export async function relatedCompaniesByGame(
   const direct: RelatedCompany[] = directRows.map((r) => ({
     ...r, is_smb: toBool(r.is_smb), is_listed: toBool(r.is_listed), is_newgrad: toBool(r.is_newgrad),
     has_opening: toBool(r.has_opening), is_social: toBool(r.is_social), employee_count: Number(r.employee_count),
-    ob_total: Number(r.ob_total), relation: 'direct',
+    ob_total: Number(r.ob_total), has_profile: toBool(r.has_profile), article_count: Number(r.article_count ?? 0),
+    description: r.description ?? '', relation: 'direct',
   }));
 
   const byId = new Map<string, RelatedCompany>();
@@ -209,6 +219,8 @@ export async function relatedCompaniesByGame(
         listing_market: row.listing_market, is_newgrad: toBool(row.is_newgrad), has_opening: toBool(row.has_opening),
         is_social: toBool(row.is_social), primary_platform: row.primary_platform,
         ob_total: Number(row.ob_total),
+        description: row.description ?? '', has_profile: toBool(row.has_profile),
+        article_count: Number(row.article_count ?? 0), crawled_at: row.crawled_at ?? null,
         recruit_url: row.recruit_url, relation: 'related', shared_games: 0, via_titles: [],
       };
       byId.set(row.id, rc);
@@ -293,7 +305,8 @@ export async function companiesByTech(
   let out = rows.map((r) => ({
     ...r, is_smb: toBool(r.is_smb), is_listed: toBool(r.is_listed), is_newgrad: toBool(r.is_newgrad),
     has_opening: toBool(r.has_opening), is_social: toBool(r.is_social), employee_count: Number(r.employee_count),
-    ob_total: Number(r.ob_total), relation: 'related' as const,
+    ob_total: Number(r.ob_total), has_profile: toBool(r.has_profile), article_count: Number(r.article_count ?? 0),
+    description: r.description ?? '', relation: 'related' as const,
   }));
   if (filters.smb) out = out.filter((r) => r.is_smb);
   if (filters.social) out = out.filter((r) => r.is_social);

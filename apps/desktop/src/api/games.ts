@@ -26,6 +26,10 @@ export type RelatedCompany = {
   is_social: boolean;
   primary_platform: string;
   ob_total: number;
+  description: string;
+  has_profile: boolean;
+  article_count: number;
+  crawled_at: string | null;
   relation: 'direct' | 'related';
   role?: string;
   shared_games?: number;
