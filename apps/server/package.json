@@ -17,6 +17,7 @@
     "companies:tech-build": "tsx ../../scripts/companies-tech-build/index.ts",
     "companies:ob-import": "tsx ../../scripts/companies-ob-import/index.ts",
     "companies:gbiz-import": "tsx ../../scripts/companies-gbiz-import/index.ts",
+    "companies:ir-employee": "tsx ../../scripts/companies-ir-employee/index.ts",
     "ft-loop": "tsx ../../scripts/ft-loop/index.ts",
     "test": "vitest run",
     "bench": "tsx bench/request-latency.ts"

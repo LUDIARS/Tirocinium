@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   extractEmployeeCount,
+  extractEmployeeFromIR,
   parseListingMarket,
   isSMBByEmployees,
   listingLabel,
@@ -33,6 +34,34 @@ describe('extractEmployeeCount', () => {
   it('returns 0 for unknown / empty', () => {
     expect(extractEmployeeCount(undefined)).toBe(0);
     expect(extractEmployeeCount('非公開')).toBe(0);
+  });
+});
+
+describe('extractEmployeeFromIR', () => {
+  it('falls back to the same anchor extraction as extractEmployeeCount', () => {
+    expect(extractEmployeeFromIR('従業員数 540名（2026年3月期）')).toBe(540);
+    expect(extractEmployeeFromIR('社員数 1,200名')).toBe(1200);
+  });
+  it('prefers 連結 (consolidated) over 単体 regardless of marker position', () => {
+    // 連結が先 (前置語マーカー)。
+    expect(extractEmployeeFromIR('従業員数 連結12,345名 単体3,400名')).toBe(12345);
+    // 単体が先・連結が後 でも連結を採る。
+    expect(extractEmployeeFromIR('従業員数：単独3,084名／連結8,666名')).toBe(8666);
+  });
+  it('reads 連結 from a trailing parenthetical note', () => {
+    expect(extractEmployeeFromIR('従業員数 8,900名（連結）')).toBe(8900);
+    // 末尾注記で連結/単体を区別できる場合は連結を採る (出現順に依らない)。
+    expect(extractEmployeeFromIR('従業員数 2,100名（連結）、従業員数 420名（単体）')).toBe(2100);
+  });
+  it('uses the max when no consolidation marker is present', () => {
+    expect(extractEmployeeFromIR('東京拠点 従業員120名、大阪拠点 従業員80名')).toBe(120);
+  });
+  it('handles 万 unit IR phrasing', () => {
+    expect(extractEmployeeFromIR('従業員数 連結 約1.1万人（2026年3月末）')).toBe(11000);
+  });
+  it('returns 0 when no 従業員 anchor (avoids 資本金/売上 noise)', () => {
+    expect(extractEmployeeFromIR('資本金1,000百万円、売上高45,000百万円。')).toBe(0);
+    expect(extractEmployeeFromIR(undefined)).toBe(0);
   });
 });
 

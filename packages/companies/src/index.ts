@@ -59,6 +59,7 @@ export {
   SMB_EMPLOYEE_MAX,
   isSMBByEmployees,
   extractEmployeeCount,
+  extractEmployeeFromIR,
   parseListingMarket,
   listingLabel,
   type ListingMarket,

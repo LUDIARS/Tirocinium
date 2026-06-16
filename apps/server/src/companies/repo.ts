@@ -303,3 +303,38 @@ export async function companiesNeedingEnrichment(limit = 50): Promise<Company[]>
     LIMIT ${Math.min(Math.max(limit, 1), 200)}
   `;
 }
+
+// ── IR 従業員数 裏取り (spec/companies/game-graph.md §5.4 Phase4) ──
+
+/**
+ * IR 従業員裏取りの対象社。 employee_count=0 (規模不明) ∧ url 有 を対象に、
+ * 上場社 (listing_market<>'' or is_listed) を優先する (IR ページを持つ確度が高い)。
+ * research 名寄れ失敗の非上場社も後続で拾う。
+ */
+export async function companiesNeedingIrEmployee(limit = 20): Promise<Company[]> {
+  return sql<Company[]>`
+    SELECT ${selectCols()} FROM companies c
+    WHERE c.employee_count = 0
+      AND c.url <> ''
+    ORDER BY (c.listing_market <> '' OR c.is_listed) DESC, c.updated_at DESC
+    LIMIT ${Math.min(Math.max(limit, 1), 200)}
+  `;
+}
+
+/**
+ * 従業員数を確定値で更新し、 is_smb を再導出する (IR 裏取り由来)。
+ * count<=0 は no-op (不明で上書きしない)。 確定情報なので既存値があっても上書きする。
+ * @returns 更新された (1 行ヒット) か
+ */
+export async function updateEmployeeCount(id: string, count: number): Promise<boolean> {
+  if (!Number.isFinite(count) || count <= 0) return false;
+  const rows = await sql<{ id: string }[]>`
+    UPDATE companies SET
+      employee_count = ${Math.round(count)},
+      is_smb = ${isSMBByEmployees(count)},
+      updated_at = now()
+    WHERE id = ${id}
+    RETURNING id
+  `;
+  return rows.length > 0;
+}

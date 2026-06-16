@@ -145,7 +145,7 @@ migration は ALTER→INDEX 順序遵守 ([[feedback_sqlite_create_index_after_a
 - `parseGamesFromResearch(research): GameLink[]` — 既存 `companies-research.json` の `games` 文 (代表作) と
   `game_kind` から Game + developer edge を導出 (Phase 1 の初期投入源)。
 - `parseStaffCredits(pageText): { game, companies[] }` — スタッフロール掲載元から Game↔企業 を抽出 (Phase 2)。
-- `extractEmployeeFromIR(irText): number` — IR 文から従業員数を裏取り抽出 (Phase 4、[[size.ts]] 再利用)。
+- `extractEmployeeFromIR(irText): number` — IR 文から従業員数を裏取り抽出 (Phase 4、[[size.ts]] 再利用)。✅ 実装済: `extractEmployeeCount` と同じ anchor 規則で「連結/単体」併記に対応し連結 (グループ全体規模) を優先。
 
 LLM は listing 同様 **抽出段のみ**で使用可、束ね/正規化/探索は決定論 ([[Canalis]] 原則)。
 
@@ -208,3 +208,4 @@ API: `POST /api/v1/companies/related { seed: {game?|series?|company?}, hops?: 2,
 2. **スタッフロール発見クロール**: `staff-credits` source + `parseStaffCredits` → credited edge + 新企業発見。
 3. **OB 集計インポータ** ✅ 実装済: `company_ob_placement` migration (011) + 取込 CLI (`companies:ob-import`、 CSV/JSON 自動判別) + 集計 API (`GET /:id/ob`・`GET /ob/top`) + 検索表示 (関連会社カードに OB 累計 chip + 内訳)。 純パース/集計は `@tirocinium/companies` の `ob.ts`。 個人列は列名で拾わず構造的に排除 (§2.1)。 k-匿名性 (人数1 セル) は §7 のとおり実数表示で確定 (2026-06-15)。
 4. **関係性レコメンド + IR 従業員裏取り**: `/companies/related` 探索 API + `extractEmployeeFromIR` クロール。
+   - IR 従業員裏取り ✅ 実装済 (2026-06-16): 純関数 `extractEmployeeFromIR` (`size.ts`、 連結 (consolidated) 優先・決定論・LLM 不使用) + クロール CLI `companies:ir-employee`。 対象は `employee_count=0` ∧ url 有 (上場社優先)。 ホーム→同一ホストの IR/会社概要ページを巡回し従業員数を確定 → `employee_count`/`is_smb` 更新、 IR 本文は (LLM 要約が無い社のみ) `company_profiles.ir_summary` に保持。 純 IO は `ir-employee-extract.ts` に分離 (DB 非依存・テスト可能)。

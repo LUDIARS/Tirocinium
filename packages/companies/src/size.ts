@@ -18,24 +18,80 @@ export function isSMBByEmployees(employeeCount: number): boolean {
 
 const num = (s: string): number => Number(s.replace(/[,，\s]/g, ''));
 
+/** 従業員数の 1 マッチ。 consolidated = 連結 (グループ全体) 規模か。 at = 出現位置。 */
+type EmployeeMatch = { value: number; consolidated: boolean; at: number };
+
+// 「従業員/社員(数)」アンカー。 ここから後方ウィンドウの図表を読む。
+const EMP_ANCHOR_RE = /(?:従業員|社員)\s*数?\s*[:：]?/g;
+// アンカー後方の「(連結/単体 等のラベル)数値(範囲)?(万)?名/人(（注記）)?」を 1 件ずつ拾う。
+// ラベルは数値直前の非数字 8 文字 (連結/単独/グループ/約 等)。 末尾の （連結）/（単体）注記も拾う。
+const EMP_FIGURE_RE =
+  /([^\d名人]{0,8})([\d,，.]+)\s*(?:[〜～\-‐−]\s*[約]*\s*([\d,，.]+))?\s*(万)?\s*[名人]\s*(?:[（(]\s*([^）)]{0,12}?)\s*[）)])?/g;
+const CONSOLIDATED_RE = /連結|グループ|全社|全体/;
+const NONCONSOLIDATED_RE = /単体|単独/;
+// 1 アンカーから読む後方ウィンドウ長 (「連結X名 単体Y名」併記を 1 アンカーで拾える程度)。
+const FIGURE_WINDOW = 48;
+
+/**
+ * テキスト中の「従業員/社員」アンカー付き従業員数を全て収集する (出現順)。
+ * 各アンカーの後方ウィンドウ内の「ラベル+数値+名/人」を順に拾い、 範囲は上限を採る。
+ * 直前ラベル or 末尾注記の「連結/グループ/全体」で consolidated を立て、「単体/単独」は連結扱いしない。
+ * 別アンカーを跨いだ数値はそのアンカー側に任せて打ち切る。 anchor 必須で資本金等の誤検出を防ぐ。 純粋・決定論。
+ */
+function collectEmployeeMatches(text: string | undefined): EmployeeMatch[] {
+  const t = (text ?? '').replace(/\s+/g, ' ');
+  const out: EmployeeMatch[] = [];
+  if (!t) return out;
+  EMP_ANCHOR_RE.lastIndex = 0;
+  let a: RegExpExecArray | null;
+  while ((a = EMP_ANCHOR_RE.exec(t)) !== null) {
+    const start = a.index + a[0].length;
+    const window = t.slice(start, start + FIGURE_WINDOW);
+    EMP_FIGURE_RE.lastIndex = 0;
+    let f: RegExpExecArray | null;
+    while ((f = EMP_FIGURE_RE.exec(window)) !== null) {
+      const label = f[1] ?? '';
+      // 別アンカー (従業員/社員) を跨いだ数値は、 そのアンカーの iteration に任せて打ち切る。
+      if (/従業員|社員/.test(label)) break;
+      const unit = f[4] === '万' ? 10000 : 1;
+      const lo = num(f[2]!);
+      const hi = f[3] ? num(f[3]) : lo;
+      const v = Math.max(lo, hi) * unit; // 範囲は上限を採用 (中小判定で過小評価しない)
+      if (!Number.isFinite(v) || v <= 0) continue;
+      const marker = `${label} ${f[5] ?? ''}`;
+      const consolidated = CONSOLIDATED_RE.test(marker) && !NONCONSOLIDATED_RE.test(marker);
+      const at = start + f.index;
+      if (!out.some((o) => o.at === at)) out.push({ value: Math.round(v), consolidated, at });
+    }
+  }
+  out.sort((p, q) => p.at - q.at);
+  return out;
+}
+
 /**
  * 日本語テキストから従業員数を抽出する。 抽出できなければ 0 (不明)。
  * 例: "従業員数128名" → 128 / "従業員数約4〜6名" → 6 (範囲は上限) /
  *     "社員数 1,200名" → 1200 / "従業員数 約1.2万人" → 12000。
- * 「従業員/社員」の語に近い数値のみを採る (資本金等の誤検出を避ける)。
+ * 「従業員/社員」の語に近い数値のみを採る (資本金等の誤検出を避ける)。 最初の 1 件を採用。
  */
 export function extractEmployeeCount(text: string | undefined): number {
-  const t = (text ?? '').replace(/\s+/g, ' ');
-  if (!t) return 0;
-  // 「従業員(数)/社員(数)」の後、 数値直前の語 (連結/単独/グループ全体/約 等) を 8 文字まで
-  // 読み飛ばし、 最初の数値表現 (範囲は上限) を採る。 資本金など他フィールド誤検出を防ぐため anchor 必須。
-  const m = t.match(/(?:従業員|社員)\s*数?\s*[:：]?\s*[^\d名人]{0,8}?([\d,，.]+)\s*(?:[〜～\-‐−]\s*[約]*\s*([\d,，.]+))?\s*(万)?\s*[名人]/);
-  if (!m) return 0;
-  const unit = m[3] === '万' ? 10000 : 1;
-  const lo = num(m[1]!);
-  const hi = m[2] ? num(m[2]) : lo;
-  const v = Math.max(lo, hi) * unit; // 範囲は上限を採用 (中小判定で過小評価しない)
-  return Number.isFinite(v) && v > 0 ? Math.round(v) : 0;
+  return collectEmployeeMatches(text)[0]?.value ?? 0;
+}
+
+/**
+ * IR / 会社情報ページ本文から従業員数を裏取り抽出する (game-graph §5.4 Phase4)。
+ * {@link extractEmployeeCount} と同じ anchor 規則だが、 IR 文に頻出する「連結 / 単体(単独)」
+ * 併記に対応し、 企業グループ全体の規模である**連結 (consolidated) を優先**する。
+ * 連結マーカーが無ければ全候補の最大値を採る。 純粋・決定論 (LLM 不使用)。 抽出不可は 0。
+ * 例: "従業員数 連結12,345名 単体3,400名" → 12345 /
+ *     "従業員数 8,900名（連結）" → 8900 / "従業員数 540名" → 540。
+ */
+export function extractEmployeeFromIR(irText: string | undefined): number {
+  const candidates = collectEmployeeMatches(irText);
+  if (candidates.length === 0) return 0;
+  const consolidated = candidates.filter((c) => c.consolidated);
+  const pool = consolidated.length > 0 ? consolidated : candidates;
+  return pool.reduce((max, c) => Math.max(max, c.value), 0);
 }
 
 /**
