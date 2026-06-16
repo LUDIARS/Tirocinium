@@ -291,6 +291,26 @@ export async function relatedCompaniesByGame(
   return { game, direct: directOut, related };
 }
 
+export type CompanyGame = {
+  id: string;
+  title: string;
+  series: string;
+  platform: string;
+  release_year: number;
+  role: string;
+};
+
+/** 企業が関与したゲーム一覧 (company_game → games)。 */
+export async function getGamesByCompany(companyId: string): Promise<CompanyGame[]> {
+  const rows = await sql<CompanyGame[]>`
+    SELECT g.id, g.title, g.series, g.platform, g.release_year, cg.role
+    FROM company_game cg JOIN games g ON g.id = cg.game_id
+    WHERE cg.company_id = ${companyId}
+    ORDER BY g.release_year DESC, g.title
+  `;
+  return rows.map((r) => ({ ...r, release_year: Number(r.release_year) }));
+}
+
 /** 技術名 (engine/language 等) で企業を引く (技術グラフの直接クエリ)。 */
 export async function companiesByTech(
   techName: string,

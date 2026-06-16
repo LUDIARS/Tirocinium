@@ -776,7 +776,7 @@ pre {
   border-radius: 6px;
 }
 .modal-close:hover { background: var(--c-muted); color: var(--c-text); }
-.modal-body { padding: 20px; overflow-y: auto; }
+.modal-body { padding: 20px; overflow-y: auto; overscroll-behavior: contain; }
 
 /* === Tabs (職種別など) === */
 .fd-tabs {

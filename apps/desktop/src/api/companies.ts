@@ -110,6 +110,21 @@ export type EnrichQueueStatus = {
   attempted: number;
 };
 
+export type CompanyGame = {
+  id: string;
+  title: string;
+  series: string;
+  platform: string;
+  release_year: number;
+  role: string;
+};
+
+export type CompanyArticle = {
+  url: string;
+  title: string;
+  body: string;
+};
+
 export type MapMarker = {
   id: string;
   name: string;
@@ -189,6 +204,12 @@ export function useCompaniesApi() {
     },
     async newgrad(id: string): Promise<{ roles: NewgradRoleImage[] }> {
       return fetchJson(`/api/v1/companies/${id}/newgrad`, token);
+    },
+    async games(id: string): Promise<{ games: CompanyGame[] }> {
+      return fetchJson(`/api/v1/companies/${id}/games`, token);
+    },
+    async articles(id: string): Promise<{ articles: CompanyArticle[] }> {
+      return fetchJson(`/api/v1/companies/${id}/articles`, token);
     },
   };
 }
