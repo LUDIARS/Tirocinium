@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { RelatedCompany } from '../api/games.js';
-import { CompanyDetailModal } from './CompanyDetailModal.js';
+import { CompanyDetailModal, type CompanyModalData } from './CompanyDetailModal.js';
 
 const listingLabel = (m: string): string =>
   ({ prime: '一部上場', growth: 'マザーズ', standard: '二部', other: '上場' } as Record<string, string>)[m] ?? '';

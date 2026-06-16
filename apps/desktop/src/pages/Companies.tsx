@@ -7,6 +7,7 @@ import {
   type EnrichQueueStatus,
   type NewgradRoleImage,
 } from '../api/companies.js';
+import { CompanyDetailModal } from './CompanyDetailModal.js';
 
 export function Companies() {
   const api = useCompaniesApi();
@@ -31,6 +32,7 @@ export function Companies() {
   const [newgradModal, setNewgradModal] = useState<{ id: string; name: string } | null>(null);
   const [contributeFor, setContributeFor] = useState<{ id: string; name: string } | null>(null);
   const [queue, setQueue] = useState<EnrichQueueStatus | null>(null);
+  const [detailFor, setDetailFor] = useState<Company | null>(null);
 
   const reload = async (query = q) => {
     try {
@@ -304,7 +306,7 @@ export function Companies() {
         )}
         <div className="company-grid">
           {visible.map((c) => (
-            <div key={c.id} className="company-card">
+            <div key={c.id} className="company-card" style={{ cursor: 'pointer' }} onClick={() => setDetailFor(c)}>
               <div className="company-card-head">
                 <span className="company-card-name">{c.name}</span>
               </div>
@@ -327,7 +329,7 @@ export function Companies() {
                 {c.stock_reason && <span>· {c.stock_reason}</span>}
               </div>
               {profiles[c.id] && <ProfileView p={profiles[c.id]!} />}
-              <div className="company-card-actions">
+              <div className="company-card-actions" onClick={(e) => e.stopPropagation()}>
                 {c.url && (
                   <a className="fd-link-btn" href={c.url} target="_blank" rel="noreferrer">サイト ↗</a>
                 )}
@@ -387,6 +389,7 @@ export function Companies() {
           onApplied={() => void reload()}
         />
       )}
+      {detailFor && <CompanyDetailModal c={detailFor} onClose={() => setDetailFor(null)} />}
     </div>
   );
 }
