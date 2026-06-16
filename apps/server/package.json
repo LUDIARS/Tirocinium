@@ -18,6 +18,7 @@
     "companies:ob-import": "tsx ../../scripts/companies-ob-import/index.ts",
     "companies:gbiz-import": "tsx ../../scripts/companies-gbiz-import/index.ts",
     "companies:ir-employee": "tsx ../../scripts/companies-ir-employee/index.ts",
+    "companies:wikidata-url": "tsx ../../scripts/companies-wikidata-url/index.ts",
     "ft-loop": "tsx ../../scripts/ft-loop/index.ts",
     "test": "vitest run",
     "bench": "tsx bench/request-latency.ts"

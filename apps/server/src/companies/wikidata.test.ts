@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseGameRows, cleanCompanyLabel } from './wikidata.js';
+import { parseGameRows, cleanCompanyLabel, parseOfficialSite } from './wikidata.js';
 
 describe('cleanCompanyLabel', () => {
   it('strips legal suffix and parenthetical for Wikidata label match', () => {
@@ -32,5 +32,16 @@ describe('parseGameRows', () => {
 
   it('skips rows without a game label', () => {
     expect(parseGameRows([{ game: { value: 'http://q/Q9' } }])).toEqual([]);
+  });
+});
+
+describe('parseOfficialSite', () => {
+  it('returns the first http(s) site value', () => {
+    expect(parseOfficialSite([{ site: { value: 'https://www.capcom.co.jp/' } }])).toBe('https://www.capcom.co.jp/');
+  });
+  it('skips non-http values and empty bindings', () => {
+    expect(parseOfficialSite([{ site: { value: 'ftp://x' } }, { site: { value: 'https://ok.jp' } }])).toBe('https://ok.jp');
+    expect(parseOfficialSite([])).toBe('');
+    expect(parseOfficialSite([{ }])).toBe('');
   });
 });

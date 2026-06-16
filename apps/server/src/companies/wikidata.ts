@@ -54,6 +54,48 @@ export function parseGameRows(bindings: Binding[]): WikidataGame[] {
 /** Wikidata Q-URI ラベルがそのまま QID の場合 (ラベル未解決) は除外する。 */
 const isRawQid = (s: string): boolean => /^Q\d+$/.test(s);
 
+/** SPARQL bindings から最初の妥当な公式サイト URL (http/https) を採る。 純粋・テスト可能。 */
+export function parseOfficialSite(bindings: Binding[]): string {
+  for (const b of bindings) {
+    const site = b['site']?.value?.trim();
+    if (site && /^https?:\/\//i.test(site)) return site;
+  }
+  return '';
+}
+
+/**
+ * 企業 label から Wikidata の公式サイト (P856) を引く (game-graph §0 / 名寄れ補完)。
+ * 組織 (Q43229 の派生) に限定して同名異体の誤マッチを避ける。 決定論・公開オープンデータ・LLM 不使用。
+ * 見つからなければ ''。 SPARQL は研究目的・礼節 UA。
+ */
+export async function fetchOfficialSite(
+  companyLabel: string,
+  opts: { timeoutMs?: number } = {},
+): Promise<string> {
+  const label = cleanCompanyLabel(companyLabel);
+  if (!label) return '';
+  const query = `
+    SELECT ?site WHERE {
+      ?company rdfs:label ${JSON.stringify(label)}@ja .
+      ?company wdt:P31/wdt:P279* wd:Q43229 .
+      ?company wdt:P856 ?site .
+    } LIMIT 5`;
+  const url = `${ENDPOINT}?format=json&query=${encodeURIComponent(query)}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 20_000);
+  try {
+    const res = await fetch(url, {
+      headers: { accept: 'application/sparql-results+json', 'user-agent': UA },
+      signal: ctrl.signal,
+    });
+    if (!res.ok) throw new Error(`wikidata HTTP ${res.status}`);
+    const json = (await res.json()) as { results?: { bindings?: Binding[] } };
+    return parseOfficialSite(json.results?.bindings ?? []);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** 企業 label を起点に、 関わったゲーム + 各ゲームの dev/pub/series を取得する。 */
 export async function fetchGamesForCompany(
   companyLabel: string,
