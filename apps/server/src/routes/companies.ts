@@ -9,8 +9,8 @@ import { runListingCrawl } from '../companies/listing-crawler.js';
 import { runEnrichment } from '../companies/enrich.js';
 import { loadListingSources, selectActiveSources } from '../companies/listing-config.js';
 import { getProfile } from '../companies/profile-repo.js';
-import { getNewgradRoleImages } from '../companies/newgrad-repo.js';
-import { searchGames, relatedCompaniesByGame, companiesByTech } from '../companies/games-repo.js';
+import { getNewgradRoleImages, listInterviewArticles } from '../companies/newgrad-repo.js';
+import { searchGames, relatedCompaniesByGame, companiesByTech, getGamesByCompany } from '../companies/games-repo.js';
 import { getObSummary, getObPlacements, topCompaniesByOb } from '../companies/ob-repo.js';
 import { runContribute } from '../companies/contribute.js';
 import { enrichQueueStatus } from '../companies/enrich-queue.js';
@@ -140,6 +140,18 @@ companies.get('/:id/profile', async (c) => {
 companies.get('/:id/newgrad', async (c) => {
   const roles = await getNewgradRoleImages(c.req.param('id'));
   return c.json({ roles });
+});
+
+/** GET /api/v1/companies/:id/games — 企業が関与したゲーム一覧 */
+companies.get('/:id/games', async (c) => {
+  const games = await getGamesByCompany(c.req.param('id'));
+  return c.json({ games });
+});
+
+/** GET /api/v1/companies/:id/articles — 企業のインタビュー記事一覧 */
+companies.get('/:id/articles', async (c) => {
+  const articles = await listInterviewArticles(c.req.param('id'), 50);
+  return c.json({ articles });
 });
 
 /** GET /api/v1/companies/:id — 企業詳細 */
