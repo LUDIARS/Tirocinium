@@ -228,8 +228,8 @@ export function Companies() {
       <ObStudios onPick={setQ} />
 
       <div className="card">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-          <h3 style={{ margin: 0, flex: 1 }}>
+        <div className="company-list-head">
+          <h3 style={{ margin: 0 }}>
             登録済み一覧 ({visible.length !== total ? `${visible.length} / ${total}` : total})
           </h3>
           <div className="company-search">
@@ -339,23 +339,20 @@ export function Companies() {
                 {c.recruit_url && (
                   <a className="fd-link-btn" href={c.recruit_url} target="_blank" rel="noreferrer">採用 ↗</a>
                 )}
-                <button
-                  className="fd-btn-secondary"
-                  style={{ fontSize: 12, padding: '4px 12px' }}
-                  onClick={() => (profiles[c.id] ? loadProfile(c.id) : enrichOne(c.id))}
-                  disabled={busy !== null || (!c.url && !profiles[c.id] && !c.has_profile)}
-                  title={!c.url && !c.has_profile ? 'URL 未登録 — 「情報提供」からリンクを追加してください' : ''}
-                >
-                  {busy === `enrich-${c.id}`
-                    ? '取得中…'
-                    : profiles[c.id]
-                      ? 'IR/理念を再読込しない'
-                      : c.has_profile
-                        ? 'IR/理念を表示'
-                        : c.description
-                          ? 'IR/理念取得'
-                          : '情報クロール依頼'}
-                </button>
+                {(c.has_profile || !!profiles[c.id] || busy === `enrich-${c.id}`) && (
+                  <button
+                    className="fd-btn-secondary"
+                    style={{ fontSize: 12, padding: '4px 12px' }}
+                    onClick={() => (profiles[c.id] ? loadProfile(c.id) : enrichOne(c.id))}
+                    disabled={busy !== null}
+                  >
+                    {busy === `enrich-${c.id}`
+                      ? '取得中…'
+                      : profiles[c.id]
+                        ? 'IR/理念を再読込'
+                        : 'IR/理念を表示'}
+                  </button>
+                )}
                 <button
                   className="fd-btn-secondary"
                   style={{ fontSize: 12, padding: '4px 12px' }}
