@@ -176,9 +176,11 @@ export type RelatedFilters = {
 const COMPANY_SEL = () => sql`
   c.id, c.name, c.location, c.url, c.industry, c.is_smb, c.is_listed,
   c.employee_count, c.listing_market, c.is_newgrad, c.has_opening, c.recruit_url,
-  c.is_social, c.primary_platform,
-  c.description, c.has_profile, c.article_count, c.crawled_at,
-  (SELECT COALESCE(sum(op.headcount), 0) FROM company_ob_placement op WHERE op.company_id = c.id) AS ob_total
+  c.is_social, c.primary_platform, c.description, c.crawled_at,
+  (SELECT COALESCE(sum(op.headcount), 0) FROM company_ob_placement op WHERE op.company_id = c.id) AS ob_total,
+  (SELECT count(*) FROM company_interview_articles a WHERE a.company_id = c.id) AS article_count,
+  CASE WHEN EXISTS(SELECT 1 FROM company_profiles p WHERE p.company_id = c.id)
+       THEN TRUE ELSE FALSE END AS has_profile
 `;
 
 const toBool = (v: unknown): boolean => v === true || v === 1 || v === '1' || v === 't';
