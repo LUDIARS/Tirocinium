@@ -44,3 +44,13 @@ tirocinium.config.json
 
 # クラッシュダンプ (git-bash 等)
 *.stackdump
+
+# 企業DBパイプライン生成物 (data/ 直下のみ; data/companies/ 等サブディレクトリは追跡)
+data/*.json
+
+# companies-viewer 用の生成データ
+companies-viewer/data.js
+
+# レビュー出力 (Castra 管理: E:/Document/Ars/Review/<repo>/<date>/)
+review/
+review.localbak/

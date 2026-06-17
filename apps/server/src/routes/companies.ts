@@ -13,6 +13,7 @@ import { getNewgradRoleImages, listInterviewArticles } from '../companies/newgra
 import { searchGames, relatedCompaniesByGame, companiesByTech, getGamesByCompany } from '../companies/games-repo.js';
 import { getObSummary, getObPlacements, topCompaniesByOb, topObStudios } from '../companies/ob-repo.js';
 import { syncObFromSheet } from '../companies/ob-sheet-sync-wire.js';
+import { mergeDuplicateCompanies } from '../companies/company-merge-wire.js';
 import { runContribute } from '../companies/contribute.js';
 import { enrichQueueStatus } from '../companies/enrich-queue.js';
 import { buildMapMarkers } from '../companies/geocode.js';
@@ -244,6 +245,23 @@ companies.post('/enrich', cernereAuth, async (c) => {
     return c.json({ summary }, 200);
   } catch (err) {
     return c.json({ error: 'enrich_failed', detail: (err as Error).message }, 502);
+  }
+});
+
+/**
+ * POST /api/v1/companies/merge-duplicates — corporate_number が同じ重複企業を 1 行にマージ (admin 専用)。
+ * { dryRun?: boolean } — true なら差分算出のみ (DB 反映なし)。
+ * spec/companies/game-graph.md §5.5 (英⇔カナ社名の自動マージ #197)。
+ */
+companies.post('/merge-duplicates', cernereAuth, async (c) => {
+  const user = c.get('user');
+  if (!canCrawl(user.id)) return c.json({ error: 'forbidden' }, 403);
+  const body = (await c.req.json().catch(() => null)) as { dryRun?: boolean } | null;
+  try {
+    const summary = await mergeDuplicateCompanies({ dryRun: body?.dryRun === true });
+    return c.json({ summary }, 200);
+  } catch (err) {
+    return c.json({ error: 'merge_failed', detail: (err as Error).message }, 502);
   }
 });
 
