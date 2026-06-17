@@ -195,6 +195,16 @@ service account (読み取り専用) で差分同期する admin 専用フロー
 IR/株価情報・会社情報ページをクロールして従業員数を確定 (`extractEmployeeFromIR`)。
 IR 本文は `company_profiles.ir_summary` (既存) に**「ゲーム業界動向」用として保持**。
 
+### 5.5 Phase5: 英⇔カナ社名の自動マージ (#197) ✅ 実装済
+
+`normalized_name` が異なる同一企業 (例: 「Capcom Co., Ltd.」と「カプコン」) を `corporate_number` (gBizINFO 由来) を基準に名寄せして 1 行に集約する。
+
+- **重複検出**: `corporate_number` が同じ (非空) 企業行を重複グループとみなす。
+- **survivor 選定**: (url非空?1:0) + (description非空?1:0) + game_count + ob_count のスコアで最充実行を survivor に選ぶ。同点は `crawled_at` 昇順 → `id` 昇順で決定論的に解決。
+- **全参照テーブル repoint**: 8 子テーブル (company_profiles / company_interview_articles / company_newgrad_images / company_newgrad_role_images / company_game / company_partner / company_tech / company_ob_placement) の `company_id` を survivor に張り直す。PK 衝突は `ON CONFLICT DO NOTHING` で回避。`company_ob_placement` は headcount を合算 (`DO UPDATE SET headcount = ... + EXCLUDED.headcount`)。`company_partner` は `company_id`/`partner_id` 双方を置換し、置換後に自己ループになる行は `CHECK company_id <> partner_id` 違反なので除外する。
+- **フィールド集約**: sources は全行 union、boolean フラグ (is_newgrad/is_game/has_opening/is_smb/is_listed) は OR、scalar (url/description 等) は survivor が空なら loser の非空値で補完。
+- **実行**: CLI `companies:merge-duplicates` (`--dry-run` 可) / admin API `POST /api/v1/companies/merge-duplicates { dryRun? }`。純関数は `@tirocinium/companies` の `company-merge.ts`、DB 非依存コアは `company-merge-core.ts`、配線は `company-merge-wire.ts`。
+
 ---
 
 ## 6. レコメンド (関係性軸)
@@ -217,7 +227,7 @@ API: `POST /api/v1/companies/related { seed: {game?|series?|company?}, hops?: 2,
 
 - ~~**OB の k-匿名性**: 人数 1 のセルの扱い~~ → **決定 (2026-06-15): 実数表示のまま**。OB は集計のみ・個人特定不可のため、人数 1 でも丸めず実数を出す (丸め / 「数名」表記 / 非表示閾値は導入しない)。
 - ゲーム名・社名の**表記揺れ名寄せ** (FF/ファイナルファンタジー、英⇔カナ社名)。series 軸 + 別名辞書で緩和、最終は corporate_number ([[spec/companies/gbizinfo.md]])。
-  - series 軸は ✅ 実装済 (2026-06-16, #202): 純関数 `normalizeSeries` (NFKC + 機械正規化 + 主要フランチャイズの別名/略称/下位シリーズを親キーへ畳む明示対応表。過剰マージ回避のため未知シリーズは機械正規化のみ)。`games.normalized_series` 列 (migration 016) に materialize し、同シリーズ判定 (`relatedCompaniesByGame`) で使用。backfill 前は raw series へ degrade。既存行は CLI `companies:series-normalize` で埋める。社名の英⇔カナ名寄せ (#197) は別途。
+  - series 軸は ✅ 実装済 (2026-06-16, #202): 純関数 `normalizeSeries` (NFKC + 機械正規化 + 主要フランチャイズの別名/略称/下位シリーズを親キーへ畳む明示対応表。過剰マージ回避のため未知シリーズは機械正規化のみ)。`games.normalized_series` 列 (migration 016) に materialize し、同シリーズ判定 (`relatedCompaniesByGame`) で使用。backfill 前は raw series へ degrade。既存行は CLI `companies:series-normalize` で埋める。社名の英⇔カナ名寄せ (#197) は §5.5 で実装済 (corporate_number 基準の自動マージ)。
 - publisher edge の網羅 (research に publisher 情報が薄い → スタッフロール/Wikidata 補完)。
 - 純グラフクエリが必要になった場合の **Kuzu 移行** (edge テーブルをそのまま移送)。
 - フロント: グラフ可視化 (企業—ゲームの関係ネットワーク表示) は別途。

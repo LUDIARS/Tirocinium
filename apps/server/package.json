@@ -22,6 +22,7 @@
     "companies:wikidata-url": "tsx ../../scripts/companies-wikidata-url/index.ts",
     "companies:series-normalize": "tsx ../../scripts/companies-series-normalize/index.ts",
     "companies:staff-credits": "tsx ../../scripts/companies-staff-credits/index.ts",
+    "companies:merge-duplicates": "tsx ../../scripts/companies-merge-duplicates/index.ts",
     "ft-loop": "tsx ../../scripts/ft-loop/index.ts",
     "test": "vitest run",
     "bench": "tsx bench/request-latency.ts"
