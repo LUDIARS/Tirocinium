@@ -40,11 +40,60 @@ export function CompanyMap() {
   const infoObj = useRef<any>(null);
   const drawn = useRef<Set<string>>(new Set());
   const markersRef = useRef<{ marker: any; labelText: string }[]>([]);
+  const myMarkerRef = useRef<any>(null);
   const [status, setStatus] = useState<'loading' | 'disabled' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string>('');
   const [count, setCount] = useState(0);
   const [detailFor, setDetailFor] = useState<Company | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [geoBusy, setGeoBusy] = useState(false);
+  const [geoError, setGeoError] = useState<string>('');
+
+  // 現在地を取得して地図をその位置にズーム。 既に全社のピンは描画済みなので、
+  // 現在地に寄せるだけで「近くの企業」が画面に集まる。
+  const locateMe = () => {
+    if (!mapObj.current) return;
+    if (!('geolocation' in navigator)) {
+      setGeoError('この端末は位置情報に対応していません');
+      return;
+    }
+    setGeoError('');
+    setGeoBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeoBusy(false);
+        const g = window.google;
+        if (!g || !mapObj.current) return;
+        const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        mapObj.current.setCenter(here);
+        mapObj.current.setZoom(14); // LABEL_ZOOM 以上 → 近隣企業の名前ラベルも表示される
+        if (myMarkerRef.current) myMarkerRef.current.setMap(null);
+        myMarkerRef.current = new g.maps.Marker({
+          position: here,
+          map: mapObj.current,
+          title: '現在地',
+          zIndex: 9999,
+          icon: {
+            path: g.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: '#1a73e8',
+            fillOpacity: 1,
+            strokeColor: '#fff',
+            strokeWeight: 2,
+          },
+        });
+      },
+      (err) => {
+        setGeoBusy(false);
+        setGeoError(
+          err.code === err.PERMISSION_DENIED
+            ? '位置情報の利用が許可されませんでした (ブラウザ/OS の設定を確認)'
+            : '現在地を取得できませんでした',
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
 
   const openDetail = async (id: string) => {
     if (loadingId) return;
@@ -198,6 +247,14 @@ export function CompanyMap() {
         </div>
       )}
       {status === 'error' && <div className="card" style={{ color: '#c62828' }}>⚠ {error}</div>}
+      {status === 'ready' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0', flexWrap: 'wrap' }}>
+          <button type="button" onClick={locateMe} disabled={geoBusy}>
+            {geoBusy ? '現在地を取得中…' : '📍 現在地から近い企業を探す'}
+          </button>
+          {geoError && <span style={{ color: '#c62828', fontSize: 13 }}>{geoError}</span>}
+        </div>
+      )}
       <div
         ref={mapRef}
         style={{
