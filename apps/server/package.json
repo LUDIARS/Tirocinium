@@ -30,6 +30,7 @@
     "@discordjs/voice": "^0.17.0",
     "@hono/node-server": "^1.13.0",
     "@ludiars/canalis": "^0.1.0",
+    "@tirocinium/analytics": "*",
     "@tirocinium/companies": "*",
     "@tirocinium/llm": "*",
     "@tirocinium/secrets": "*",

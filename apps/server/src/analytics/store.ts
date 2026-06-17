@@ -1,26 +1,7 @@
 import { sql } from '../db/index.js';
+import type { AnalyticsEvent, DailySummary, DailyTrend } from '@tirocinium/analytics';
 
-export type AnalyticsEvent = {
-  event_type: 'page_view' | 'company_view';
-  path: string;
-  entity_id?: string;
-  entity_name?: string;
-  ip: string;
-  browser: string;
-  user_agent: string;
-  referrer: string;
-};
-
-export type DailySummary = {
-  date: string;
-  total_events: number;
-  unique_ips: number;
-  page_views: { path: string; views: number }[];
-  top_companies: { entity_id: string; entity_name: string; views: number }[];
-  browsers: { browser: string; count: number }[];
-};
-
-export type DailyTrend = { date: string; total: number; unique_ips: number };
+export type { AnalyticsEvent, DailySummary, DailyTrend };
 
 export function detectBrowser(ua: string): string {
   if (!ua) return 'Unknown';
