@@ -9,7 +9,6 @@ const navItems: { to: string; label: string }[] = [
   { to: '/recommend', label: 'おすすめ企業' },
   { to: '/reference', label: '参考リンク' },
   { to: '/ob-messages', label: '卒業生メッセージ' },
-  { to: '/analytics', label: 'アクセス解析' },
 ];
 
 export function App() {
