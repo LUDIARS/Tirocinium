@@ -12,6 +12,7 @@ import { CompanyMap } from './pages/CompanyMap.js';
 import { HomePage } from './pages/HomePage.js';
 import { ReferencePage } from './pages/ReferencePage.js';
 import { ObMessagesPage } from './pages/ObMessagesPage.js';
+import { AnalyticsPage } from './pages/AnalyticsPage.js';
 // 面接ページ (履歴から復元)。ナビには載せず URL 直アクセスのみで開く (配線しない)。
 import { SessionStart } from './pages/SessionStart.js';
 import { SessionLive } from './pages/SessionLive.js';
@@ -35,6 +36,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route path="recommend" element={<Recommend />} />
               <Route path="reference" element={<ReferencePage />} />
               <Route path="ob-messages" element={<ObMessagesPage />} />
+              <Route path="analytics" element={<AnalyticsPage />} />
               {/* 面接ページ: URL 直アクセス用 (ナビリンクは張らない)。入口は /session/start */}
               <Route path="session/start" element={<SessionStart />} />
               <Route path="session/:id" element={<SessionLive />} />

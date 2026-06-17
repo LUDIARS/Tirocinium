@@ -1,4 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { tracker } from './analytics/tracker.js';
 
 const navItems: { to: string; label: string }[] = [
   { to: '/companies', label: '企業プール' },
@@ -7,9 +9,15 @@ const navItems: { to: string; label: string }[] = [
   { to: '/recommend', label: 'おすすめ企業' },
   { to: '/reference', label: '参考リンク' },
   { to: '/ob-messages', label: '卒業生メッセージ' },
+  { to: '/analytics', label: 'アクセス解析' },
 ];
 
 export function App() {
+  const location = useLocation();
+  useEffect(() => {
+    void tracker.pageView(location.pathname);
+  }, [location.pathname]);
+
   return (
     <div className="app-shell">
       <header className="app-header">

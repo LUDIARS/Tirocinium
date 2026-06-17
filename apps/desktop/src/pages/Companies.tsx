@@ -9,6 +9,7 @@ import {
 } from '../api/companies.js';
 import { CompanyDetailModal } from './CompanyDetailModal.js';
 import { ObStudios } from './ObStudios.js';
+import { tracker } from '../analytics/tracker.js';
 
 export function Companies() {
   const api = useCompaniesApi();
@@ -309,7 +310,7 @@ export function Companies() {
         )}
         <div className="company-grid">
           {visible.map((c) => (
-            <div key={c.id} className="company-card" style={{ cursor: 'pointer' }} onClick={() => setDetailFor(c)}>
+            <div key={c.id} className="company-card" style={{ cursor: 'pointer' }} onClick={() => { setDetailFor(c); void tracker.companyView(c.id, c.name, '/companies'); }}>
               <div className="company-card-head">
                 <span className="company-card-name">{c.name}</span>
               </div>
