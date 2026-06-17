@@ -126,6 +126,17 @@ code, pre { font-family: var(--f-mono); }
   max-width: 1024px;
   margin: 0 auto;
   width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .app-header {
+    padding: 10px 12px;
+    gap: 12px;
+  }
+  .app-main {
+    padding: 12px;
+  }
 }
 
 /* === Card / section === */
@@ -168,8 +179,8 @@ textarea {
   color: var(--c-text);
   border: 1px solid var(--c-border);
   border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 0.9rem;
+  padding: 8px 12px;
+  font-size: 1rem;
   font-family: inherit;
 }
 input:focus, select:focus, textarea:focus {
@@ -186,8 +197,8 @@ textarea {
   color: var(--c-text);
   border: 1px solid var(--c-border);
   border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 0.9rem;
+  padding: 8px 12px;
+  font-size: 1rem;
 }
 
 /* === Buttons === */
@@ -874,12 +885,27 @@ pre {
   flex-shrink: 0;
 }
 
+/* === Company list header (タイトル + 検索 + ボタン行) === */
+.company-list-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
 /* === Company cards (企業プール一覧) === */
 .company-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 12px;
   align-items: start;
+}
+
+@media (max-width: 600px) {
+  .company-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .company-card {

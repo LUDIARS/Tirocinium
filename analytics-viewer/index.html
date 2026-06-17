@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>アクセス解析 — Tirocinium</title>
+<style>
+  :root {
+    --bg: #0f1115; --card: #181b22; --line: #272b34; --fg: #e6e8ee; --muted: #98a0ae;
+    --accent: #7aa2ff; --good: #4ec98a; --warn: #e0b341; --bad: #e06a6a; --chip: #232734;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.6 system-ui, "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: rgba(15,17,21,.92); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); padding: 14px 20px; }
+  h1 { font-size: 18px; margin: 0 0 10px; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input, select { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: 14px; font-family: inherit; }
+  button { cursor: pointer; background: var(--chip); color: var(--accent); border: 1px solid var(--accent); border-radius: 10px; padding: 8px 14px; font-size: 14px; font-family: inherit; }
+  button:hover { background: #1e2440; }
+  button.active { background: var(--accent); color: #0f1115; }
+  label { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  main { padding: 18px 20px 60px; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .card-title { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 12px; }
+  .wide { grid-column: 1 / -1; }
+  .stats-row { display: flex; gap: 28px; flex-wrap: wrap; }
+  .stat-block .stat { font-size: 30px; font-weight: 700; color: var(--accent); }
+  .stat-block .label { color: var(--muted); font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  th { color: var(--muted); font-weight: normal; font-size: 11px; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .bar-label { min-width: 90px; color: var(--muted); font-size: 12px; text-align: right; }
+  .bar-track { flex: 1; background: var(--line); border-radius: 4px; height: 14px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+  .bar-val { min-width: 30px; text-align: right; color: var(--muted); font-size: 12px; }
+  .trend-wrap { display: flex; align-items: flex-end; gap: 3px; height: 90px; }
+  .trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 0; }
+  .trend-bar { width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; }
+  .trend-date { color: var(--muted); font-size: 9px; white-space: nowrap; margin-top: 4px; transform: rotate(-45deg); transform-origin: center top; display: block; }
+  .empty-state { color: var(--muted); text-align: center; padding: 20px; font-size: 13px; }
+  .error-banner { background: rgba(224,106,106,.12); border: 1px solid var(--bad); border-radius: 10px; color: var(--bad); padding: 12px 16px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📊 アクセス解析 — Tirocinium</h1>
+  <div class="controls">
+    <label>API: <input id="apiUrl" type="text" value="http://127.0.0.1:8084" style="min-width:200px" /></label>
+    <label>日付: <input type="date" id="dateInput" /></label>
+    <label>トレンド: <select id="daysInput"><option value="7">7日</option><option value="14" selected>14日</option><option value="30">30日</option></select></label>
+    <button onclick="load()">更新</button>
+    <button id="autoBtn" onclick="toggleAuto()">⏱ 自動更新</button>
+  </div>
+</header>
+<main id="main">
+  <div class="empty-state wide">「更新」をクリックしてデータを読み込んでください。</div>
+</main>
+<script>
+  const todayStr = new Date().toISOString().slice(0, 10);
+  document.getElementById('dateInput').value = todayStr;
+  const saved = localStorage.getItem('tr_analytics_api');
+  if (saved) document.getElementById('apiUrl').value = saved;
+
+  let autoTimer = null;
+
+  function getBase() {
+    const v = document.getElementById('apiUrl').value.trim().replace(/\/$/, '');
+    localStorage.setItem('tr_analytics_api', v);
+    return v;
+  }
+
+  async function load() {
+    const base = getBase();
+    const date = document.getElementById('dateInput').value;
+    const days = parseInt(document.getElementById('daysInput').value, 10);
+    const main = document.getElementById('main');
+    main.innerHTML = '<div class="empty-state wide">読み込み中…</div>';
+    try {
+      const [daily, trendRes] = await Promise.all([
+        fetch(`${base}/api/v1/analytics/daily?date=${encodeURIComponent(date)}`).then(r => { if (!r.ok) throw new Error(`${r.status} daily`); return r.json(); }),
+        fetch(`${base}/api/v1/analytics/trend?days=${days}`).then(r => { if (!r.ok) throw new Error(`${r.status} trend`); return r.json(); }),
+      ]);
+      render(daily, trendRes.trend ?? []);
+    } catch (e) {
+      main.innerHTML = `<div class="error-banner wide">接続失敗: ${esc(e.message)}<br><small>サーバー (port 8084) が起動しているか確認してください。</small></div>`;
+    }
+  }
+
+  function toggleAuto() {
+    const btn = document.getElementById('autoBtn');
+    if (autoTimer) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+      btn.classList.remove('active');
+      btn.textContent = '⏱ 自動更新';
+    } else {
+      load();
+      autoTimer = setInterval(load, 60_000);
+      btn.classList.add('active');
+      btn.textContent = '⏹ 停止';
+    }
+  }
+
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  function render(daily, trend) {
+    const main = document.getElementById('main');
+    const maxTrend = Math.max(...trend.map(d => d.total), 1);
+    const maxViews = Math.max(...(daily.page_views ?? []).map(p => p.views), 1);
+    const maxBrowser = Math.max(...(daily.browsers ?? []).map(b => b.count), 1);
+
+    // Summary card
+    const summary = `<div class="card">
+      <p class="card-title">サマリー — ${esc(daily.date)}</p>
+      <div class="stats-row">
+        <div class="stat-block"><div class="stat">${daily.total_events ?? 0}</div><div class="label">総イベント</div></div>
+        <div class="stat-block"><div class="stat">${daily.unique_ips ?? 0}</div><div class="label">ユニーク IP</div></div>
+        <div class="stat-block"><div class="stat">${(daily.page_views ?? []).reduce((s, p) => s + p.views, 0)}</div><div class="label">ページビュー計</div></div>
+        <div class="stat-block"><div class="stat">${(daily.top_companies ?? []).length}</div><div class="label">閲覧企業数</div></div>
+      </div>
+    </div>`;
+
+    // Trend card
+    const trendCols = trend.length
+      ? trend.map(d => {
+          const pct = Math.round((d.total / maxTrend) * 100);
+          const label = d.date.slice(5);
+          return `<div class="trend-col" title="${esc(d.date)}: ${d.total}件 / ${d.unique_ips} IP">
+            <div class="trend-bar" style="height:${Math.max(pct, 2)}%"></div>
+            <span class="trend-date">${esc(label)}</span>
+          </div>`;
+        }).join('')
+      : '<div class="empty-state" style="width:100%">データなし</div>';
+    const trendCard = `<div class="card">
+      <p class="card-title">トレンド (${trend.length}日間)</p>
+      <div class="trend-wrap">${trendCols}</div>
+    </div>`;
+
+    // Page views
+    const pvRows = (daily.page_views ?? []).length
+      ? (daily.page_views ?? []).map(p => {
+          const pct = Math.round((p.views / maxViews) * 100);
+          return `<tr>
+            <td>${esc(p.path)}</td>
+            <td><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div></td>
+            <td class="num">${p.views}</td>
+          </tr>`;
+        }).join('')
+      : '<tr><td colspan="3" class="empty-state">データなし</td></tr>';
+    const pvCard = `<div class="card">
+      <p class="card-title">ページビュー</p>
+      <table>
+        <thead><tr><th>パス</th><th></th><th class="num">件数</th></tr></thead>
+        <tbody>${pvRows}</tbody>
+      </table>
+    </div>`;
+
+    // Top companies
+    const compRows = (daily.top_companies ?? []).length
+      ? (daily.top_companies ?? []).map(c =>
+          `<tr><td>${esc(c.entity_name || c.entity_id)}</td><td class="num">${c.views}</td></tr>`
+        ).join('')
+      : '<tr><td colspan="2" class="empty-state">データなし</td></tr>';
+    const compCard = `<div class="card">
+      <p class="card-title">企業閲覧ランキング</p>
+      <table>
+        <thead><tr><th>企業名</th><th class="num">閲覧数</th></tr></thead>
+        <tbody>${compRows}</tbody>
+      </table>
+    </div>`;
+
+    // Browsers
+    const browserRows = (daily.browsers ?? []).length
+      ? (daily.browsers ?? []).map(b => {
+          const pct = Math.round((b.count / maxBrowser) * 100);
+          return `<div class="bar-row">
+            <div class="bar-label">${esc(b.browser)}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+            <div class="bar-val">${b.count}</div>
+          </div>`;
+        }).join('')
+      : '<div class="empty-state">データなし</div>';
+    const browserCard = `<div class="card">
+      <p class="card-title">ブラウザ内訳</p>
+      ${browserRows}
+    </div>`;
+
+    main.innerHTML = summary + trendCard + pvCard + compCard + browserCard;
+  }
+
+  document.getElementById('dateInput').addEventListener('change', load);
+  document.getElementById('daysInput').addEventListener('change', load);
+</script>
+</body>
+</html>
