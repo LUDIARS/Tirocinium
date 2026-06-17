@@ -122,6 +122,12 @@ export {
   type GameSeedMapped,
 } from './game-seed.js';
 export {
+  selectSurvivor,
+  mergeCompanyFields,
+  type MergeCandidate,
+  type SurvivorFieldPatch,
+} from './company-merge.js';
+export {
   selectInterviewLinks,
   normalizeUrl,
   NEWGRAD_IMAGE_INSTRUCTION,
