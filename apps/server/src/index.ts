@@ -11,6 +11,7 @@ import { ftRuns } from './routes/ft_runs.js';
 import { training } from './routes/training.js';
 import { companies } from './routes/companies.js';
 import { recommendRoute } from './routes/recommend.js';
+import { resources } from './routes/resources.js';
 import { attachSessionWs } from './ws/handler.js';
 import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
 import { startEnrichQueue, stopEnrichQueue } from './companies/enrich-queue.js';
@@ -37,6 +38,7 @@ app.route('/api/v1/ft-runs', ftRuns);
 app.route('/api/v1/training', training);
 app.route('/api/v1/companies', companies);
 app.route('/api/v1/recommend', recommendRoute);
+app.route('/api/v1/resources', resources);
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404));
 

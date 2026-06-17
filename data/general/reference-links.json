@@ -1,0 +1,106 @@
+[
+  {
+    "id": "useful-job-general",
+    "name": "就活総合",
+    "links": [
+      {
+        "name": "マイナビ 新卒",
+        "url": "https://job.mynavi.jp/",
+        "description": "新卒就活最大手。ゲーム会社も掲載多数。"
+      },
+      {
+        "name": "リクナビ",
+        "url": "https://job.rikunabi.com/",
+        "description": "リクルートの新卒就活サイト。合同説明会情報も充実。"
+      },
+      {
+        "name": "OfferBox",
+        "url": "https://offerbox.jp/",
+        "description": "スカウト型就活サービス。プロフィールを充実させると企業からオファーが届く。"
+      }
+    ]
+  },
+  {
+    "id": "useful-game-industry",
+    "name": "ゲーム業界就活",
+    "links": [
+      {
+        "name": "電ファミニコゲーマー 求人",
+        "url": "https://news.denfaminicogamer.jp/",
+        "description": "ゲーム業界特化の情報サイト。業界ニュースと採用情報。"
+      },
+      {
+        "name": "ゲームクリエイターズギルド",
+        "url": "https://game-creators-guild.com/",
+        "description": "ゲームクリエイター向けコミュニティ・求人情報。"
+      },
+      {
+        "name": "CGWORLD jobs",
+        "url": "https://jobs.cgworld.jp/",
+        "description": "3DCG・ゲームグラフィック系の求人に強い。"
+      },
+      {
+        "name": "GameSpark",
+        "url": "https://www.gamespark.jp/",
+        "description": "ゲーム業界ニュースサイト。会社研究の参考に。"
+      },
+      {
+        "name": "ファミ通 採用情報まとめ",
+        "url": "https://www.famitsu.com/",
+        "description": "各社の採用情報が掲載されることがある。"
+      }
+    ]
+  },
+  {
+    "id": "useful-portfolio",
+    "name": "ポートフォリオ・スキルアップ",
+    "links": [
+      {
+        "name": "Unity Learn",
+        "url": "https://learn.unity.com/",
+        "description": "Unity 公式の学習プラットフォーム。無料コース多数。"
+      },
+      {
+        "name": "Unreal Online Learning",
+        "url": "https://dev.epicgames.com/community/learning",
+        "description": "Unreal Engine 公式の学習サイト。"
+      },
+      {
+        "name": "GitHub",
+        "url": "https://github.com/",
+        "description": "ポートフォリオ公開の定番。ゲーム会社は GitHub を見る採用担当が多い。"
+      },
+      {
+        "name": "Zenn",
+        "url": "https://zenn.dev/",
+        "description": "技術記事・本の投稿プラットフォーム。アウトプットをアピールに使える。"
+      }
+    ]
+  },
+  {
+    "id": "useful-industry-research",
+    "name": "業界研究",
+    "links": [
+      {
+        "name": "CESA (一般社団法人コンピュータエンターテインメント協会)",
+        "url": "https://www.cesa.or.jp/",
+        "description": "日本のゲーム業界団体。各種統計・白書を発行。"
+      },
+      {
+        "name": "東京ゲームショウ 公式",
+        "url": "https://tgs.nikkeibp.co.jp/",
+        "description": "出展社一覧で会社リサーチの参考に。"
+      },
+      {
+        "name": "ゲームビズ",
+        "url": "https://gamebiz.jp/",
+        "description": "ゲーム業界ビジネスニュース。IR・会社動向の把握に。"
+      },
+      {
+        "name": "四季報オンライン",
+        "url": "https://shikiho.toyokeizai.net/",
+        "description": "上場企業の財務・採用情報。ゲーム会社の健全性チェックに。"
+      }
+    ]
+  }
+]

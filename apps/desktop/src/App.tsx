@@ -5,6 +5,8 @@ const navItems: { to: string; label: string }[] = [
   { to: '/game-search', label: '関連会社さがし' },
   { to: '/map', label: '企業マップ' },
   { to: '/recommend', label: 'おすすめ企業' },
+  { to: '/reference', label: '参考リンク' },
+  { to: '/ob-messages', label: '卒業生メッセージ' },
 ];
 
 export function App() {
