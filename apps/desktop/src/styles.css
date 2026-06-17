@@ -102,6 +102,11 @@ code, pre { font-family: var(--f-mono); }
   gap: 4px;
 }
 
+/* スマホ幅では short ラベルに切り替える (既定は full のみ表示)。 */
+.nav-label-short {
+  display: none;
+}
+
 .nav-link {
   color: var(--c-subtle);
   text-decoration: none;
@@ -136,6 +141,20 @@ code, pre { font-family: var(--f-mono); }
   }
   .app-main {
     padding: 12px;
+  }
+  /* タブが画面幅に収まるよう短縮ラベル + 余白圧縮 + 折り返し許可。 */
+  .app-nav {
+    flex-wrap: wrap;
+  }
+  .nav-link {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
+  .nav-label-full {
+    display: none;
+  }
+  .nav-label-short {
+    display: inline;
   }
 }
 
