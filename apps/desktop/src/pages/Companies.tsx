@@ -11,6 +11,10 @@ import { CompanyDetailModal } from './CompanyDetailModal.js';
 import { ObStudios } from './ObStudios.js';
 import { tracker } from '../analytics/tracker.js';
 
+// 「未取得をIR/理念取得」一括ボタンは一旦非表示 (誤操作で全社クロールが走るのを防ぐ)。
+// 復活させる場合は true に戻す。
+const SHOW_ENRICH_ALL = false;
+
 export function Companies() {
   const api = useCompaniesApi();
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -276,9 +280,11 @@ export function Companies() {
               </ul>
             )}
           </div>
-          <button onClick={enrichAll} disabled={busy !== null}>
-            {busy === 'enrich-all' ? 'IR/理念取得中…' : '未取得をIR/理念取得'}
-          </button>
+          {SHOW_ENRICH_ALL && (
+            <button onClick={enrichAll} disabled={busy !== null}>
+              {busy === 'enrich-all' ? 'IR/理念取得中…' : '未取得をIR/理念取得'}
+            </button>
+          )}
         </div>
         {/* 生成済みデータの俯瞰 + 絞り込み (検索とは独立) */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8, fontSize: 12, opacity: 0.85, flexWrap: 'wrap' }}>
