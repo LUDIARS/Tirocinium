@@ -4,8 +4,7 @@
 //   - job-listing  : 求人一覧ページ (gamebiz.jp/jobs 等)。 LLM で個別求人を抽出。
 // 取得 / DB / LLM 呼び出しは持たず parse・正規化・判定のみ (純粋関数)。
 
-import type Anthropic from '@anthropic-ai/sdk';
-import { extractText, extractJsonBlock } from '@tirocinium/llm';
+import { extractJsonBlock } from '@tirocinium/llm';
 import { decodeEntities } from './html.js';
 import { normalizeUrl } from './interview.js';
 import type { FeedItem } from './rss.js';
@@ -167,19 +166,4 @@ export function jobPostingFromListing(
     postedAt: '',
     deadline: entry.deadline,
   };
-}
-
-/** 求人一覧ページ本文から個別求人を抽出する (LLM)。 */
-export async function extractJobListing(
-  client: Anthropic,
-  model: string,
-  pageText: string,
-): Promise<JobListingEntry[]> {
-  const res = await client.messages.create({
-    model,
-    max_tokens: 4096,
-    system: JOB_LISTING_INSTRUCTION,
-    messages: [{ role: 'user', content: pageText }],
-  });
-  return parseJobListing(extractText(res.content));
 }
