@@ -54,6 +54,33 @@ export type CompanyProfile = {
   fetched_at: string;
 };
 
+export type JobPosting = {
+  id: string;
+  source: string;
+  kind: string;
+  url: string;
+  title: string;
+  company_name: string;
+  company_id: string | null;
+  role: string;
+  location: string;
+  employment_type: string;
+  snippet: string;
+  posted_at: string;
+  deadline: string;
+  first_seen_at: string;
+};
+
+export type JobNewsCrawlSummary = {
+  sources: string[];
+  fetched: number;
+  discovered: number;
+  inserted: number;
+  notified: number;
+  robotsBlocked: number;
+  errors: { url: string; message: string }[];
+};
+
 export type ListingCrawlSummary = {
   sources: string[];
   pagesFetched: number;
@@ -191,6 +218,22 @@ export function useCompaniesApi() {
     },
     async crawlListing(input: { source?: string } = {}): Promise<{ summary: ListingCrawlSummary }> {
       return fetchJson('/api/v1/companies/crawl-listing', token, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      });
+    },
+    async jobPostings(params: { source?: string; limit?: number } = {}): Promise<{ postings: JobPosting[]; total: number }> {
+      const qs = new URLSearchParams();
+      if (params.source) qs.set('source', params.source);
+      if (params.limit) qs.set('limit', String(params.limit));
+      const suffix = qs.toString() ? `?${qs.toString()}` : '';
+      return fetchJson(`/api/v1/companies/job-postings${suffix}`, token);
+    },
+    async jobSources(): Promise<{ sources: ListingSource[] }> {
+      return fetchJson('/api/v1/companies/job-sources', token);
+    },
+    async crawlJobNews(input: { source?: string } = {}): Promise<{ summary: JobNewsCrawlSummary }> {
+      return fetchJson('/api/v1/companies/crawl-job-news', token, {
         method: 'POST',
         body: JSON.stringify(input),
       });

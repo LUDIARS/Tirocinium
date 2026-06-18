@@ -91,6 +91,16 @@ export function applyServerConfig(
   });
   setBool('COMPANY_REQUIRE_SMB', (v) => { cfg.companyCrawl.requireSMB = v; });
   setNum('COMPANY_LISTING_CHUNK_CHARS', (v) => { cfg.companyCrawl.listingChunkChars = v; });
+  // Nuntius 通知 (予約リマインド + 求人ニュース通知)
+  set('NUNTIUS_URL', (v) => { cfg.nuntiusUrl = v; });
+  set('NUNTIUS_API_KEY', (v) => { cfg.nuntiusApiKey = v; });
+  // 求人ニュース クロール
+  setBool('COMPANY_JOB_NEWS_ENABLED', (v) => { cfg.jobNews.enabled = v; });
+  setNum('COMPANY_JOB_NEWS_INTERVAL_MS', (v) => { cfg.jobNews.intervalMs = v; });
+  set('COMPANY_JOB_NEWS_OPTIN_SOURCES', (v) => {
+    cfg.jobNews.optInSources = v.split(',').map((s) => s.trim()).filter(Boolean);
+  });
+  set('COMPANY_JOB_NEWS_NOTIFY_USER_ID', (v) => { cfg.jobNews.notifyUserId = v; });
   set('GOOGLE_MAPS_API_KEY', (v) => { cfg.googleMaps.apiKey = v; });
   set('TIROCINIUM_OB_SHEET_SA_JSON', (v) => { cfg.obSheet.serviceAccountJson = v; });
   set('TIROCINIUM_OB_SHEET_ID', (v) => { cfg.obSheet.spreadsheetId = v; });
