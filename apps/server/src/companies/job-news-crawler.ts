@@ -6,6 +6,7 @@ import {
   isHiringNews,
   jobPostingFromFeed,
   jobPostingFromListing,
+  isNewgradEligible,
   JOB_LISTING_INSTRUCTION,
   parseJobListing,
   chunkText,
@@ -132,6 +133,8 @@ async function crawlSourceUrl(
   for (const chunk of chunks) {
     const entries = parseJobListing(await complete(JOB_LISTING_INSTRUCTION, chunk));
     for (const entry of entries) {
+      // 新卒採用 / 新卒応募可 / 未経験可 の求人だけを残す (ユーザ要望、 Tr は新卒就活向け)。
+      if (!isNewgradEligible(entry)) continue;
       const jp = jobPostingFromListing(source.id, url, entry);
       if (jp) out.push(jp);
       if (out.length >= cap) break;

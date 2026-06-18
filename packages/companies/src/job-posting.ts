@@ -41,7 +41,26 @@ export type JobListingEntry = {
   employmentType: string;
   snippet: string;
   deadline: string;
+  /** 新卒採用 or 新卒も応募可能と読み取れるか。 */
+  newgrad: boolean;
+  /** 未経験者歓迎 / 未経験可と読み取れるか。 */
+  inexperiencedOk: boolean;
 };
+
+/** 新卒/未経験 を表すテキストキーワード (LLM フラグの取りこぼし補完用)。 */
+export const NEWGRAD_ELIGIBLE_KEYWORDS = [
+  '新卒', '第二新卒', '未経験', '未経験者歓迎', '未経験可', '未経験ok', '経験不問', '学生', '26卒', '27卒',
+];
+
+/**
+ * 求人が「新卒採用 / 新卒応募可 / 未経験可」かを判定する。
+ * LLM フラグ (newgrad / inexperiencedOk) を主、 タイトル・説明・雇用形態のキーワードを従にして拾う。
+ */
+export function isNewgradEligible(entry: JobListingEntry): boolean {
+  if (entry.newgrad || entry.inexperiencedOk) return true;
+  const hay = [entry.title, entry.snippet, entry.role, entry.employmentType].join(' ').toLowerCase();
+  return NEWGRAD_ELIGIBLE_KEYWORDS.some((k) => hay.includes(k.toLowerCase()));
+}
 
 /**
  * 採用・求人に関係するニュースかを判定するキーワード (rss フィルタ用)。
@@ -101,14 +120,17 @@ export const JOB_LISTING_INSTRUCTION = `
       "location": "勤務地 (あれば)",
       "employment_type": "雇用形態 (正社員 / 契約 / アルバイト 等。 あれば)",
       "snippet": "募集内容の要約 (40字程度)",
-      "deadline": "応募締切 / 募集期間 (本文にあれば。 無ければ空文字)"
+      "deadline": "応募締切 / 募集期間 (本文にあれば。 無ければ空文字)",
+      "newgrad": true/false,          // 新卒採用、 または新卒も応募できると読み取れるか
+      "inexperienced_ok": true/false  // 未経験者歓迎 / 未経験可 / 経験不問 と読み取れるか
     }
   ]
 }
 
 ルール:
-- 本文に実在する求人のみ。 創作しない。 不明な項目は空文字。
+- 本文に実在する求人のみ。 創作しない。 不明な項目は空文字 / false。
 - ナビゲーション・広告・関連リンクは求人として列挙しない。
+- newgrad / inexperienced_ok は本文の表記 (新卒採用・新卒可・第二新卒・未経験歓迎・未経験OK・経験不問 等) から判断する。 中途/経験者のみの求人は両方 false。
 - 1 ページ (チャンク) から最大 40 件まで。
 `.trim();
 
@@ -123,6 +145,7 @@ export function parseJobListing(text: string): JobListingEntry[] {
     const title = typeof r['title'] === 'string' ? r['title'].trim() : '';
     if (!title) continue;
     const s = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+    const b = (v: unknown): boolean => v === true;
     out.push({
       title,
       companyName: s(r['company']),
@@ -132,6 +155,8 @@ export function parseJobListing(text: string): JobListingEntry[] {
       employmentType: s(r['employment_type']),
       snippet: s(r['snippet']),
       deadline: s(r['deadline']),
+      newgrad: b(r['newgrad']),
+      inexperiencedOk: b(r['inexperienced_ok']),
     });
   }
   return out;

@@ -4,6 +4,8 @@ import {
   jobPostingFromFeed,
   parseJobListing,
   jobPostingFromListing,
+  isNewgradEligible,
+  type JobListingEntry,
 } from './job-posting.js';
 import type { FeedItem } from './rss.js';
 
@@ -14,6 +16,11 @@ const feed = (over: Partial<FeedItem>): FeedItem => ({
   publishedAt: '',
   categories: [],
   ...over,
+});
+
+const entry = (over: Partial<JobListingEntry>): JobListingEntry => ({
+  title: 'T', companyName: '', url: '', role: '', location: '', employmentType: '',
+  snippet: '', deadline: '', newgrad: false, inexperiencedOk: false, ...over,
 });
 
 describe('isHiringNews', () => {
@@ -58,36 +65,48 @@ describe('jobPostingFromFeed', () => {
 describe('parseJobListing', () => {
   it('LLM JSON から jobs を抽出 (title 必須・不明は空文字)', () => {
     const text = `話の前置き\n{"jobs":[
-      {"title":"3Dデザイナー","company":"ネコノメ","role":"デザイナー","url":"https://x/job/1","deadline":"2026-07-31"},
+      {"title":"3Dデザイナー","company":"ネコノメ","role":"デザイナー","url":"https://x/job/1","deadline":"2026-07-31","newgrad":true},
       {"title":"","company":"無視される"},
-      {"title":"サーバーエンジニア"}
+      {"title":"サーバーエンジニア","inexperienced_ok":true}
     ]}`;
     const rows = parseJobListing(text);
     expect(rows).toHaveLength(2);
     expect(rows[0]!.title).toBe('3Dデザイナー');
     expect(rows[0]!.companyName).toBe('ネコノメ');
     expect(rows[0]!.deadline).toBe('2026-07-31');
-    expect(rows[1]!.companyName).toBe('');
+    expect(rows[0]!.newgrad).toBe(true);
+    expect(rows[0]!.inexperiencedOk).toBe(false);
+    expect(rows[1]!.title).toBe('サーバーエンジニア');
+    expect(rows[1]!.inexperiencedOk).toBe(true);
+  });
+});
+
+describe('isNewgradEligible', () => {
+  it('LLM フラグ newgrad / inexperiencedOk が true なら true', () => {
+    expect(isNewgradEligible(entry({ newgrad: true }))).toBe(true);
+    expect(isNewgradEligible(entry({ inexperiencedOk: true }))).toBe(true);
+  });
+  it('フラグ false でもタイトル/説明に新卒・未経験語があれば true', () => {
+    expect(isNewgradEligible(entry({ title: '【未経験歓迎】ゲームスクリプター' }))).toBe(true);
+    expect(isNewgradEligible(entry({ snippet: '新卒採用を実施中' }))).toBe(true);
+    expect(isNewgradEligible(entry({ title: '第二新卒OK' }))).toBe(true);
+  });
+  it('中途/経験者のみは false', () => {
+    expect(isNewgradEligible(entry({ title: 'プロジェクトマネージャー', snippet: '経験者優遇', employmentType: '正社員' }))).toBe(false);
   });
 });
 
 describe('jobPostingFromListing', () => {
   it('詳細 URL があればそれを dedupKey に', () => {
-    const item = jobPostingFromListing('gamebiz-jobs', 'https://gamebiz.jp/jobs', {
-      title: 'プランナー', companyName: 'A社', url: 'https://gamebiz.jp/jobs/55',
-      role: 'プランナー', location: '東京', employmentType: '正社員', snippet: 's', deadline: '',
-    });
+    const item = jobPostingFromListing('gamebiz-jobs', 'https://gamebiz.jp/jobs',
+      entry({ title: 'プランナー', companyName: 'A社', url: 'https://gamebiz.jp/jobs/55', role: 'プランナー', location: '東京', employmentType: '正社員' }));
     expect(item!.kind).toBe('job-listing');
     expect(item!.dedupKey).toBe('https://gamebiz.jp/jobs/55');
     expect(item!.companyName).toBe('A社');
   });
   it('詳細 URL が無ければ pageUrl#title@company を合成キーに', () => {
-    const a = jobPostingFromListing('s', 'https://x/jobs', {
-      title: 'QA', companyName: 'A社', url: '', role: '', location: '', employmentType: '', snippet: '', deadline: '',
-    });
-    const b = jobPostingFromListing('s', 'https://x/jobs', {
-      title: 'QA', companyName: 'B社', url: '', role: '', location: '', employmentType: '', snippet: '', deadline: '',
-    });
+    const a = jobPostingFromListing('s', 'https://x/jobs', entry({ title: 'QA', companyName: 'A社' }));
+    const b = jobPostingFromListing('s', 'https://x/jobs', entry({ title: 'QA', companyName: 'B社' }));
     // 同じ title でも company が違えば別キー (取りこぼし防止)。
     expect(a!.dedupKey).not.toBe(b!.dedupKey);
     expect(a!.dedupKey).toBe('https://x/jobs#QA@A社');
