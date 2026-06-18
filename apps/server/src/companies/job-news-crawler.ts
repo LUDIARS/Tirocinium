@@ -17,7 +17,7 @@ import { config } from '../config.js';
 import { createCompleter, type Completer } from './llm-completer.js';
 import { PoliteFetcher } from './fetcher.js';
 import { loadNewsSources, selectActiveNewsSources, type NewsSourceConfig } from './news-config.js';
-import { insertNewJobPostings, markNotified } from './job-postings-repo.js';
+import { insertNewJobPostings, replaceJobPostings, markNotified, type StoredJobPosting } from './job-postings-repo.js';
 import { notifyJobPostings } from './job-news-notify.js';
 
 export type JobNewsCrawlSummary = {
@@ -56,32 +56,34 @@ export async function runJobNewsCrawl(sourceId?: string): Promise<JobNewsCrawlSu
   const llmReady = config.llmBackend === 'cli' || Boolean(process.env['ANTHROPIC_API_KEY']);
   const complete = llmReady ? createCompleter('EXTRACTOR').complete : null;
 
-  const collected: JobPostingItem[] = [];
+  const added: StoredJobPosting[] = [];
   for (const source of sources) {
     summary.sources.push(source.id);
+    const collected: JobPostingItem[] = [];
     for (const url of source.urls) {
       try {
-        const items = await crawlSourceUrl(source, url, fetcher, complete, summary);
-        collected.push(...items);
+        collected.push(...(await crawlSourceUrl(source, url, fetcher, complete, summary)));
       } catch (err) {
         summary.errors.push({ url, message: (err as Error).message });
       }
     }
+    // 同一 run 内の重複キーを畳む (同じ求人が複数チャンク / フィードに出るケース)。
+    const deduped = dedupeByKey(collected);
+    summary.discovered += deduped.length;
+    // job-listing は「現在の掲載」スナップショットで置換 (重複累積を防ぐ)。 rss はニュースログとして追記。
+    const newItems = source.kind === 'job-listing'
+      ? await replaceJobPostings(source.id, deduped)
+      : await insertNewJobPostings(deduped);
+    added.push(...newItems);
   }
-
-  // 同一 run 内の重複キーを畳む (同じ求人が複数チャンク / フィードに出るケース)。
-  const deduped = dedupeByKey(collected);
-  summary.discovered = deduped.length;
-
-  const inserted = await insertNewJobPostings(deduped);
-  summary.inserted = inserted.length;
+  summary.inserted = added.length;
 
   // 新着を Nuntius 通知 (宛先未設定なら no-op、 その場合 notified は立てない)。
-  if (inserted.length > 0) {
-    const res = await notifyJobPostings(inserted);
+  if (added.length > 0) {
+    const res = await notifyJobPostings(added);
     if (res.sent) {
-      await markNotified(inserted.map((p) => p.id));
-      summary.notified = inserted.length;
+      await markNotified(added.map((p) => p.id));
+      summary.notified = added.length;
     }
   }
 

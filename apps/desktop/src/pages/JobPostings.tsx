@@ -20,8 +20,6 @@ export function JobPostings() {
   const [sources, setSources] = useState<ListingSource[]>([]);
   const [activeSource, setActiveSource] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
 
   const reload = async (source = activeSource) => {
     try {
@@ -43,46 +41,20 @@ export function JobPostings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchNew = () => {
-    setBusy('crawl');
-    setError(null);
-    setNote(null);
-    api
-      .crawlJobNews({ source: activeSource || undefined })
-      .then(async (r) => {
-        const s = r.summary;
-        setNote(
-          `取得: ${s.fetched} ソース / 抽出 ${s.discovered} 件 / 新着 ${s.inserted} 件` +
-            (s.notified > 0 ? ` / 通知 ${s.notified} 件` : '') +
-            (s.errors.length > 0 ? ` / エラー ${s.errors.length}` : ''),
-        );
-        await reload();
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : '取得に失敗しました'))
-      .finally(() => setBusy(null));
-  };
-
-  const activeSourceIds = sources.filter((s) => s.active).map((s) => s.id);
-
   return (
     <div>
       <h2>新規求人</h2>
       <p style={{ fontSize: 13, color: 'var(--c-subtle)', marginTop: 0 }}>
-        ゲーム業界ニュース系サイトから採用・求人情報をクロールし、 新着を集めています。
-        「新着を取得」 で最新を取り込みます。
+        ゲーム業界の新卒採用・未経験可の求人を毎朝自動で取得しています。
       </p>
 
       {error && <p style={{ color: '#c62828' }}>{error}</p>}
-      {note && <p style={{ color: '#2e7d32' }}>{note}</p>}
 
       <div className="card">
         <div className="company-list-head" style={{ flexWrap: 'wrap', gap: 8 }}>
           <h3 style={{ margin: 0 }}>
             新着求人 ({postings.length !== total ? `${postings.length} / ${total}` : total})
           </h3>
-          <button onClick={fetchNew} disabled={busy !== null}>
-            {busy === 'crawl' ? '取得中…' : '新着を取得'}
-          </button>
         </div>
 
         {sources.length > 0 && (
@@ -108,14 +80,8 @@ export function JobPostings() {
           </div>
         )}
 
-        {sources.length > 0 && activeSourceIds.length === 0 && (
-          <p style={{ fontSize: 12, color: 'var(--c-subtle)' }}>
-            有効なソースがありません。 news-sources.json で enabled、 もしくは COMPANY_JOB_NEWS_OPTIN_SOURCES で有効化してください。
-          </p>
-        )}
-
         {postings.length === 0 ? (
-          <p>まだ求人がありません。 「新着を取得」 で取り込んでください。</p>
+          <p>まだ求人がありません。 毎朝の自動取得で順次追加されます。</p>
         ) : (
           <div className="company-grid">
             {postings.map((p) => (

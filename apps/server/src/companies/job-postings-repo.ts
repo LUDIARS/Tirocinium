@@ -57,6 +57,43 @@ export async function insertNewJobPostings(items: JobPostingItem[]): Promise<Sto
   return inserted;
 }
 
+/**
+ * 求人一覧ソース (job-listing) を「現在の掲載」スナップショットで置き換える。
+ * 同一ソースの既存行を削除して与えられた items を入れ直すため、 LLM 抽出のゆらぎで
+ * 重複が累積しない (= 毎朝取得しても増え続けない)。 前回スナップショットに無かった
+ * dedup_key を「新着」として返す (Nuntius 通知用)。
+ */
+export async function replaceJobPostings(source: string, items: JobPostingItem[]): Promise<StoredJobPosting[]> {
+  const existing = await sql<{ dedup_key: string }[]>`
+    SELECT dedup_key FROM job_postings WHERE source = ${source}
+  `;
+  const existingKeys = new Set(existing.map((r) => r.dedup_key));
+  // company_id はトランザクション外で先に解決する (読み取り)。
+  const resolved = await Promise.all(
+    items.map(async (it) => ({ it, companyId: it.companyName ? await resolveCompanyId(it.companyName) : null })),
+  );
+  const added: StoredJobPosting[] = [];
+  await sql.begin(async (tx) => {
+    await tx`DELETE FROM job_postings WHERE source = ${source}`;
+    for (const { it, companyId } of resolved) {
+      const rows = await tx<StoredJobPosting[]>`
+        INSERT INTO job_postings (
+          source, kind, dedup_key, url, title, company_name, company_id,
+          role, location, employment_type, snippet, posted_at, deadline
+        ) VALUES (
+          ${it.source}, ${it.kind}, ${it.dedupKey}, ${it.url}, ${it.title}, ${it.companyName}, ${companyId},
+          ${it.role}, ${it.location}, ${it.employmentType}, ${it.snippet}, ${it.postedAt}, ${it.deadline}
+        )
+        ON CONFLICT (dedup_key) DO NOTHING
+        RETURNING id, source, kind, url, title, company_name, company_id,
+                  role, location, employment_type, snippet, posted_at, deadline, first_seen_at
+      `;
+      if (rows[0] && !existingKeys.has(it.dedupKey)) added.push(rows[0]);
+    }
+  });
+  return added;
+}
+
 /** 求人一覧を新着順に取得する。 source 指定で 1 ソースに絞れる。 */
 export async function listJobPostings(opts: { source?: string; limit?: number } = {}): Promise<StoredJobPosting[]> {
   const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
