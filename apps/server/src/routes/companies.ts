@@ -241,10 +241,9 @@ companies.post('/crawl-listing', cernereAuth, async (c) => {
   }
 });
 
-/** POST /api/v1/companies/crawl-job-news — 求人ニュースを取得し新着を保存 + Nuntius 通知 { source? } */
-companies.post('/crawl-job-news', cernereAuth, async (c) => {
-  const user = c.get('user');
-  if (!canCrawl(user.id)) return c.json({ error: 'forbidden' }, 403);
+/** POST /api/v1/companies/crawl-job-news — 求人ニュースを取得し新着を保存 + Nuntius 通知 { source? }
+ *  求人取得は公開操作 (認証不要、 ユーザ指示)。 取得対象は news-sources.json の有効ソースに限定される。 */
+companies.post('/crawl-job-news', async (c) => {
   const body = (await c.req.json().catch(() => null)) as { source?: string } | null;
   try {
     const summary = await runJobNewsCrawl(body?.source);
