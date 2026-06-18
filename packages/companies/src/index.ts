@@ -94,6 +94,8 @@ export {
   JOB_LISTING_INSTRUCTION,
   parseJobListing,
   jobPostingFromListing,
+  isNewgradEligible,
+  NEWGRAD_ELIGIBLE_KEYWORDS,
   type JobPostingItem,
   type JobListingEntry,
 } from './job-posting.js';
