@@ -37,6 +37,49 @@ export function applyDiscordSecrets(
   return applied;
 }
 
+/** config.discordBackdoor と構造一致する反映先 (裏口 Bot B、 本体/面接の Bot A とは別管理)。 */
+export type BackdoorSecretTarget = {
+  botToken: string;
+  guildId: string;
+  allowedChannelIds: string[];
+  commandPrefix: string;
+  appBaseUrl: string;
+  linkTtlMin: number;
+  sessionTtlMin: number;
+};
+
+/**
+ * 解決済 secret を裏口 Bot B 設定に反映する (空でない値のみ)。 Bot A とは別 token。
+ * @returns 適用したキー名
+ */
+export function applyBackdoorSecrets(
+  bd: BackdoorSecretTarget,
+  secrets: Record<string, string>,
+): string[] {
+  const applied: string[] = [];
+  const set = (key: string, fn: (v: string) => void): void => {
+    const v = secrets[key];
+    if (v) { fn(v); applied.push(key); }
+  };
+  const setNum = (key: string, fn: (n: number) => void): void => {
+    const v = secrets[key];
+    if (v !== undefined) {
+      const n = Number.parseInt(v, 10);
+      if (!Number.isNaN(n)) { fn(n); applied.push(key); }
+    }
+  };
+  set('TIROCINIUM_BACKDOOR_BOT_TOKEN', (v) => (bd.botToken = v));
+  set('TIROCINIUM_BACKDOOR_GUILD_ID', (v) => (bd.guildId = v));
+  set('TIROCINIUM_BACKDOOR_COMMAND_PREFIX', (v) => (bd.commandPrefix = v));
+  set('TIROCINIUM_BACKDOOR_APP_BASE_URL', (v) => (bd.appBaseUrl = v));
+  set('TIROCINIUM_BACKDOOR_TEXT_CHANNEL_IDS', (v) => {
+    bd.allowedChannelIds = v.split(',').map((s) => s.trim()).filter(Boolean);
+  });
+  setNum('TIROCINIUM_BACKDOOR_LINK_TTL_MIN', (n) => (bd.linkTtlMin = n));
+  setNum('TIROCINIUM_BACKDOOR_SESSION_TTL_MIN', (n) => (bd.sessionTtlMin = n));
+  return applied;
+}
+
 /**
  * 解決済 secret をサーバー config (Discord 以外) に反映する。
  * process.env への書き込みは子プロセス (claude CLI / SDK) への継承が必要なキーのみ行う。

@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Tirocinium 裏口 — 卒業生ページ</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --panel2: #1f232c; --line: #2a2f3a;
+    --fg: #e8eaed; --subtle: #9aa3b2; --accent: #6ea8fe; --accent2: #3b82f6;
+    --ok: #4ade80; --danger: #f87171; --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    line-height: 1.7;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 64px; }
+  h1 { font-size: 1.3rem; margin: 8px 0 4px; }
+  .lead { color: var(--subtle); font-size: 0.9rem; margin: 0 0 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
+  .card h2 { font-size: 1.05rem; margin: 0 0 14px; }
+  label { display: block; font-size: 0.85rem; color: var(--subtle); margin: 0 0 6px; }
+  input[type="text"], textarea {
+    width: 100%; background: var(--panel2); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
+    font: inherit; resize: vertical;
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  .field { margin-bottom: 16px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+  .row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent2); }
+  .row label { margin: 0; color: var(--fg); font-size: 0.9rem; }
+  .hint { font-size: 0.78rem; color: var(--subtle); margin: 4px 0 0; }
+  button {
+    background: var(--accent2); color: #fff; border: 0; border-radius: 10px;
+    padding: 11px 18px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: var(--accent); }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--subtle); }
+  button.ghost:hover { color: var(--fg); border-color: var(--subtle); }
+  .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .status { font-size: 0.85rem; min-height: 1.2em; }
+  .status.ok { color: var(--ok); } .status.err { color: var(--danger); }
+  .msg { border-top: 1px solid var(--line); padding: 12px 0; }
+  .msg:first-of-type { border-top: 0; }
+  .msg .who { font-weight: 600; }
+  .msg .co { color: var(--subtle); font-size: 0.82rem; margin-left: 8px; }
+  .msg .body { margin: 6px 0 0; white-space: pre-wrap; }
+  .roster { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 0.82rem; }
+  .gate { text-align: center; padding: 40px 16px; color: var(--subtle); }
+  .gate code { background: var(--panel2); padding: 2px 6px; border-radius: 6px; color: var(--fg); }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Tirocinium 裏口</h1>
+  <p class="lead">卒業生専用ページ。 今いる企業・学生へのメッセージ・業界内へのメッセージを投稿できます。</p>
+
+  <div id="gate" class="gate">
+    <p>読み込み中…</p>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="card">
+      <h2>あなたの投稿</h2>
+      <div class="field">
+        <label for="f-name">表示名</label>
+        <input id="f-name" type="text" placeholder="例: 山田 太郎" />
+      </div>
+      <div class="field">
+        <label for="f-company">今いる企業</label>
+        <input id="f-company" type="text" placeholder="例: 株式会社サンプルゲームス" />
+        <p class="hint">登録企業名と一致すると企業ページに紐付きます。</p>
+      </div>
+      <div class="field">
+        <label for="f-students">学生に向けたメッセージ</label>
+        <textarea id="f-students" rows="4" placeholder="就活生へのメッセージ"></textarea>
+        <div class="row"><input id="p-students" type="checkbox" /><label for="p-students">本体の「卒業生からのメッセージ」に掲載する</label></div>
+      </div>
+      <div class="field">
+        <label for="f-industry">業界内にいる人に向けたメッセージ</label>
+        <textarea id="f-industry" rows="4" placeholder="同業の卒業生へのメッセージ"></textarea>
+        <div class="row"><input id="p-industry" type="checkbox" /><label for="p-industry">裏口の業界向けフィードに掲載する</label></div>
+      </div>
+      <div class="actions">
+        <button id="save">保存する</button>
+        <button id="delete" class="ghost">登録を削除</button>
+        <span id="status" class="status"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>業界内向けメッセージ</h2>
+      <div id="industry-feed"><p class="hint">読み込み中…</p></div>
+    </div>
+
+    <div class="card">
+      <h2>在籍ロスター</h2>
+      <div id="roster" class="roster"><p class="hint">読み込み中…</p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var SESSION_KEY = 'tr_backdoor_session';
+  var $ = function (id) { return document.getElementById(id); };
+  var session = sessionStorage.getItem(SESSION_KEY) || '';
+
+  function authHeaders() {
+    return { 'Authorization': 'Bearer ' + session, 'Content-Type': 'application/json' };
+  }
+
+  function showGate(html) {
+    $('gate').innerHTML = html;
+    $('gate').classList.remove('hidden');
+    $('app').classList.add('hidden');
+  }
+  function showApp() {
+    $('gate').classList.add('hidden');
+    $('app').classList.remove('hidden');
+  }
+
+  function fillForm(entry, fallbackName) {
+    $('f-name').value = (entry && entry.display_name) || fallbackName || '';
+    $('f-company').value = (entry && entry.current_company) || '';
+    $('f-students').value = (entry && entry.message_to_students) || '';
+    $('f-industry').value = (entry && entry.message_to_industry) || '';
+    $('p-students').checked = !!(entry && entry.students_published);
+    $('p-industry').checked = !!(entry && entry.industry_published);
+  }
+
+  function setStatus(msg, ok) {
+    var el = $('status');
+    el.textContent = msg;
+    el.className = 'status ' + (ok ? 'ok' : 'err');
+    if (msg) setTimeout(function () { if (el.textContent === msg) el.textContent = ''; }, 4000);
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function renderIndustry(data) {
+    var feed = $('industry-feed');
+    if (!data.messages.length) {
+      feed.innerHTML = '<p class="hint">まだ業界向けメッセージはありません。</p>';
+    } else {
+      feed.innerHTML = data.messages.map(function (m) {
+        return '<div class="msg"><span class="who">' + escapeHtml(m.display_name || '卒業生') +
+          '</span><span class="co">' + escapeHtml(m.current_company) + '</span>' +
+          '<p class="body">' + escapeHtml(m.message) + '</p></div>';
+      }).join('');
+    }
+    var roster = $('roster');
+    if (!data.roster.length) {
+      roster.innerHTML = '<p class="hint">公開中の在籍情報はありません。</p>';
+    } else {
+      roster.innerHTML = data.roster.map(function (r) {
+        return '<span class="chip">' + escapeHtml(r.display_name || '卒業生') + ' — ' +
+          escapeHtml(r.current_company) + '</span>';
+      }).join('');
+    }
+  }
+
+  function loadIndustry() {
+    fetch('/api/v1/backdoor/industry', { headers: authHeaders() })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d) renderIndustry(d); });
+  }
+
+  function boot(entry, fallbackName) {
+    fillForm(entry, fallbackName);
+    showApp();
+    loadIndustry();
+  }
+
+  function startWithSession() {
+    fetch('/api/v1/backdoor/me', { headers: authHeaders() })
+      .then(function (r) {
+        if (r.status === 401) { sessionStorage.removeItem(SESSION_KEY); session = ''; return null; }
+        return r.json();
+      })
+      .then(function (d) {
+        if (!d) return needLink();
+        boot(d.entry, d.displayName);
+      })
+      .catch(needLink);
+  }
+
+  function exchange(token) {
+    fetch('/api/v1/backdoor/auth', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token }),
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d) return needLink();
+        session = d.session;
+        sessionStorage.setItem(SESSION_KEY, session);
+        // URL から token を消して再利用エラーを防ぐ
+        history.replaceState(null, '', location.pathname);
+        boot(d.entry, d.entry && d.entry.display_name);
+      })
+      .catch(needLink);
+  }
+
+  function needLink() {
+    showGate(
+      '<p>このページを開くにはワンタイムリンクが必要です。</p>' +
+      '<p>Discord の裏口 Bot で <code>!ob link</code> を実行すると、 DM にリンクが届きます。</p>'
+    );
+  }
+
+  // 保存
+  document.addEventListener('click', function (e) {
+    if (e.target.id === 'save') {
+      var body = {
+        display_name: $('f-name').value,
+        current_company: $('f-company').value,
+        message_to_students: $('f-students').value,
+        message_to_industry: $('f-industry').value,
+        students_published: $('p-students').checked,
+        industry_published: $('p-industry').checked,
+      };
+      fetch('/api/v1/backdoor/me', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(body) })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function (d) { fillForm(d.entry); setStatus('保存しました', true); loadIndustry(); })
+        .catch(function () { setStatus('保存に失敗しました', false); });
+    }
+    if (e.target.id === 'delete') {
+      if (!confirm('登録を削除しますか？ この操作は取り消せません。')) return;
+      fetch('/api/v1/backdoor/me', { method: 'DELETE', headers: authHeaders() })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function () { fillForm(null); setStatus('削除しました', true); loadIndustry(); })
+        .catch(function () { setStatus('削除に失敗しました', false); });
+    }
+  });
+
+  // 起動
+  var params = new URLSearchParams(location.search);
+  var urlToken = params.get('token');
+  if (urlToken) exchange(urlToken);
+  else if (session) startWithSession();
+  else needLink();
+})();
+</script>
+</body>
+</html>
