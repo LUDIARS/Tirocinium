@@ -8,6 +8,7 @@ import {
   type NewgradRoleImage,
 } from '../api/companies.js';
 import { CompanyDetailModal } from './CompanyDetailModal.js';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
 import { ObStudios } from './ObStudios.js';
 import { tracker } from '../analytics/tracker.js';
 
@@ -412,6 +413,7 @@ function ContributeModal({
   onClose: () => void;
   onApplied: () => void;
 }) {
+  useBodyScrollLock();
   const api = useCompaniesApi();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -520,6 +522,7 @@ function NewgradModal({
   loading: boolean;
   onClose: () => void;
 }) {
+  useBodyScrollLock();
   const list = roles ?? [];
   const [active, setActive] = useState<string>('');
   // roles 確定後、最初のタブを選択 (未選択 or 既存タブが消えた場合)。
