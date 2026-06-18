@@ -38,6 +38,9 @@ data/training/sim-sessions/
 data/notion/
 logs/
 
+# vite.config.ts はドメイン名を含むためローカル管理 (vite.config.example.ts を参照)
+apps/desktop/vite.config.ts
+
 # ローカル設定/秘密ストア (packages/secrets local-store。マシン固有パス + secrets を含むため非追跡)
 tirocinium.config.json
 **/tirocinium.config.json
