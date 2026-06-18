@@ -20,7 +20,7 @@
     "kind": "job-listing",
     "urls": ["https://gamebiz.jp/jobs"],
     "hiringOnly": false,
-    "enabled": false,
-    "note": "gamebiz 業界求人情報ページ。個別求人 (企業/職種/勤務地/雇用形態/募集期間) を LLM 抽出。robots 許可。LLM 必須 (ANTHROPIC_API_KEY + api backend) のため明示 opt-in (COMPANY_JOB_NEWS_OPTIN_SOURCES=gamebiz-jobs)。ToS は運用前に目視確認。"
+    "enabled": true,
+    "note": "gamebiz 業界求人情報ページ。個別求人 (企業/職種/勤務地/雇用形態/募集期間) を LLM 抽出。robots 許可。LLM 必須: claude CLI backend (TIROCINIUM_LLM_BACKEND=cli、鍵不要・claude -p) か ANTHROPIC_API_KEY。どちらも無い環境では job-listing 抽出はスキップされ RSS のみ動く。ToS は運用前に目視確認。"
   }
 ]

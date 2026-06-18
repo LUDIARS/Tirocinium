@@ -1,18 +1,19 @@
 // 求人ニュース クロール: news-sources の rss / job-listing を取得 → 求人抽出 →
 // 新着 (dedup_key 未登録) を DB 投入 → Nuntius 通知。 listing-crawler.ts と同じ礼節 fetch 層。
 
-import { createAnthropicClient, MODEL } from '@tirocinium/llm';
 import {
   parseFeed,
   isHiringNews,
   jobPostingFromFeed,
   jobPostingFromListing,
-  extractJobListing,
+  JOB_LISTING_INSTRUCTION,
+  parseJobListing,
   chunkText,
   htmlToText,
   type JobPostingItem,
 } from '@tirocinium/companies';
 import { config } from '../config.js';
+import { createCompleter, type Completer } from './llm-completer.js';
 import { PoliteFetcher } from './fetcher.js';
 import { loadNewsSources, selectActiveNewsSources, type NewsSourceConfig } from './news-config.js';
 import { insertNewJobPostings, markNotified } from './job-postings-repo.js';
@@ -50,16 +51,16 @@ export async function runJobNewsCrawl(sourceId?: string): Promise<JobNewsCrawlSu
     respectRobots: config.companyCrawl.respectRobots,
   });
 
-  // job-listing は LLM 抽出が必須。 利用可能なときだけ client を作る。
-  const llmReady = config.llmBackend === 'api' && Boolean(process.env['ANTHROPIC_API_KEY']);
-  const client = llmReady ? createAnthropicClient() : null;
+  // job-listing は LLM 抽出が必須。 cli backend (claude -p、 鍵不要) か API キーがあれば利用可。
+  const llmReady = config.llmBackend === 'cli' || Boolean(process.env['ANTHROPIC_API_KEY']);
+  const complete = llmReady ? createCompleter('EXTRACTOR').complete : null;
 
   const collected: JobPostingItem[] = [];
   for (const source of sources) {
     summary.sources.push(source.id);
     for (const url of source.urls) {
       try {
-        const items = await crawlSourceUrl(source, url, fetcher, client, summary);
+        const items = await crawlSourceUrl(source, url, fetcher, complete, summary);
         collected.push(...items);
       } catch (err) {
         summary.errors.push({ url, message: (err as Error).message });
@@ -96,7 +97,7 @@ async function crawlSourceUrl(
   source: NewsSourceConfig,
   url: string,
   fetcher: PoliteFetcher,
-  client: ReturnType<typeof createAnthropicClient> | null,
+  complete: Completer | null,
   summary: JobNewsCrawlSummary,
 ): Promise<JobPostingItem[]> {
   const res = await fetcher.fetch(url);
@@ -121,15 +122,15 @@ async function crawlSourceUrl(
   }
 
   // job-listing: LLM 抽出 (利用不可なら error 記録)。
-  if (!client) {
-    summary.errors.push({ url, message: 'job-listing は LLM 抽出が必須 (ANTHROPIC_API_KEY + api backend)' });
+  if (!complete) {
+    summary.errors.push({ url, message: 'job-listing は LLM 抽出が必須 (claude CLI backend か ANTHROPIC_API_KEY)' });
     return [];
   }
   const fullText = htmlToText(res.html, config.companyCrawl.listingMaxChars);
   const chunks = chunkText(fullText, config.companyCrawl.listingChunkChars, config.companyCrawl.listingMaxChunks);
   const out: JobPostingItem[] = [];
   for (const chunk of chunks) {
-    const entries = await extractJobListing(client, MODEL.EXTRACTOR, chunk);
+    const entries = parseJobListing(await complete(JOB_LISTING_INSTRUCTION, chunk));
     for (const entry of entries) {
       const jp = jobPostingFromListing(source.id, url, entry);
       if (jp) out.push(jp);
