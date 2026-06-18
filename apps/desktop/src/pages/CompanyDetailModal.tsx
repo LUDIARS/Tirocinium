@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
 import {
   useCompaniesApi,
   type CompanyProfile,
@@ -56,6 +57,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 function ContributeModal({ id, name, onClose }: { id: string; name: string; onClose: () => void }) {
+  useBodyScrollLock();
   const api = useCompaniesApi();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -132,6 +134,7 @@ function ContributeModal({ id, name, onClose }: { id: string; name: string; onCl
 }
 
 export function CompanyDetailModal({ c, onClose }: { c: CompanyModalData; onClose: () => void }) {
+  useBodyScrollLock();
   const api = useCompaniesApi();
   const [tab, setTab] = useState<Tab>('overview');
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
