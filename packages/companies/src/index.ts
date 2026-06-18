@@ -94,7 +94,6 @@ export {
   JOB_LISTING_INSTRUCTION,
   parseJobListing,
   jobPostingFromListing,
-  extractJobListing,
   type JobPostingItem,
   type JobListingEntry,
 } from './job-posting.js';
