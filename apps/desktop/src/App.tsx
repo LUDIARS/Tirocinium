@@ -5,6 +5,7 @@ import { tracker } from './analytics/tracker.js';
 // label = 通常幅 / short = スマホ幅 (タブが収まるよう短縮)。
 const navItems: { to: string; label: string; short: string }[] = [
   { to: '/companies', label: '企業プール', short: '企業' },
+  { to: '/jobs', label: '新規求人', short: '求人' },
   { to: '/game-search', label: '関連会社さがし', short: '関連会社' },
   { to: '/map', label: '企業マップ', short: 'マップ' },
   { to: '/reference', label: '参考リンク', short: '参考' },

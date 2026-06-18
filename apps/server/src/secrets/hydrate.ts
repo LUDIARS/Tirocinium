@@ -39,6 +39,14 @@ export const SECRET_KEYS = [
   'COMPANY_LISTING_OPTIN_SOURCES',
   'COMPANY_REQUIRE_SMB',
   'COMPANY_LISTING_CHUNK_CHARS',
+  // Nuntius 通知
+  'NUNTIUS_URL',
+  'NUNTIUS_API_KEY',
+  // 求人ニュース クロール
+  'COMPANY_JOB_NEWS_ENABLED',
+  'COMPANY_JOB_NEWS_INTERVAL_MS',
+  'COMPANY_JOB_NEWS_OPTIN_SOURCES',
+  'COMPANY_JOB_NEWS_NOTIFY_USER_ID',
   // Google Maps (企業所在地マップ)
   'GOOGLE_MAPS_API_KEY',
   // OB 合格リスト同期 (非公開 Google Sheet。 creds/id は secret 経由・リポ非コミット)
