@@ -7,8 +7,15 @@
 //
 // 型は postgres の `Sql` に as-cast して公開するため (db/index.ts)、 本ファイルは any 中心。
 
-import { DatabaseSync } from 'node:sqlite';
+import { createRequire } from 'node:module';
+import type * as NodeSqlite from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
+
+// node:sqlite を static import すると vitest (vite-node) が experimental builtin を解決できず
+// transform に失敗する。 型は type-only import で保ちつつ、 値は createRequire で runtime 解決する
+// (本番の tsx / node 実行は従来どおり)。
+const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as typeof NodeSqlite;
+type DatabaseSync = NodeSqlite.DatabaseSync;
 
 /** sql.json(x) のマーカー: 値を JSON テキストとして 1 パラメータに束ねる。 */
 class JsonParam {
