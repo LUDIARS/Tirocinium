@@ -777,6 +777,7 @@ pre {
   justify-content: center;
   padding: 24px;
   overflow: auto; /* 固定フレームが viewport を超えても全体を見られるように */
+  overscroll-behavior: contain; /* ホイール / タッチのスクロールを裏のページへ伝播させない */
   z-index: 100;
 }
 .modal-panel {
