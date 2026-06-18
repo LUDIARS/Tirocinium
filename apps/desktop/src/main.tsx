@@ -6,6 +6,7 @@ import { AuthProvider } from './auth/AuthContext.js';
 import { LoginGate } from './auth/LoginGate.js';
 import { Recommend } from './pages/Recommend.js';
 import { Companies } from './pages/Companies.js';
+import { JobPostings } from './pages/JobPostings.js';
 import { GameSearchList } from './pages/GameSearchList.js';
 import { GameRelated } from './pages/GameRelated.js';
 import { CompanyMap } from './pages/CompanyMap.js';
@@ -27,6 +28,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/" element={<App />}>
               <Route index element={<HomePage />} />
               <Route path="companies" element={<Companies />} />
+              <Route path="jobs" element={<JobPostings />} />
               <Route path="game-search">
                 <Route index element={<GameSearchList />} />
                 <Route path=":gameId" element={<GameRelated />} />

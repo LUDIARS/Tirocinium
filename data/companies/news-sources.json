@@ -1,0 +1,26 @@
+[
+  {
+    "id": "gamebiz-rss",
+    "kind": "rss",
+    "urls": ["https://gamebiz.jp/feed.rss"],
+    "hiringOnly": true,
+    "enabled": true,
+    "note": "gamebiz(ゲームビズ) のニュース RSS 2.0。HIRING_KEYWORDS で採用/求人関連の記事だけ抽出。robots 許可 (/enterprise/ と /enter-enter/ のみ禁止、/feed.rss は許可)。RSS は配信目的の公開フィード。"
+  },
+  {
+    "id": "gamebusiness-rss",
+    "kind": "rss",
+    "urls": ["https://www.gamebusiness.jp/rss/index.rdf"],
+    "hiringOnly": true,
+    "enabled": true,
+    "note": "GameBusiness.jp のニュース RSS (RDF/RSS1.0)。採用/求人関連記事を抽出。robots 許可 (/test/ のみ禁止、ClaudeBot Crawl-delay 5)。"
+  },
+  {
+    "id": "gamebiz-jobs",
+    "kind": "job-listing",
+    "urls": ["https://gamebiz.jp/jobs"],
+    "hiringOnly": false,
+    "enabled": false,
+    "note": "gamebiz 業界求人情報ページ。個別求人 (企業/職種/勤務地/雇用形態/募集期間) を LLM 抽出。robots 許可。LLM 必須 (ANTHROPIC_API_KEY + api backend) のため明示 opt-in (COMPANY_JOB_NEWS_OPTIN_SOURCES=gamebiz-jobs)。ToS は運用前に目視確認。"
+  }
+]
