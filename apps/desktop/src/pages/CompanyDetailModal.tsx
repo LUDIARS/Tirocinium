@@ -182,7 +182,7 @@ export function CompanyDetailModal({ c, onClose }: { c: CompanyModalData; onClos
   return (
     <>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-panel" style={{ maxWidth: 700, width: '90vw' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
           <div className="modal-head">
             <h3 style={{ margin: 0 }}>{c.name}</h3>
             <button className="modal-close" onClick={onClose} aria-label="閉じる">×</button>
