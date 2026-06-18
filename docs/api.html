@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tirocinium — API リファレンス</title>
+<meta name="description" content="Tirocinium server の REST + WebSocket API 一覧。トグル展開で詳細・パラメータを確認。" />
+<link rel="stylesheet" href="./assets/style.css" />
+</head>
+<body>
+<nav class="nav">
+  <span class="brand">Tirocinium <small>/ Tr</small></span>
+  <a class="tab" href="./index.html">概要</a>
+  <a class="tab" href="./graph.html">関連グラフ</a>
+  <a class="tab active" href="./api.html">API リファレンス</a>
+  <a class="tab" href="./review.html">仕様↔コード レビュー</a>
+  <span class="spacer"></span>
+  <a class="gh" href="https://github.com/ludiars/tirocinium" target="_blank" rel="noopener">GitHub ↗</a>
+</nav>
+
+<div class="wrap wide">
+  <header class="hero">
+    <h1>API リファレンス</h1>
+    <p class="lede">
+      <code>apps/server</code> (Hono + WS) が公開する REST + WebSocket API。
+      各エンドポイントを<strong>トグル展開</strong>すると、パラメータ・認証・レスポンスの詳細を確認できる。
+    </p>
+  </header>
+
+  <div class="note">
+    認証バッジ:
+    <span class="auth-tag cernere">Cernere</span> 本体トークン認証 ·
+    <span class="auth-tag discord">Discord</span> 裏口の session token ·
+    <span class="auth-tag none">none</span> 認証不要 (公開情報) 。
+    クロール系の一部 POST は <code>COMPANY_CRAWL_ADMIN_IDS</code> の allowlist でさらに admin 限定。
+  </div>
+
+  <div class="api-controls">
+    <input type="text" id="search" placeholder="🔎 メソッド / パス / 説明で絞り込み (例: companies, POST, summary)" />
+    <button class="btn" id="expand-all">すべて展開</button>
+    <button class="btn" id="collapse-all">すべて閉じる</button>
+  </div>
+  <p class="muted small" id="count"></p>
+
+  <div id="api-root"></div>
+</div>
+
+<footer>
+  Tirocinium (Tr) · API は <code>apps/server/src/routes/*</code> + <code>ws/handler.ts</code> から抽出
+</footer>
+
+<script src="./assets/api-data.js"></script>
+<script>
+(function () {
+  const root = document.getElementById('api-root');
+  const search = document.getElementById('search');
+  const countEl = document.getElementById('count');
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const mClass = (m) => ({ GET: 'get', POST: 'post', PUT: 'put', DELETE: 'delete', WS: 'ws' }[m] || 'get');
+  const authBadge = (a) => '<span class="auth-tag ' + a + '">' + ({ cernere: 'Cernere', discord: 'Discord', none: 'none' }[a] || a) + '</span>';
+
+  let total = 0;
+  function render() {
+    let html = '';
+    for (const g of window.TIROCINIUM_API) {
+      html += '<section class="api-group" data-group="' + esc(g.group.toLowerCase()) + '">';
+      html += '<h3>' + esc(g.group) + ' <span class="base">' + esc(g.base) + '</span> ' + authBadge(g.auth) + (g.ws ? ' <span class="badge ws">WS</span>' : '') + '</h3>';
+      html += '<p class="muted small">' + esc(g.note) + '</p>';
+      for (const e of g.endpoints) {
+        total++;
+        const fullPath = (e.m === 'WS' || e.rootPath) ? e.path : (g.base + (e.path === '/' ? '' : e.path));
+        const hay = (e.m + ' ' + fullPath + ' ' + e.desc + ' ' + g.group).toLowerCase();
+        html += '<details class="api" data-hay="' + esc(hay) + '">';
+        html += '<summary><span class="badge ' + mClass(e.m) + '">' + e.m + '</span>';
+        html += '<span class="path">' + esc(fullPath) + '</span>';
+        if (e.status === 'no') html += ' <span class="status no">未実装</span>';
+        html += '<span class="desc">' + esc(e.desc) + '</span></summary>';
+        html += '<div class="api-body">';
+        html += '<p>' + authBadge(e.auth) + ' &nbsp; ' + esc(e.desc) + '</p>';
+        if (e.params && e.params.length) {
+          html += '<h4>パラメータ</h4><table><thead><tr><th>位置</th><th>名前</th><th>型</th><th>必須</th><th>説明</th></tr></thead><tbody>';
+          for (const p of e.params) {
+            html += '<tr><td><code>' + p.in + '</code></td><td><code>' + esc(p.name) + '</code></td><td>' + esc(p.type) + '</td><td>' + (p.req ? '✔︎' : '—') + '</td><td>' + esc(p.desc) + '</td></tr>';
+          }
+          html += '</tbody></table>';
+        } else if (!e.frames) {
+          html += '<h4>パラメータ</h4><p class="muted small">なし</p>';
+        }
+        if (e.frames) {
+          html += '<h4>クライアント → サーバ フレーム</h4><table><tbody>';
+          for (const f of e.frames.client) html += '<tr><td><code>' + esc(f[0]) + '</code></td><td>' + esc(f[1]) + '</td></tr>';
+          html += '</tbody></table>';
+          html += '<h4>サーバ → クライアント フレーム</h4><table><tbody>';
+          for (const f of e.frames.server) html += '<tr><td><code>' + esc(f[0]) + '</code></td><td>' + esc(f[1]) + '</td></tr>';
+          html += '</tbody></table>';
+        }
+        if (e.returns) html += '<h4>レスポンス</h4><p><code>' + esc(e.returns) + '</code></p>';
+        html += '</div></details>';
+      }
+      html += '</section>';
+    }
+    root.innerHTML = html;
+    countEl.textContent = total + ' エンドポイント (' + window.TIROCINIUM_API.length + ' グループ)';
+  }
+  render();
+
+  search.addEventListener('input', () => {
+    const q = search.value.trim().toLowerCase();
+    let shown = 0;
+    document.querySelectorAll('section.api-group').forEach((sec) => {
+      let any = false;
+      sec.querySelectorAll('details.api').forEach((d) => {
+        const match = !q || d.getAttribute('data-hay').includes(q);
+        d.style.display = match ? '' : 'none';
+        if (match) { any = true; shown++; if (q) d.open = true; }
+      });
+      sec.style.display = any ? '' : 'none';
+    });
+    countEl.textContent = q ? (shown + ' 件ヒット') : (total + ' エンドポイント (' + window.TIROCINIUM_API.length + ' グループ)');
+  });
+
+  document.getElementById('expand-all').addEventListener('click', () =>
+    document.querySelectorAll('details.api').forEach((d) => { if (d.style.display !== 'none') d.open = true; }));
+  document.getElementById('collapse-all').addEventListener('click', () =>
+    document.querySelectorAll('details.api').forEach((d) => { d.open = false; }));
+})();
+</script>
+</body>
+</html>
