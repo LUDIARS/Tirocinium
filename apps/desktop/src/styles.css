@@ -771,9 +771,12 @@ pre {
   inset: 0;
   background: rgba(10, 12, 18, 0.55);
   display: flex;
-  align-items: center;
+  /* 縦中央寄せは panel の margin:auto で行う。 align-items:center だと panel が
+     viewport より高い時に上端が掴めなくなる (スクロール不能) ため flex-start。 */
+  align-items: flex-start;
   justify-content: center;
   padding: 24px;
+  overflow: auto; /* 固定フレームが viewport を超えても全体を見られるように */
   z-index: 100;
 }
 .modal-panel {
@@ -781,12 +784,26 @@ pre {
   border: 1px solid var(--c-border);
   border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
-  width: min(720px, 100%);
-  max-height: 85vh;
+  /* フレーム固定: コンテンツ量やタブ切替で大きさが変わらない (内部は .modal-body が
+     スクロールする)。 横 = ウインドウ 60% / 最小 700px、 縦 = 80% / 最小 800px、 上限なし。 */
+  width: 60vw;
+  min-width: 700px;
+  height: 80vh;
+  min-height: 800px;
+  margin: auto; /* flex 中央寄せ + はみ出し時のスクロール両立 */
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
+/* 最小幅 (700px) + 左右パディングが画面に収まらない狭い端末でのみ、 横はみ出しを防ぐ。
+   それ以上の幅ではデスクトップ指定 (60vw / min 700px) をそのまま使う。 */
+@media (max-width: 748px) {
+  .modal-panel {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 .modal-head {
   display: flex;
   align-items: center;
