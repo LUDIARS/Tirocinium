@@ -1,5 +1,6 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { config } from './config.js';
 import { health } from './routes/health.js';
 import { reservations } from './routes/reservations.js';
@@ -31,6 +32,8 @@ assertSafeAuthConfig();
 initSql();
 
 const app = new Hono();
+
+app.use('*', cors());
 
 app.route('/health', health);
 app.route('/api/v1/reservations', reservations);
