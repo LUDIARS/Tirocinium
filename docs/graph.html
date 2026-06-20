@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tirocinium — ドメイン / 機能 関連グラフ</title>
+<meta name="description" content="Tirocinium のドメイン・機能・連携サービスの関係グラフ" />
+<link rel="stylesheet" href="./assets/style.css" />
+</head>
+<body>
+<nav class="nav">
+  <span class="brand">Tirocinium <small>/ Tr</small></span>
+  <a class="tab" href="./index.html">概要</a>
+  <a class="tab active" href="./graph.html">関連グラフ</a>
+  <a class="tab" href="./api.html">API リファレンス</a>
+  <a class="tab" href="./review.html">仕様↔コード レビュー</a>
+  <span class="spacer"></span>
+  <a class="gh" href="https://github.com/ludiars/tirocinium" target="_blank" rel="noopener">GitHub ↗</a>
+</nav>
+
+<div class="graph-shell">
+  <aside class="graph-side">
+    <h3 style="margin-top:0">凡例</h3>
+    <div id="graph-legend"></div>
+    <p class="muted small" style="margin:10px 0 0">
+      ノードをクリックで近傍を強調 / ドラッグで移動 / ホイールでズーム / 背景ドラッグでパン / ダブルクリックで解除。
+    </p>
+    <div id="graph-nodelist"></div>
+  </aside>
+  <div class="graph-main">
+    <canvas id="graph-canvas"></canvas>
+    <div class="graph-tip" id="graph-tip"></div>
+    <div class="graph-hint">node をクリックで関連を強調 · ホイールでズーム</div>
+  </div>
+</div>
+
+<script src="./assets/graph-data.js"></script>
+<script src="./assets/graph.js"></script>
+</body>
+</html>
