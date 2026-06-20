@@ -1,4 +1,4 @@
-// OB 就職実績 (集計のみ) の永続化と集計取得 (spec/companies/game-graph.md §3.4 / §5.3)。
+// OB 就職実績 (集計のみ) の永続化と集計取得 (spec/feature/companies/game-graph.md §3.4 / §5.3)。
 // 個人レコードは持たない。 PK (company_id, join_year, class_name, role) で冪等 upsert。
 
 import { sql } from '../db/index.js';

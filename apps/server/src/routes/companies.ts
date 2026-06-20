@@ -285,7 +285,7 @@ companies.post('/enrich', cernereAuth, async (c) => {
 /**
  * POST /api/v1/companies/merge-duplicates — corporate_number が同じ重複企業を 1 行にマージ (admin 専用)。
  * { dryRun?: boolean } — true なら差分算出のみ (DB 反映なし)。
- * spec/companies/game-graph.md §5.5 (英⇔カナ社名の自動マージ #197)。
+ * spec/feature/companies/game-graph.md §5.5 (英⇔カナ社名の自動マージ #197)。
  */
 companies.post('/merge-duplicates', cernereAuth, async (c) => {
   const user = c.get('user');

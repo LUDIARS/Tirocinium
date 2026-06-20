@@ -14,7 +14,7 @@ TIROCINIUM_DISCORD_TEXT_CHANNEL_IDS, TIROCINIUM_DISCORD_COMMAND_PREFIX
 ```
 
 Excubitor 側で service `tirocinium` の Infisical マッピングを設定し、 Infisical に上記キーを入れる
-(詳細は `spec/notion/README.md` §3 / Excubitor `spec/secret-agent.md`)。`@tirocinium/secrets` 経由。
+(詳細は `spec/interface/notion/README.md` §3 / Excubitor `spec/secret-agent.md`)。`@tirocinium/secrets` 経由。
 
 ## Environment (agent を使わない場合の dev fallback)
 
@@ -49,7 +49,7 @@ After a session starts, Tr sends the first interviewer message. Non-command mess
 
 ## 裏口 Bot B (卒業生面、 Bot A とは別管理)
 
-裏口 (`spec/web/backdoor.md`) は **本体/面接の Bot A とは別 token の Bot B** で動かす。
+裏口 (`spec/feature/web/backdoor.md`) は **本体/面接の Bot A とは別 token の Bot B** で動かす。
 別 application/bot として Discord Developer Portal で作成し、 卒業生用サーバに招待する。
 token 未設定なら Bot B は起動しない (裏口 API/view は Bot 無しでも動くが、 マジックリンク配布が無効)。
 

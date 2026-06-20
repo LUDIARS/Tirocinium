@@ -1,6 +1,6 @@
 // 自動 enrich キュー: 概要なしのゲーム関連企業を 1 分 1 件で順次クロールする常駐処理。
 // DB を待ち行列とみなし、 毎 tick で「最も試行が古い 1 社」を選んで enrich する (overlap 防止)。
-// LLM (api backend + key) が無い環境では起動しない。 spec/companies/gbizinfo.md / README §3。
+// LLM (api backend + key) が無い環境では起動しない。 spec/feature/companies/gbizinfo.md / README §3。
 
 import { config } from '../config.js';
 import { runEnrichment } from './enrich.js';

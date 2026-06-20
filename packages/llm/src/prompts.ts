@@ -3,7 +3,7 @@
 
 import type { Phase } from './phase.js';
 
-// --- 弁証法サイクル (Micro 深掘りの中核) — spec/inference/dialectic-engine.md §4 ---
+// --- 弁証法サイクル (Micro 深掘りの中核) — spec/feature/inference/dialectic-engine.md §4 ---
 // Di (Discatier) の正-反-合をソクラテス的問答法として面接の 1 深掘り単位に写す。
 export const DIALECTIC_PROBE = `
 深掘りは「弁証法サイクル」で行う (出力は次の発話=質問のみ。内部思考は出さない):

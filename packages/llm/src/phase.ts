@@ -1,4 +1,4 @@
-// 面接のフェーズ状態機 (Macro)。spec/inference/dialectic-engine.md §3。
+// 面接のフェーズ状態機 (Macro)。spec/feature/inference/dialectic-engine.md §3。
 // stage (面接の種類) と直交する「面接内の進行」を純関数で管理する。
 
 export type Phase = 'opening' | 'probe' | 'pressure' | 'closing' | 'ended';

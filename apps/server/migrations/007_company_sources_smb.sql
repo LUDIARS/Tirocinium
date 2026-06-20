@@ -1,4 +1,4 @@
--- 横断 provenance + 中小レーン (spec/companies/listing-bundle.md)
+-- 横断 provenance + 中小レーン (spec/feature/companies/listing-bundle.md)
 -- 複数ソースの出所累積 (sources) と 中小/上場シグナル (is_smb / is_listed) を companies に追加。
 -- IMMUTABLE: 適用済 SQL は書き換えず、 変更は 008_*.sql 以降で追記する。
 

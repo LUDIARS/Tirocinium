@@ -1,6 +1,6 @@
 // 採用ページ / 技術ブログ本文 → 使用技術トークンの LLM 抽出。
 // 抽出は LLM (recruit の必須スキル等は非構造のため)、 正準化は決定論 (tech.ts) に委ねる。
-// spec/companies/game-graph.md (tech レイヤー)。
+// spec/feature/companies/game-graph.md (tech レイヤー)。
 
 import type Anthropic from '@anthropic-ai/sdk';
 import { extractText, extractJsonBlock } from '@tirocinium/llm';

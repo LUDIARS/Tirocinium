@@ -1,4 +1,4 @@
-// 裏口 (卒業生の自己投稿面) API + マジックリンク認証 + view 配信。 spec/companies/backdoor.md。
+// 裏口 (卒業生の自己投稿面) API + マジックリンク認証 + view 配信。 spec/feature/companies/backdoor.md。
 // 認証は Cernere ではなく Bot B 発行の session token (Bearer)。 本体/面接 (Cernere) とは別系統。
 
 import { Hono } from 'hono';

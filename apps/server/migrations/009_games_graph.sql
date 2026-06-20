@@ -1,4 +1,4 @@
--- 企業×ゲーム グラフDB Phase 1 (spec/companies/game-graph.md §3)
+-- 企業×ゲーム グラフDB Phase 1 (spec/feature/companies/game-graph.md §3)
 -- ゲームノード + 企業↔ゲーム edge + 企業↔企業 取引 edge。
 -- IMMUTABLE: 適用済 SQL は書き換えず、 変更は 010_*.sql 以降で追記する。
 

@@ -154,7 +154,7 @@ export type DiscoverySignals = {
   isNewgrad?: boolean;
   isGame?: boolean;
   hasOpening?: boolean;
-  /** 中小フラグ (spec/companies/listing-bundle.md §2③)。 */
+  /** 中小フラグ (spec/feature/companies/listing-bundle.md §2③)。 */
   isSMB?: boolean;
   /** 上場シグナル (中小判定の材料)。 */
   isListed?: boolean;
@@ -304,7 +304,7 @@ export async function companiesNeedingEnrichment(limit = 50): Promise<Company[]>
   `;
 }
 
-// ── Wikidata 公式HP (P856) 補完 (spec/companies/game-graph.md §0 / 名寄れ補完) ──
+// ── Wikidata 公式HP (P856) 補完 (spec/feature/companies/game-graph.md §0 / 名寄れ補完) ──
 
 /**
  * Wikidata 発見社で url 未取得の企業を返す (社名→公式HP 特定の対象)。
@@ -320,7 +320,7 @@ export async function companiesNeedingUrlFromWikidata(limit = 50): Promise<Compa
   `;
 }
 
-// ── IR 従業員数 裏取り (spec/companies/game-graph.md §5.4 Phase4) ──
+// ── IR 従業員数 裏取り (spec/feature/companies/game-graph.md §5.4 Phase4) ──
 
 /**
  * IR 従業員裏取りの対象社。 employee_count=0 (規模不明) ∧ url 有 を対象に、

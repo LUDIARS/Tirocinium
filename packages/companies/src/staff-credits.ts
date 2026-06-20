@@ -1,5 +1,5 @@
 // スタッフロール (クレジット) 掲載元ページ本文 → ゲーム + 関与企業群 の決定論パーサ。
-// 純粋関数 (LLM 不使用)。 spec/companies/game-graph.md §4 / §5.2 (Phase2 発見クロール)。
+// 純粋関数 (LLM 不使用)。 spec/feature/companies/game-graph.md §4 / §5.2 (Phase2 発見クロール)。
 // 「full credits」対応: 開発/発売だけでなく 開発協力/外注/移植/QA 等の section も拾い、
 // 外注スタジオの発見精度を上げる。 個人名は企業指標が無いため自然に除外される。
 

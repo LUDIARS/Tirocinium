@@ -1,6 +1,6 @@
 // 英⇔カナ社名の自動マージ — DB 非依存コア (deps 注入・テスト可能)。
 // corporate_number が同じ重複行を 1 行に集約する。実 DB 配線は company-merge-wire.ts に置く。
-// spec/companies/game-graph.md §5.5。
+// spec/feature/companies/game-graph.md §5.5。
 
 import { selectSurvivor, mergeCompanyFields } from '@tirocinium/companies';
 import type { MergeCandidate, SurvivorFieldPatch } from '@tirocinium/companies';

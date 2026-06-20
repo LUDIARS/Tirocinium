@@ -1,5 +1,5 @@
 -- 新卒採用者インタビュー記事のクロール保存 + 会社別「求める新卒像」サマリ。
--- spec/companies/interview-articles.md。 公開記事の本文/要約のみ保持 (個人特定情報は持たない)。
+-- spec/feature/companies/interview-articles.md。 公開記事の本文/要約のみ保持 (個人特定情報は持たない)。
 -- 記事本文は他機能 (ES添削/面接質問の素材等) でも再利用するため raw を残す。
 -- IMMUTABLE: 適用済 SQL は書き換えず、 変更は 006_*.sql 以降で追記する。
 

@@ -3,7 +3,7 @@
 `companies` テーブルの母集団を **gBizINFO (経産省 法人情報 REST API)** で広く埋めるための仕様。
 求人観点(特にゲーム + 中小/ベンチャー)に寄せるため **「gBiz で粗く絞る → 会社HPで裏取り」の 2 段ファネル**で運用する。
 
-略称 **Tr**。AIFormat 構造化仕様。[[spec/companies/README.md]] §3.5 (listing クロール) の新種ソースとして接続する。
+略称 **Tr**。AIFormat 構造化仕様。[[spec/feature/companies/README.md]] §3.5 (listing クロール) の新種ソースとして接続する。
 
 ---
 
@@ -13,7 +13,7 @@
 - **粗さ**: 日本標準産業分類 (JSIC) に**「ゲーム」専用分類は無い**。業種では「情報通信業 / ソフトウェア業」までしか絞れず、ゲーム会社を正確には切り出せない。名称キーワードもノイズ・取りこぼしが残る。
 - → 母集団は gBizINFO で粗く確保し、**ゲーム/募集の有無は会社HP巡回 (既存 enrich/classify) で確定**する。HP に URL が無い record は**社名→公式HP特定の検索ステップを 1 段挟む**(ユーザ合意済)。
 
-責務境界: gBizINFO は **layer 1 (会社選択の母集団 = `companies`)** のみを埋める。ES添削の背景 (layer 2 = `company_profiles`) と面接質問プール (layer 3 = `company_interview_questions`) には**関与しない**(それぞれ HP enrich / [[spec/companies/interview-questions.md]] が担当)。
+責務境界: gBizINFO は **layer 1 (会社選択の母集団 = `companies`)** のみを埋める。ES添削の背景 (layer 2 = `company_profiles`) と面接質問プール (layer 3 = `company_interview_questions`) には**関与しない**(それぞれ HP enrich / [[spec/feature/companies/interview-questions.md]] が担当)。
 
 ---
 
@@ -65,7 +65,7 @@ GBizInfoSource.discover(query)          ← Canalis (汎用・決定論・LLM不
 
 ## 3. 設定 (env 不使用)
 
-[[spec/notion/README.md]] と同方式。Excubitor secret-agent (`@tirocinium/secrets`) or Canalis `config set` で runtime 取得し process memory のみ。
+[[spec/interface/notion/README.md]] と同方式。Excubitor secret-agent (`@tirocinium/secrets`) or Canalis `config set` で runtime 取得し process memory のみ。
 
 | キー | 用途 |
 |---|---|

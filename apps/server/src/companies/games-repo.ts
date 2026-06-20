@@ -1,4 +1,4 @@
-// ゲームノード + 企業↔ゲーム edge の永続化 (spec/companies/game-graph.md Phase 1)。
+// ゲームノード + 企業↔ゲーム edge の永続化 (spec/feature/companies/game-graph.md Phase 1)。
 // upsertGame は normalized_title で冪等、 出所 (sources) を read-merge-write で累積。
 
 import { sql, isSqlite } from '../db/index.js';
@@ -119,7 +119,7 @@ export async function countPartnerEdges(): Promise<number> {
   return Number(rows[0]?.count ?? 0);
 }
 
-// ── ゲーム→関連会社 検索 (spec/companies/game-graph.md §6) ──────────────
+// ── ゲーム→関連会社 検索 (spec/feature/companies/game-graph.md §6) ──────────────
 
 export type GameSearchRow = {
   id: string;

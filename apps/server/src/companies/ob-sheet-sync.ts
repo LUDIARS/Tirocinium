@@ -7,7 +7,7 @@
 // 差分 (3-a): Sheet 由来セル (source='sheet-sync') の DB 現状 (prev) vs Sheet 全量 (next) を突合し、
 //   新規 upsert / headcount 変更 upsert / Sheet から消えたセルの削除 を行う (Sheet を正本とする同期)。
 //   source!='sheet-sync' (手動 CSV 取込 = 'user' 等) のセルには触れない。
-// spec/companies/game-graph.md §2.1 / §5.3。
+// spec/feature/companies/game-graph.md §2.1 / §5.3。
 
 import { parseObSheetValues, aggregateObPersons, diffObCells } from '@tirocinium/companies';
 import type { ObCellRow } from './ob-repo.js';

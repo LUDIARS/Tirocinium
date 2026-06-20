@@ -1,7 +1,7 @@
 # reservation モジュール
 
-サーバーモードの面接枠管理。詳細フローは [`../../DESIGN.md` §5](../../DESIGN.md) と
-[`../schema/README.md`](../schema/README.md) を参照。本書は実装視点。
+サーバーモードの面接枠管理。詳細フローは [`DESIGN.md` §5](../../../DESIGN.md) と
+[`data/README.md`](../../data/README.md) を参照。本書は実装視点。
 
 ---
 

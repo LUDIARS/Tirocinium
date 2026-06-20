@@ -67,7 +67,7 @@ export function parseListing(text: string): ListingEntry[] {
 }
 
 /**
- * 巨大な一覧テキストを抽出 LLM に渡せるサイズへ分割する (spec/companies/listing-bundle.md §2①)。
+ * 巨大な一覧テキストを抽出 LLM に渡せるサイズへ分割する (spec/feature/companies/listing-bundle.md §2①)。
  * 改行優先で size 文字ごとに区切り、 maxChunks で打ち切る。 純粋関数。
  */
 export function chunkText(text: string, size: number, maxChunks: number): string[] {

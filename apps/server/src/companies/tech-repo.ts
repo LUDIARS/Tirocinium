@@ -1,5 +1,5 @@
 // 技術ノード + 企業↔技術 edge の永続化 + プラットフォーム傾向の集約。
-// spec/companies/game-graph.md (tech レイヤー)。 タグ由来は決定論、 採用ページ由来は tech-enrich (LLM)。
+// spec/feature/companies/game-graph.md (tech レイヤー)。 タグ由来は決定論、 採用ページ由来は tech-enrich (LLM)。
 
 import { sql, isSqlite } from '../db/index.js';
 import {

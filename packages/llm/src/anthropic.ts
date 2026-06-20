@@ -12,7 +12,7 @@ export function createAnthropicClient(opts: AnthropicConfig = {}): Anthropic {
   return new Anthropic({ apiKey });
 }
 
-// 役割ごとの既定モデル (3 機種分担)。spec/inference/model-profiles.md。
+// 役割ごとの既定モデル (3 機種分担)。spec/feature/inference/model-profiles.md。
 const MODEL_DEFAULTS = {
   RESPONSE: 'claude-sonnet-4-6',
   EVALUATOR: 'claude-opus-4-7',

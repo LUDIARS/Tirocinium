@@ -5,7 +5,7 @@ import { saveRecommendation, listRecommendations } from '../recommend/repo.js';
 import { sql } from '../db/index.js';
 
 /**
- * ES からおすすめ企業を返す (DESIGN §3.1 / spec/companies/README.md)。
+ * ES からおすすめ企業を返す (DESIGN §3.1 / spec/feature/companies/README.md)。
  * ES 本文は request scope の es_text か Memoria RAG 経由のみ参照し、 DB には保存しない。
  * 結果 (導出ガイダンス) は company_recommendations に保存して履歴化する。
  */

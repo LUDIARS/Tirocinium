@@ -1,7 +1,7 @@
 // 非公開 Google Sheet を service account で読む最小コネクタ (外部 SDK 不使用)。
 // service account JSON で署名した JWT (RS256) → access token → Sheets values API。
 // 読み取り専用スコープ。 Sheet は対象 service account のメールに共有しておく必要がある。
-// creds は secret 経由 (リポ非コミット)。 spec/companies/game-graph.md §5.3。
+// creds は secret 経由 (リポ非コミット)。 spec/feature/companies/game-graph.md §5.3。
 
 import { createSign } from 'node:crypto';
 

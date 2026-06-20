@@ -1,6 +1,6 @@
 // gBizINFO 母集団取込の配線 (IO + DB)。 discover → 決定論マッピング → upsert (candidate)。
 // マッピングは @tirocinium/companies の gbizInfoRecordToCompany (純粋) に委譲。 LLM 不使用・冪等。
-// spec/companies/gbizinfo.md §1③。 フラグ (isGame/hasOpening) はここでは立てない — HP裏取り (enrich) が確定する。
+// spec/feature/companies/gbizinfo.md §1③。 フラグ (isGame/hasOpening) はここでは立てない — HP裏取り (enrich) が確定する。
 
 import {
   gbizInfoRecordToCompany,

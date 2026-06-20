@@ -1,6 +1,6 @@
 // 英⇔カナ社名の自動マージ — 実 DB 配線層。
 // company-merge-core の deps に SQL を接続し、 CLI / admin API から呼べる形にする。
-// DB import は core から分離してここに置く。 spec/companies/game-graph.md §5.5。
+// DB import は core から分離してここに置く。 spec/feature/companies/game-graph.md §5.5。
 
 import { sql, isSqlite } from '../db/index.js';
 import { coerceSources } from '@tirocinium/companies';

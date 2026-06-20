@@ -1,6 +1,6 @@
 // Wikidata SPARQL から「ある企業が関わったゲーム」と各ゲームの 開発元/発売元/シリーズ を取得する。
 // 決定論・公開オープンデータ (Canalis 原則準拠、 ToS クリーン)。 LLM 不使用。
-// spec/companies/game-graph.md Phase2 (発見クロール) の発見源。
+// spec/feature/companies/game-graph.md Phase2 (発見クロール) の発見源。
 
 const ENDPOINT = 'https://query.wikidata.org/sparql';
 const UA = 'TirociniumBot/0.1 (https://github.com/LUDIARS/Tirocinium; research)';

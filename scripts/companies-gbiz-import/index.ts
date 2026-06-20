@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 // gBizINFO (経産省 法人情報 API) で companies 母集団を粗く埋める (中小レーン)。
 // 取得は公開オープンデータ・決定論 (LLM 不使用)。 ゲーム/募集の確定は別途 HP裏取り (enrich)。
-// spec/companies/gbizinfo.md §4。
+// spec/feature/companies/gbizinfo.md §4。
 //
 //   npm run companies:gbiz-import -- --industry <code> [--name ゲーム] [--prefecture 東京都] [--max 100]
 //   npm run companies:gbiz-import -- --name カプコン --db <sqlite>
