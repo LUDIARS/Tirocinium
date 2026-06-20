@@ -1,6 +1,6 @@
 // ob-sheet-sync コアに実 DB / 実 Sheet を配線する層 (route / CLI から呼ぶ)。
 // db import を core (ob-sheet-sync.ts) から分離し、 core を DB 非依存・テスト可能に保つ。
-// spec/companies/game-graph.md §5.3。
+// spec/feature/companies/game-graph.md §5.3。
 
 import { config } from '../config.js';
 import { getCompanyByNormalizedName } from './repo.js';

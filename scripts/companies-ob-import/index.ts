@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 // ユーザ付与の OB 就職実績 (CSV / JSON) を company_ob_placement に取り込む。
 // 個人データは受け取らない (集計セル {会社名, 入社年, クラス, 役職, 人数} のみ)。
-// spec/companies/game-graph.md Phase 3 / §5.3。
+// spec/feature/companies/game-graph.md Phase 3 / §5.3。
 //
 //   npm run companies:ob-import -- <file.csv|file.json>
 //   npm run companies:ob-import -- <file> --db <sqlite>

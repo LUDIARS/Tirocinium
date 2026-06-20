@@ -3,7 +3,7 @@
 // DB / LLM を持たない経路 (Hono ルーティング + ミドルウェア) のベースライン
 // オーバーヘッドを計測する。CI で回せるよう外部依存ゼロ・決定的。
 // 端から端まで (DB/LLM 込み) の SLO 検証は standalone プロファイルで別途行う
-// (spec/web/performance.md 参照)。
+// (spec/test/performance.md 参照)。
 //
 // 実行: npm --workspace apps/server run bench
 // 退出: p95 が予算超過なら非ゼロ (退行ガード)。予算は BENCH_P95_BUDGET_MS で調整。

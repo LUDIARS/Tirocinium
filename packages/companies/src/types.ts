@@ -76,7 +76,7 @@ export type Company = NormalizedCompany & {
   updated_at: string;
 };
 
-// ── 企業×ゲーム グラフ (migration 009 / spec/companies/game-graph.md) ──────
+// ── 企業×ゲーム グラフ (migration 009 / spec/feature/companies/game-graph.md) ──────
 
 /** 企業↔ゲーム の関係種別。 */
 export type CompanyGameRole = 'developer' | 'publisher' | 'credited' | 'support';
@@ -233,7 +233,7 @@ export type CompanyProfile = CompanyProfileInput & {
   fetched_at: string;
 };
 
-// ── OB 就職実績 (集計のみ・個人なし、 spec/companies/game-graph.md §2.1 / §3.4) ──
+// ── OB 就職実績 (集計のみ・個人なし、 spec/feature/companies/game-graph.md §2.1 / §3.4) ──
 
 /** ユーザ付与の OB 就職実績 1 行 (取込前の生入力)。 個人列は受け取らない。 */
 export type ObPlacementInput = {

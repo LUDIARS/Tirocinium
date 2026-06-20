@@ -1,4 +1,4 @@
--- 卒業生「裏口」: 自己投稿型エントリ + マジックリンク token。 spec/companies/backdoor.md。
+-- 卒業生「裏口」: 自己投稿型エントリ + マジックリンク token。 spec/feature/companies/backdoor.md。
 -- 本人が同意して書く自己申告データ (harvest した PII ではない)。 Discord identity をアンカーにし、
 -- Cernere ではなく Discord (Bot B) 認証で本人確認する (Discutere と同じ Cernere 非依存方針)。
 -- 個人データ境界 §6: company_ob_placement(集計) とは別系統。 本人が編集/削除できる前提。

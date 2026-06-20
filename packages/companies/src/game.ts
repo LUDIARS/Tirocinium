@@ -1,5 +1,5 @@
 // ゲームノードの正規化と、 research の代表作テキスト → 企業→ゲームリンクの決定論パーサ。
-// 純粋関数 (LLM 不使用)。 spec/companies/game-graph.md §4。
+// 純粋関数 (LLM 不使用)。 spec/feature/companies/game-graph.md §4。
 
 import type { GameCompanyResearchRecord } from './game-seed.js';
 import type { CompanyGameRole, GameInput, GameLink, NormalizedGame } from './types.js';

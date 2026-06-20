@@ -32,7 +32,7 @@ SQLite は `apps/server/src/db/sqlite-driver.ts` の **postgres 風互換 shim**
 | `companies` | クロールで集めた企業プール (公開情報、§spec/companies) |
 | `company_profiles` | 企業サイト巡回で得た IR/理念 (ES添削の背景 RAG、§spec/companies §3.5.3) |
 | `company_recommendations` | ES から導出したおすすめ企業の結果履歴 (導出ガイダンス) |
-| `company_interview_questions` | 会社別の面接質問プール (面接質問リストの優先素材、§spec/companies/interview-questions) |
+| `company_interview_questions` | 会社別の面接質問プール (面接質問リストの優先素材、§spec/feature/companies/interview-questions) |
 
 ---
 

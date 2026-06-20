@@ -1,5 +1,5 @@
 -- Tirocinium migration 002: persona / summary / feedback / ft_loop_runs
--- DESIGN.md §3.5-3.9 / spec/schema/README.md 準拠
+-- DESIGN.md §3.5-3.9 / spec/data/README.md 準拠
 -- IMMUTABLE: 既適用の SQL は書き換えず、 変更は 003_*.sql 以降に追記する
 
 -- interviewer personas (§3.5)

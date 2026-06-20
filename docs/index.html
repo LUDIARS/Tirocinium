@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tirocinium — サービス概要</title>
+<meta name="description" content="LUDIARS Tirocinium (Tr) — 面接練習アプリのサービス役割・特徴・設計まとめ" />
+<link rel="stylesheet" href="./assets/style.css" />
+</head>
+<body>
+<nav class="nav">
+  <span class="brand">Tirocinium <small>/ Tr</small></span>
+  <a class="tab active" href="./index.html">概要</a>
+  <a class="tab" href="./graph.html">関連グラフ</a>
+  <a class="tab" href="./api.html">API リファレンス</a>
+  <a class="tab" href="./review.html">仕様↔コード レビュー</a>
+  <span class="spacer"></span>
+  <a class="gh" href="https://github.com/ludiars/tirocinium" target="_blank" rel="noopener">GitHub ↗</a>
+</nav>
+
+<div class="wrap">
+  <header class="hero">
+    <h1>Tirocinium <span class="lat">— tīrōcinium</span></h1>
+    <p class="lede">
+      新兵訓練、初任修練。本番前の本気の試行錯誤。<br />
+      本人の <strong>ES / ポートフォリオ / 過去面接問答</strong> を教師データに持つ AI を相手に、
+      <strong>音声対話</strong>で面接を反復練習し、Sonnet ストリームで応答しつつ
+      複合 LLM が適度な分量で <strong>ペルソナ評価</strong>を返す、LUDIARS の面接練習アプリ。
+    </p>
+  </header>
+
+  <section>
+    <h2>サービスの役割</h2>
+    <p>
+      Tirocinium 自体は「<strong>予約台帳 + 集計 + LLM オーケストレータ</strong>」に徹する。
+      個人データ (履歴書 / ポートフォリオ / 面接ログ) は本サービスの責務範囲外で、
+      認証は <strong>Cernere</strong>、音声は <strong>Imperativus</strong>、生データの永続化は <strong>Memoria</strong> に委譲する。
+      自リポが DB に持つのは「セッションメタ + 評価結果 + 公開企業情報」だけ。
+    </p>
+    <div class="grid cols-3">
+      <div class="card">
+        <h3><span class="ico">🎯</span>本番に近い圧</h3>
+        <p>就活初学者が本番に近い圧で面接練習を反復できる。面接官ペルソナの <code>pressure</code> が深掘りの粘りと沈黙の使い方を制御。</p>
+      </div>
+      <div class="card">
+        <h3><span class="ico">🧬</span>本人特化</h3>
+        <p>教師データを本人固有に持つ (汎用面接 bot ではない)。fine-tune せず RAG + 弱点プロファイルで本人モデルを育てる。</p>
+      </div>
+      <div class="card">
+        <h3><span class="ico">🎙️</span>低遅延の音声対話</h3>
+        <p>音声で投げて音声で返す対話を遅延小で回す。Sonnet 応答は TTS と並行にトークン単位で流す。</p>
+      </div>
+      <div class="card">
+        <h3><span class="ico">📊</span>邪魔しない評価</h3>
+        <p>評価は応答ストリームを邪魔せず、別レイヤ (Opus) から適度な分量で返す。6 軸スコア + 改善 hint。</p>
+      </div>
+      <div class="card">
+        <h3><span class="ico">🏢</span>企業探索</h3>
+        <p>ES からおすすめ企業を返し、公開情報をクロールして企業プール・ゲームグラフ・OB 実績を育てる。</p>
+      </div>
+      <div class="card">
+        <h3><span class="ico">🚪</span>裏口 (卒業生)</h3>
+        <p>卒業生の自己投稿面。Discord マジックリンク認証で在籍企業・学生/業界向けメッセージを残す。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3 つの面 (Surface)</h2>
+    <table>
+      <thead><tr><th>面</th><th>構成</th><th>認証</th><th>Discord</th><th>主な機能</th></tr></thead>
+      <tbody>
+        <tr><td><strong>本体</strong></td><td>Tr ビュー</td><td>なし</td><td>Bot A (<code>!tr</code>)</td><td>企業探索 / おすすめ / 資料閲覧</td></tr>
+        <tr><td><strong>面接</strong></td><td>認証付き Tr ビュー</td><td>Cernere</td><td>Bot A (<code>!tr</code>)</td><td>音声面接 / 予約 / サマリ / フィードバック</td></tr>
+        <tr><td><strong>裏口</strong></td><td>Tr ビュー (<code>/backdoor</code>)</td><td>Discord マジックリンク</td><td>Bot B (<code>!ob</code>)</td><td>卒業生の自己投稿</td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      <strong>Bot A と Bot B は別 token・別 gateway で別管理</strong> (<code>config.discord</code> / <code>config.discordBackdoor</code>)。
+      裏口の認証は Cernere ではなく Discord (Bot B 発行の session token)。
+    </div>
+  </section>
+
+  <section>
+    <h2>2 つのモード</h2>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3><span class="ico">💻</span>ローカルモード</h3>
+        <p>ユーザ PC 上のみで完結。ネット切れても動く。LLM は軽量ローカルモデル (ollama 等)、STT/TTS も local Whisper / piper を想定。教師データはローカル SQLite。評価層は OFF または簡易。</p>
+      </div>
+      <div class="card">
+        <h3><span class="ico">☁️</span>サーバーモード</h3>
+        <p>LUDIARS サーバ群を使い複合 LLM (GPT-5.5 + Opus + Sonnet) で本番面接体験。認証は Cernere、音声は Imperativus、生データ永続化は Memoria を検討。枠が埋まると予約に誘導。</p>
+      </div>
+    </div>
+    <p class="muted small">起動時にサーバ到達性 (<code>/health</code>) と認証トークン有効性で自動判定。失敗すればローカルへフォールバック。明示切替 UI もある。</p>
+  </section>
+
+  <section>
+    <h2>面接 AI の設計</h2>
+    <h3>複合 LLM 構成 (サーバーモード)</h3>
+    <table>
+      <thead><tr><th>層</th><th>モデル</th><th>役割</th></tr></thead>
+      <tbody>
+        <tr><td>応答生成 (主)</td><td><strong>Sonnet</strong></td><td>面接官の応答。<strong>ストリームで</strong>即返す (TTS と並走)。</td></tr>
+        <tr><td>質問選定 / 深掘り誘導</td><td><strong>GPT-5.5</strong></td><td>5-10 turn ごとに次に聞くべきことを判断、Sonnet の system prompt を裏で補正。</td></tr>
+        <tr><td>ペルソナ評価</td><td><strong>Opus</strong></td><td>一定 turn ごとに過去会話を読みペルソナを評価。別 channel で UI 横に出す。</td></tr>
+        <tr><td>回答 judge</td><td><strong>Haiku</strong></td><td>turn 後に非同期で品質判定 → phase signals を供給。</td></tr>
+      </tbody>
+    </table>
+    <h3>本人特化 = RAG + 弱点プロファイル (fine-tune せず)</h3>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>RAG (本人素材の検索注入)</h3>
+        <p>ES / portfolio / 過去 Q&A は Memoria 側で永続化 + embedding。Tr は <code>training_data_refs</code> で参照だけ握る。session 開始時に (志望 tag + 弱点軸) を query に Memoria vector search → system prompt に注入。</p>
+      </div>
+      <div class="card">
+        <h3>弱点プロファイル</h3>
+        <p>Opus 評価を user 単位で EMA 集約。6 軸の平均 + 分散 + 最弱 top-3 + hint 履歴を保持。session 開始時に「鍛えるべき軸」を抽出して system prompt に注入。</p>
+      </div>
+    </div>
+    <h3>ペルソナ評価の 6 軸</h3>
+    <p>
+      <span class="chip">主張一貫性</span><span class="chip">論旨明快さ</span><span class="chip">態度・落ち着き</span>
+      <span class="chip">自己理解</span><span class="chip">志望適合</span><span class="chip">深掘り耐性</span>
+    </p>
+    <p class="muted small">評価は 0-5 スコア + 一言コメント + 改善 hint で返す。</p>
+    <h3>5 段重ね system prompt</h3>
+    <p>
+      ① 静的 root → ② 面接官ペルソナ → ②.5 弱点プロファイル → ③ session 開始時 RAG (role + stage tag) → ④ GPT-5.5 補正。
+      <code>pressure</code> は「聞き返しの粘り」「沈黙挿入」に変換、<code>tics</code> はそのまま転記。
+    </p>
+  </section>
+
+  <section>
+    <h2>予約フロー</h2>
+    <p>
+      サーバーモードは同時面接数が計算資源 (LLM コンテキスト数 + GPU 枠) で制限される。
+      枠が埋まったら待たせず、<strong>予約</strong>として時間を確定して帰す。
+    </p>
+    <ol>
+      <li><strong>ゲート判定</strong> — 認証 OK → 同時面接 quota 内 → GPU/LLM プール空き、を順にチェック。全 OK なら即時開始。</li>
+      <li><strong>予約 offer</strong> — 30 分単位 slot。最短で空く slot を <code>slot_start ASC</code> で走査して offer。1 ユーザ同時 1 件まで。</li>
+      <li><strong>通知</strong> — slot start 時に WS push + Nuntius 通知。開始 15 分前にも push。5 分以内に開始しなければ no-show で解放。</li>
+    </ol>
+    <table>
+      <thead><tr><th>段階</th><th>サーバ負荷</th><th>動作</th></tr></thead>
+      <tbody>
+        <tr><td>平常</td><td>&lt; 70%</td><td>即時開始</td></tr>
+        <tr><td>混雑</td><td>70-95%</td><td>予約 offer</td></tr>
+        <tr><td>飽和</td><td>&gt; 95%</td><td>新規受付停止、既存セッション保護優先</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>データ責務境界</h2>
+    <p>LUDIARS ルール: 個人データは Cernere 単一情報源、自前 DB に持たない。</p>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3 style="color:var(--ok)">Tr が持つ</h3>
+        <p>session メタ (id, user_id, start/end, mode, slot) / evaluation score (集計値) / reservation slot 状態 / training_data の<strong>参照</strong> (id + Memoria URI) / 企業の<strong>公開情報</strong> + おすすめ<strong>結果</strong></p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--bad)">Tr が持たない</h3>
+        <p>ES / ポートフォリオ生データ / 面接トランスクリプト生データ (Memoria 永続化) / ユーザ氏名・連絡先 / training_data 本体 / ES から導出した本文の逐語コピー</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>技術構成</h2>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>monorepo (npm workspaces)</h3>
+        <p>
+          <code>apps/desktop</code> — Vite + React + Tauri 2 のクライアント<br />
+          <code>apps/server</code> — Hono + WS の API / LLM proxy / 予約<br />
+          <code>packages/</code> — voice · llm · training · companies · analytics · secrets
+        </p>
+      </div>
+      <div class="card">
+        <h3>連携 LUDIARS サービス</h3>
+        <p>
+          <span class="chip">Cernere — 認証</span><span class="chip">Imperativus — 音声</span>
+          <span class="chip">Nuntius — 通知</span><span class="chip">Memoria — データ</span>
+          <span class="chip">Synergos — WS 経路</span><span class="chip">Excubitor — secret</span>
+          <span class="chip">Canalis — Notion</span>
+        </p>
+      </div>
+    </div>
+    <p class="muted">
+      実装の詳細な対応関係は <a href="./graph.html">関連グラフ</a> と
+      <a href="./review.html">仕様↔コード レビュー</a>、API は <a href="./api.html">API リファレンス</a> を参照。
+    </p>
+  </section>
+</div>
+
+<footer>
+  Tirocinium (Tr) · LUDIARS — 面接練習アプリ · このページは <code>spec/</code> + 実装コードのレビュー結果から生成
+</footer>
+</body>
+</html>

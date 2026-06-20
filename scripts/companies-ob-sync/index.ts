@@ -2,7 +2,7 @@
 // 非公開 Google Sheet (合格リスト) → company_ob_placement 集計同期。
 // 氏名は集計に畳む過程で破棄 (個人データ境界 §2.1)。 Sheet を正本に差分 (新規/変更/削除) を反映する。
 // creds / id / range は secret 経由 (TIROCINIUM_OB_SHEET_SA_JSON / _ID / _RANGE)。 env 平文に置かない。
-// spec/companies/game-graph.md §5.3。
+// spec/feature/companies/game-graph.md §5.3。
 //
 //   npm run companies:ob-sync                       # config の Sheet を本同期
 //   npm run companies:ob-sync -- --dry-run          # 差分のみ算出 (DB 反映しない)

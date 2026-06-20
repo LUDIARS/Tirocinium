@@ -3,7 +3,7 @@
 面接練習の質問リストを事前生成する際、**「その会社で実際に受けた質問」を最優先**で引くための
 会社単位の質問プール (layer 3) の仕様。供給は **A: ユーザ投稿** と **B: Notion 手元データ取込**の併用。
 
-略称 **Tr**。AIFormat 構造化仕様。[[spec/companies/README.md]] / [[spec/schema/README.md]] / 面接官エンジン (`spec/inference/interviewer-engine.md`) と整合。
+略称 **Tr**。AIFormat 構造化仕様。[[spec/feature/companies/README.md]] / [[spec/data/README.md]] / 面接官エンジン (`spec/feature/inference/interviewer-engine.md`) と整合。
 
 ---
 

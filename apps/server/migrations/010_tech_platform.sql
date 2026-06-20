@@ -1,4 +1,4 @@
--- 技術スタック グラフ + プラットフォーム分類 (spec/companies/game-graph.md / tech レイヤー)
+-- 技術スタック グラフ + プラットフォーム分類 (spec/feature/companies/game-graph.md / tech レイヤー)
 -- 企業↔技術 (engine/language/dcc/cloud/style) をグラフ化し、 ゲーム機種からソシャゲ分類する。
 -- IMMUTABLE: 適用済 SQL は書き換えず、 変更は 011_*.sql 以降で追記する。
 
