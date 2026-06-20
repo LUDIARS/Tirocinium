@@ -47,6 +47,38 @@ The bot needs these Gateway intents enabled in the Discord Developer Portal:
 
 After a session starts, Tr sends the first interviewer message. Non-command messages in that channel are treated as candidate answers until `!tr end`.
 
+## 裏口 Bot B (卒業生面、 Bot A とは別管理)
+
+裏口 (`spec/web/backdoor.md`) は **本体/面接の Bot A とは別 token の Bot B** で動かす。
+別 application/bot として Discord Developer Portal で作成し、 卒業生用サーバに招待する。
+token 未設定なら Bot B は起動しない (裏口 API/view は Bot 無しでも動くが、 マジックリンク配布が無効)。
+
+agent / env で渡すキー (`config.discordBackdoor.*` に注入される):
+
+```bat
+set TIROCINIUM_BACKDOOR_BOT_TOKEN=<bot-b-token>
+set TIROCINIUM_BACKDOOR_COMMAND_PREFIX=!ob
+set TIROCINIUM_BACKDOOR_APP_BASE_URL=https://<裏口 view の公開ホスト>
+```
+
+Optional:
+
+```bat
+set TIROCINIUM_BACKDOOR_GUILD_ID=<guild-id>
+set TIROCINIUM_BACKDOOR_TEXT_CHANNEL_IDS=<channel-id-1>,<channel-id-2>
+set TIROCINIUM_BACKDOOR_LINK_TTL_MIN=15
+set TIROCINIUM_BACKDOOR_SESSION_TTL_MIN=720
+```
+
+Bot B も Message Content Intent + Guild Messages + Guilds が必要。 DM 送信のため、 卒業生は
+当該サーバ経由の DM を許可しておく (`!ob link` が DM でマジックリンクを送る)。
+
+### Bot B commands
+
+- `!ob link` : 裏口ページを開くワンタイムリンクを DM で受け取る
+- `!ob company <社名>` / `!ob students <本文>` / `!ob industry <本文>` : 各項目を投稿
+- `!ob name <表示名>` / `!ob hide students|industry` / `!ob show` / `!ob delete`
+
 ## Current voice boundary
 
 Voice mode currently creates the MTG room only. Discord voice receive/send is not wired into `@tirocinium/voice` yet, so answers continue through text in the same Discord channel.
