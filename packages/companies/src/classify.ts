@@ -54,7 +54,7 @@ export function classifyFromText(text: string, hint?: Partial<CompanyFlags>): Co
 }
 
 /**
- * 中小企業かを判定する (spec/companies/listing-bundle.md §2③ の A 段)。
+ * 中小企業かを判定する (spec/feature/companies/listing-bundle.md §2③ の A 段)。
  * 暫定定義: 非上場 ∧ 大手キーワード非該当 → 中小。 上場/大手が分かれば false、
  * 不明 (非上場 or 上場不明) は inclusive に中小扱い (true)。
  */

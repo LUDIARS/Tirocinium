@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 // corporate_number が同じ重複企業行を 1 行にマージする CLI。
 // 英語表記「Capcom Co., Ltd.」とカナ「カプコン」等、normalized_name が違う同一企業を名寄せする。
-// spec/companies/game-graph.md §5.5。
+// spec/feature/companies/game-graph.md §5.5。
 //
 //   npm run companies:merge-duplicates               # 実行 (DB 反映あり)
 //   npm run companies:merge-duplicates -- --dry-run  # 差分のみ確認

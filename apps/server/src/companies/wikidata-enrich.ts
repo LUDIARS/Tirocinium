@@ -1,5 +1,5 @@
 // 既知企業を起点に Wikidata から games / 共演企業 / シリーズ / 取引先(開発元↔発売元) を投入する。
-// spec/companies/game-graph.md Phase2 (発見クロール)。 公開オープンデータ・決定論・LLM 不使用。
+// spec/feature/companies/game-graph.md Phase2 (発見クロール)。 公開オープンデータ・決定論・LLM 不使用。
 
 import { normalizeCompany, normalizeName, normalizeGame, classifyPlatform } from '@tirocinium/companies';
 import { allCompaniesForScoring, getCompanyByNormalizedName, upsertCompany } from './repo.js';

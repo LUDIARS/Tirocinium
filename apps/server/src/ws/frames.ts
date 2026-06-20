@@ -1,4 +1,4 @@
-// WS フレームの型定義 (spec/web/README.md 準拠)
+// WS フレームの型定義 (spec/feature/web/README.md 準拠)
 
 import type { Evaluation } from '@tirocinium/llm';
 

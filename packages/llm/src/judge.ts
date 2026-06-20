@@ -1,5 +1,5 @@
 // 回答品質ジャッジ (reactive 深掘りの非同期信号源)。
-// spec/inference/dialectic-engine.md §4.2: 各 user turn の回答を軽量モデルで評価し、
+// spec/feature/inference/dialectic-engine.md §4.2: 各 user turn の回答を軽量モデルで評価し、
 // phase 状態機の signals (synthesis 到達 / 矛盾の残存) を供給する。
 // 面接官応答とは別経路で非同期に走らせるため、知覚レイテンシを増やさない。
 

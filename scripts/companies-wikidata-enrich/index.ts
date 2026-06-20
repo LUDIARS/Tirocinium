@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 // 既知企業を起点に Wikidata からゲーム/共演企業/シリーズ/取引先を投入する発見クロール CLI。
-// spec/companies/game-graph.md Phase2。 公開オープンデータ・LLM 不使用。
+// spec/feature/companies/game-graph.md Phase2。 公開オープンデータ・LLM 不使用。
 //
 //   npm run companies:wikidata-enrich
 //   npm run companies:wikidata-enrich -- --db <sqlite> --limit 50 --interval 300

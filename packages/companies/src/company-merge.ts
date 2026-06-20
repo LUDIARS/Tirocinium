@@ -1,6 +1,6 @@
 // 英⇔カナ社名の自動マージ — 純関数層 (DB 非依存・決定論)。
 // corporate_number が同じ重複行から survivor を選び、survivor に適用すべき差分を計算する。
-// spec/companies/game-graph.md §5.5。
+// spec/feature/companies/game-graph.md §5.5。
 
 import { mergeSources } from './provenance.js';
 import type { Company, CompanySource } from './types.js';
