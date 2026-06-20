@@ -1,5 +1,5 @@
 // gBizINFO (経産省 法人情報 REST API) の取得層。 決定論・公開オープンデータ (Canalis 原則準拠)。
-// LLM 不使用。 spec/companies/gbizinfo.md §1①。
+// LLM 不使用。 spec/feature/companies/gbizinfo.md §1①。
 //
 // client は DI 可能 (fake client で discover を単体テストできる)。 実 API 経路は
 // createGBizFetchClient が token header + ページネーション + レート間隔を担う。

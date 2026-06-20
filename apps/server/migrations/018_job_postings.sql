@@ -1,4 +1,4 @@
--- 求人ニュース (job postings) の永続化。 spec/companies/job-news.md。
+-- 求人ニュース (job postings) の永続化。 spec/feature/companies/job-news.md。
 -- ニュースフィード(rss) と 求人一覧ページ(job-listing) を 1 テーブルに畳む。 dedup_key で冪等。
 -- 公開求人情報のみ保持 (個人データ境界 §6 対象外)。 新着判定 = INSERT 時の dedup_key 競合有無。
 -- IMMUTABLE: 適用済 SQL は書き換えず、 変更は 019_*.sql 以降で追記する。

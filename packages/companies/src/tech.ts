@@ -1,6 +1,6 @@
 // 技術スタックの正規化と傾向分類。 純粋関数 (LLM 不使用)。
 // 生のタグ/採用ページ抽出語 → 正準 tech トークン (engine/language/dcc/cloud) + グラフィック傾向。
-// spec/companies/game-graph.md (tech レイヤー)。
+// spec/feature/companies/game-graph.md (tech レイヤー)。
 
 export type TechCategory = 'engine' | 'language' | 'dcc' | 'cloud' | 'style' | 'other';
 

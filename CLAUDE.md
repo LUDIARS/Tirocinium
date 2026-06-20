@@ -9,7 +9,7 @@
   生の ES / 面接トランスクリプトの保管先は別途決める (Memoria? Curare?)。
 - 音声入出力経路は **Imperativus (Iv)** を流用する。STT を Tirocinium 内に再実装しない。
 - LLM 呼び出しはサーバーモードのみ。ローカルモードは ollama 等の軽量モデルで完結。
-- AI モデル選定 (GPT-5.5 / Opus / Sonnet) は spec/code/llm-pipeline.md で確定する。
+- AI モデル選定 (GPT-5.5 / Opus / Sonnet) は spec/feature/inference/model-profiles.md で確定する。
 
 ## アプリ構成 (3 面)
 
@@ -19,7 +19,7 @@
 | 面接 | 認証付き Tr ビュー | Cernere | Bot A (`!tr`) |
 | 裏口 | Tr ビュー (`/backdoor`) | Discord マジックリンク | Bot B (`!ob`) |
 
-- 裏口 = 卒業生の自己投稿面 (今いる企業 / 学生向け / 業界向けメッセージ)。 詳細 `spec/web/backdoor.md`。
+- 裏口 = 卒業生の自己投稿面 (今いる企業 / 学生向け / 業界向けメッセージ)。 詳細 `spec/feature/web/backdoor.md`。
 - **Bot A と Bot B は別 token・別 gateway で別管理** (`config.discord` / `config.discordBackdoor`)。
 - 裏口の認証は Cernere ではなく Discord (Bot B 発行の session token)。
 

@@ -1,5 +1,5 @@
 -- Tirocinium initial schema
--- DESIGN.md §6 / spec/schema/README.md 準拠
+-- DESIGN.md §6 / spec/data/README.md 準拠
 -- IMMUTABLE: 適用済 SQL は書き換えず、 変更は 002_*.sql 以降で追記する
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

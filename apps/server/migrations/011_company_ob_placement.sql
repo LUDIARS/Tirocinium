@@ -1,4 +1,4 @@
--- OB 就職実績の集計 (spec/companies/game-graph.md Phase 3 / §3.4)
+-- OB 就職実績の集計 (spec/feature/companies/game-graph.md Phase 3 / §3.4)
 -- 個人レコードは一切持たない ([[project_personal_data_rule]])。 保持は集計のみ:
 --   {company_id, 入社年, クラス, 役職, 人数}。 データはユーザ付与 (クロールしない)。
 -- IMMUTABLE: 適用済 SQL は書き換えず、 変更は 012_*.sql 以降で追記する。

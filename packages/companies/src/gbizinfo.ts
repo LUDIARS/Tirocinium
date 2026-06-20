@@ -1,5 +1,5 @@
 // gBizINFO (経産省 法人情報 REST API) の raw record → CompanyInput への決定論マッピング。
-// 純粋関数 (LLM・IO 不使用)。 spec/companies/gbizinfo.md §1②。
+// 純粋関数 (LLM・IO 不使用)。 spec/feature/companies/gbizinfo.md §1②。
 //
 // ⚠️ フィールド名は gBizINFO v1 /hojin の公開スキーマ準拠。 実 API での充足率確認
 //    (company_url 欠落率 / industry 粒度) は token 取得後に行う (spec §2 の注記)。

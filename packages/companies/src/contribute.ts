@@ -1,7 +1,7 @@
 // ユーザ提供リンク (情報提供ウインドウ) の内容を LLM で分類・抽出する純パーサ。
 // 取得本文を「企業情報 / ゲーム情報 / 新卒情報 / その他」に型分けし、 型ごとのフィールドを抜く。
 // LLM 呼び出し自体は server 側 (completer) が行い、 ここは instruction と parse のみ (決定論)。
-// spec/companies/game-graph.md / README §3 の発見経路をユーザ手動投入で補う。
+// spec/feature/companies/game-graph.md / README §3 の発見経路をユーザ手動投入で補う。
 
 import { extractJsonBlock } from '@tirocinium/llm';
 

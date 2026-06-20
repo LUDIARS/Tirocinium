@@ -1,4 +1,4 @@
--- 企業クロール + ES おすすめ企業 (spec/companies/README.md)
+-- 企業クロール + ES おすすめ企業 (spec/feature/companies/README.md)
 -- companies は公開情報のため保持可 (DESIGN §6 の個人データ境界対象外)。
 -- company_recommendations は ES から導出した「ガイダンス結果」 であり、 ES 本文は持たない。
 -- IMMUTABLE: 適用済 SQL は書き換えず、 変更は 004_*.sql 以降で追記する。

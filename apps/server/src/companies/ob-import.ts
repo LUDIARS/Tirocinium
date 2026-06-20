@@ -1,6 +1,6 @@
 // ユーザ付与の OB 就職実績 (CSV / JSON) を company_ob_placement へ取り込む配線 (IO + DB)。
 // パース / 正規化 / 集計は @tirocinium/companies (純粋) に委譲。 LLM 不使用・冪等 (再取込安全)。
-// spec/companies/game-graph.md §5.3。
+// spec/feature/companies/game-graph.md §5.3。
 
 import { readFile } from 'node:fs/promises';
 import {
