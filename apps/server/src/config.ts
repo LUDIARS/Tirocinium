@@ -65,6 +65,15 @@ export const config = {
     enabled: true,
     intervalMs: 60_000, // 1 分に 1 件 (礼節)
   },
+  // 求人ニュース クロール (data/companies/news-sources.json)。 新着求人を検出 → Web 表示 + Nuntius 通知。
+  // enabled=true で定期クロールを自動起動。 notifyUserId が空なら Nuntius 通知は no-op (Web 表示のみ)。
+  jobNews: {
+    enabled: false,
+    dailyHour: 6, // 毎朝この時刻 (ローカル 0-23 時) に 1 回クロールする
+    optInSources: [] as string[], // enabled=false の source を env で明示有効化 (例 gamebiz-jobs)
+    notifyUserId: '', // Nuntius 通知先 user_id。 空なら通知しない (broadcast 相当の宛先)
+    maxItemsPerSource: 60, // 1 ソース 1 回の取込み上限
+  },
   sessionRateLimit: {
     windowMs: 60_000,
     max: 10,

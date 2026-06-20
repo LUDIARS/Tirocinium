@@ -6,8 +6,11 @@ import { listCompanies, getCompany, countCompanies } from '../companies/repo.js'
 import { runCrawl } from '../companies/crawler.js';
 import { loadSeedRecords } from '../companies/seeds.js';
 import { runListingCrawl } from '../companies/listing-crawler.js';
+import { runJobNewsCrawl } from '../companies/job-news-crawler.js';
+import { listJobPostings, countJobPostings } from '../companies/job-postings-repo.js';
 import { runEnrichment } from '../companies/enrich.js';
 import { loadListingSources, selectActiveSources } from '../companies/listing-config.js';
+import { loadNewsSources, selectActiveNewsSources } from '../companies/news-config.js';
 import { getProfile } from '../companies/profile-repo.js';
 import { getNewgradRoleImages, listInterviewArticles } from '../companies/newgrad-repo.js';
 import { searchGames, relatedCompaniesByGame, companiesByTech, getGamesByCompany } from '../companies/games-repo.js';
@@ -71,6 +74,25 @@ companies.get('/listing-sources', async (c) => {
   const active = new Set(selectActiveSources(all).map((s) => s.id));
   return c.json({
     sources: all.map((s) => ({ id: s.id, kind: s.kind, urls: s.urls.length, active: active.has(s.id), note: s.note })),
+  });
+});
+
+/** GET /api/v1/companies/job-postings — 求人ニュース一覧 (新着順、 source/limit 絞り込み可) */
+companies.get('/job-postings', async (c) => {
+  const source = c.req.query('source') || undefined;
+  const limit = c.req.query('limit') ? Number.parseInt(c.req.query('limit')!, 10) : undefined;
+  const postings = await listJobPostings({ source, limit });
+  return c.json({ postings, total: await countJobPostings(source) });
+});
+
+/** GET /api/v1/companies/job-sources — 求人ニュースの設定済ソース (有効可否つき) */
+companies.get('/job-sources', async (c) => {
+  const all = await loadNewsSources();
+  const active = new Set(selectActiveNewsSources(all).map((s) => s.id));
+  return c.json({
+    sources: all.map((s) => ({
+      id: s.id, kind: s.kind, urls: s.urls.length, active: active.has(s.id), note: s.note,
+    })),
   });
 });
 
@@ -216,6 +238,18 @@ companies.post('/crawl-listing', cernereAuth, async (c) => {
     return c.json({ summary }, 200);
   } catch (err) {
     return c.json({ error: 'listing_crawl_failed', detail: (err as Error).message }, 502);
+  }
+});
+
+/** POST /api/v1/companies/crawl-job-news — 求人ニュースを取得し新着を保存 + Nuntius 通知 { source? }
+ *  求人取得は公開操作 (認証不要、 ユーザ指示)。 取得対象は news-sources.json の有効ソースに限定される。 */
+companies.post('/crawl-job-news', async (c) => {
+  const body = (await c.req.json().catch(() => null)) as { source?: string } | null;
+  try {
+    const summary = await runJobNewsCrawl(body?.source);
+    return c.json({ summary }, 200);
+  } catch (err) {
+    return c.json({ error: 'job_news_crawl_failed', detail: (err as Error).message }, 502);
   }
 });
 

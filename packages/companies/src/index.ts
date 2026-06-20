@@ -86,6 +86,19 @@ export {
   enrichmentFetchList,
 } from './links.js';
 export { LISTING_INSTRUCTION, parseListing, extractListing, chunkText } from './listing.js';
+export { parseFeed, type FeedItem } from './rss.js';
+export {
+  HIRING_KEYWORDS,
+  isHiringNews,
+  jobPostingFromFeed,
+  JOB_LISTING_INSTRUCTION,
+  parseJobListing,
+  jobPostingFromListing,
+  isNewgradEligible,
+  NEWGRAD_ELIGIBLE_KEYWORDS,
+  type JobPostingItem,
+  type JobListingEntry,
+} from './job-posting.js';
 export { PROFILE_INSTRUCTION, parseProfile, extractProfile } from './profile.js';
 export {
   LINK_CLASSIFY_INSTRUCTION,
