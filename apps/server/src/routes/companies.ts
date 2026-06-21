@@ -8,6 +8,7 @@ import { loadSeedRecords } from '../companies/seeds.js';
 import { runListingCrawl } from '../companies/listing-crawler.js';
 import { runJobNewsCrawl } from '../companies/job-news-crawler.js';
 import { listJobPostings, countJobPostings } from '../companies/job-postings-repo.js';
+import { listObJobPostingsPublic } from '../companies/ob-job-postings-repo.js';
 import { runEnrichment } from '../companies/enrich.js';
 import { loadListingSources, selectActiveSources } from '../companies/listing-config.js';
 import { loadNewsSources, selectActiveNewsSources } from '../companies/news-config.js';
@@ -75,6 +76,12 @@ companies.get('/listing-sources', async (c) => {
   return c.json({
     sources: all.map((s) => ({ id: s.id, kind: s.kind, urls: s.urls.length, active: active.has(s.id), note: s.note })),
   });
+});
+
+/** GET /api/v1/companies/ob-jobs — OB が投稿した求人一覧 (在校生向け、 投稿者情報なし) */
+companies.get('/ob-jobs', async (c) => {
+  const postings = await listObJobPostingsPublic();
+  return c.json({ postings });
 });
 
 /** GET /api/v1/companies/job-postings — 求人ニュース一覧 (新着順、 source/limit 絞り込み可) */

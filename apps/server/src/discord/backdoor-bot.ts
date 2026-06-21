@@ -13,6 +13,8 @@ import {
   issueLinkToken,
   type BackdoorEntry,
 } from '../companies/backdoor-repo.js';
+import { listObJobPostingsForOb } from '../companies/ob-job-postings-repo.js';
+import { listPendingEsRequestsForOb, acceptEsRequest } from '../companies/ob-es-requests-repo.js';
 
 // GUILDS(1) | GUILD_MESSAGES(512) | MESSAGE_CONTENT(32768)。 音声は使わないので GUILD_VOICE_STATES 不要。
 const INTENTS = 1 | 512 | 32768;
@@ -106,6 +108,54 @@ async function handle(msg: GatewayMessage, rest: DiscordRest): Promise<void> {
         : { industry_published: false };
       await upsertEntry(userId, name, patch);
       await rest.sendMessage(msg.channel_id, '掲載を取り下げました。');
+      return;
+    }
+    case 'jobs': {
+      const postings = await listObJobPostingsForOb(userId);
+      if (!postings.length) {
+        await rest.sendMessage(msg.channel_id, '現在公開中の求人はありません。');
+        return;
+      }
+      const lines = postings.map((p) => {
+        const mine = p.is_mine ? ' ★自分の投稿' : '';
+        return `【${p.id.slice(0, 8)}】${p.title} — ${p.company_name} (${p.role})${mine}`;
+      });
+      await rest.sendMessage(msg.channel_id, `公開中の求人 (${postings.length}件):\n` + lines.join('\n'));
+      return;
+    }
+    case 'es-list': {
+      const entry = await getEntry(userId);
+      const requests = await listPendingEsRequestsForOb(
+        entry?.current_company_id ?? null,
+        entry?.current_company ?? '',
+      );
+      if (!requests.length) {
+        await rest.sendMessage(msg.channel_id, '自分の会社宛ての ES 相談リクエストはありません。');
+        return;
+      }
+      const lines = requests.map((r) => {
+        const note = r.request_note ? ` / ${r.request_note}` : '';
+        return `ID: \`${r.id}\` — ${r.target_company_name} / ${r.student_display_name}${note}`;
+      });
+      await rest.sendMessage(
+        msg.channel_id,
+        `ES 相談リクエスト (${requests.length}件):\n` + lines.join('\n') +
+        `\n\n引き受けるには \`${cfg.commandPrefix} es accept <ID>\` を使ってください。`,
+      );
+      return;
+    }
+    case 'es-accept': {
+      const matched = await acceptEsRequest(command.requestId, userId, name);
+      if (!matched) {
+        await rest.sendMessage(msg.channel_id, '指定のリクエストが見つからないか、すでに引き受け済みです。');
+        return;
+      }
+      await rest.sendMessage(
+        msg.channel_id,
+        `引き受けました。 学生 (${matched.student_display_name}) の Discord ハンドル: ` +
+        (matched.student_discord_handle ? `\`${matched.student_discord_handle}\`` : '(未入力)') +
+        '\nDM してES を受け取ってください。',
+      );
       return;
     }
   }

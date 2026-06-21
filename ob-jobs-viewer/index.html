@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Tirocinium 裏口 — OBからの求人</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --panel2: #1f232c; --line: #2a2f3a;
+    --fg: #e8eaed; --subtle: #9aa3b2; --accent: #6ea8fe; --accent2: #3b82f6;
+    --ok: #4ade80; --danger: #f87171; --warn: #facc15; --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    line-height: 1.7;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.25rem; margin: 8px 0 4px; }
+  .lead { color: var(--subtle); font-size: 0.88rem; margin: 0 0 24px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 20px; margin-bottom: 14px;
+  }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+  .card-head h2 { font-size: 1.05rem; margin: 0; }
+  .badge {
+    font-size: 0.75rem; border-radius: 999px; padding: 2px 10px;
+    background: var(--panel2); border: 1px solid var(--line); color: var(--subtle);
+    white-space: nowrap;
+  }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.82rem; color: var(--subtle); margin-bottom: 10px; }
+  .meta span::before { content: '· '; }
+  .meta span:first-child::before { content: ''; }
+  .desc { font-size: 0.9rem; white-space: pre-wrap; color: var(--fg); }
+  .deadline { font-size: 0.8rem; color: var(--warn); margin-top: 8px; }
+  .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  input[type="search"] {
+    flex: 1; min-width: 200px; background: var(--panel); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font: inherit;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  select {
+    background: var(--panel); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 10px; padding: 9px 12px; font: inherit; cursor: pointer;
+  }
+  .empty { text-align: center; color: var(--subtle); padding: 48px 0; }
+  .anon-note {
+    background: var(--panel2); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 16px; font-size: 0.82rem; color: var(--subtle); margin-bottom: 20px;
+  }
+  .count { color: var(--subtle); font-size: 0.85rem; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>OBからの求人</h1>
+  <p class="lead">卒業生が投稿した求人情報です。 投稿者は匿名です。</p>
+
+  <div class="anon-note">
+    この求人は在校生の皆さんに向けてOBが投稿しています。 応募・問い合わせ方法は各求人の説明をご確認ください。
+  </div>
+
+  <div class="controls">
+    <input type="search" id="q" placeholder="企業名・職種・キーワードで絞り込み…" />
+    <select id="role-filter">
+      <option value="">すべての職種</option>
+      <option value="プランナー">プランナー</option>
+      <option value="プログラマ">プログラマ</option>
+      <option value="デザイナー">デザイナー</option>
+      <option value="サウンド">サウンド</option>
+      <option value="総合職">総合職</option>
+      <option value="その他">その他</option>
+    </select>
+  </div>
+
+  <div id="count" class="count"></div>
+  <div id="list"><p class="empty">読み込み中…</p></div>
+</div>
+
+<script>
+(function () {
+  var listEl = document.getElementById('list');
+  var countEl = document.getElementById('count');
+  var qEl = document.getElementById('q');
+  var roleEl = document.getElementById('role-filter');
+  var allPostings = [];
+
+  function esc(s) {
+    return String(s || '').replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function renderPosting(p) {
+    var dl = p.deadline ? '<div class="deadline">締め切り: ' + esc(p.deadline) + '</div>' : '';
+    var metaParts = [];
+    if (p.company_name) metaParts.push('<span>' + esc(p.company_name) + '</span>');
+    if (p.location) metaParts.push('<span>' + esc(p.location) + '</span>');
+    if (p.employment_type) metaParts.push('<span>' + esc(p.employment_type) + '</span>');
+    return [
+      '<div class="card">',
+      '  <div class="card-head">',
+      '    <h2>' + esc(p.title) + '</h2>',
+      p.role ? '    <span class="badge">' + esc(p.role) + '</span>' : '',
+      '  </div>',
+      metaParts.length ? '<div class="meta">' + metaParts.join('') + '</div>' : '',
+      p.description ? '<div class="desc">' + esc(p.description) + '</div>' : '',
+      dl,
+      '</div>',
+    ].join('\n');
+  }
+
+  function render() {
+    var q = (qEl.value || '').toLowerCase();
+    var role = roleEl.value;
+    var filtered = allPostings.filter(function (p) {
+      if (role && p.role !== role) return false;
+      if (q && !(
+        (p.title || '').toLowerCase().includes(q) ||
+        (p.company_name || '').toLowerCase().includes(q) ||
+        (p.role || '').toLowerCase().includes(q) ||
+        (p.description || '').toLowerCase().includes(q)
+      )) return false;
+      return true;
+    });
+    if (!filtered.length) {
+      listEl.innerHTML = '<p class="empty">該当する求人がありません。</p>';
+      countEl.textContent = '';
+      return;
+    }
+    countEl.textContent = filtered.length + ' 件';
+    listEl.innerHTML = filtered.map(renderPosting).join('');
+  }
+
+  fetch('/api/v1/companies/ob-jobs')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d) { listEl.innerHTML = '<p class="empty">データ取得に失敗しました。</p>'; return; }
+      allPostings = d.postings || [];
+      render();
+    })
+    .catch(function () { listEl.innerHTML = '<p class="empty">接続エラー。</p>'; });
+
+  qEl.addEventListener('input', render);
+  roleEl.addEventListener('change', render);
+})();
+</script>
+</body>
+</html>
