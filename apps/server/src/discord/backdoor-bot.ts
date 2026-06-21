@@ -2,6 +2,9 @@
 // 本体/面接の Bot A (bridge.ts) とは別 token・別 gateway で「別管理」。
 // 投稿の本人性は Discord author id をアンカーにし、 裏口 view へは link コマンドの
 // マジックリンク (session token) で受け渡す。
+//
+// sendBackdoorDm() を export し、 web route (es-requests.ts / backdoor.ts) から
+// Bot B 経由の DM を送れるようにする (Bot 起動前は no-op)。
 
 import { config } from '../config.js';
 import { startGateway, type GatewayMessage, type DiscordRest } from './gateway-client.js';
@@ -18,6 +21,23 @@ import { listPendingEsRequestsForOb, acceptEsRequest } from '../companies/ob-es-
 
 // GUILDS(1) | GUILD_MESSAGES(512) | MESSAGE_CONTENT(32768)。 音声は使わないので GUILD_VOICE_STATES 不要。
 const INTENTS = 1 | 512 | 32768;
+
+// Bot B が起動している間だけ有効な REST クライアント。
+// web route (es-requests / backdoor) から DM を送る用途に限定する。
+let _rest: DiscordRest | null = null;
+
+/**
+ * Bot B 経由で Discord DM を送る。
+ * Bot が未起動 (token 未設定) の場合は no-op (エラーを出さず静かにスキップ)。
+ */
+export async function sendBackdoorDm(userId: string, content: string): Promise<void> {
+  if (!_rest) return;
+  try {
+    await _rest.sendDirectMessage(userId, content);
+  } catch (err) {
+    console.error('[backdoor-bot] DM failed for', userId, err);
+  }
+}
 
 function authorName(msg: GatewayMessage): string {
   return (msg.author.global_name || msg.author.username || '').trim();
@@ -173,5 +193,9 @@ export function startBackdoorBot(): () => void {
     appName: 'tirocinium-backdoor',
     onMessage: handle,
   });
-  return handle_.stop;
+  _rest = handle_.rest;
+  return () => {
+    handle_.stop();
+    _rest = null;
+  };
 }

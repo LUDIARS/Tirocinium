@@ -28,6 +28,7 @@ import {
   listPendingEsRequestsForOb,
   acceptEsRequest,
 } from '../companies/ob-es-requests-repo.js';
+import { sendBackdoorDm } from '../discord/backdoor-bot.js';
 
 const VIEWER_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../../backdoor-viewer');
 const OB_JOBS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../../ob-jobs-viewer');
@@ -187,12 +188,22 @@ backdoor.get('/es-requests', backdoorAuth, async (c) => {
   return c.json({ requests });
 });
 
-// リクエストを引き受ける
+// リクエストを引き受ける (Web UI 経由)
 backdoor.post('/es-requests/:id/accept', backdoorAuth, async (c) => {
   const me = c.get('backdoorUser');
   const id = c.req.param('id');
   const request = await acceptEsRequest(id, me.discordUserId, me.displayName);
   if (!request) return c.json({ error: 'not_found_or_already_matched' }, 404);
+
+  // OB 本人へ DM 確認 (学生の Discord ハンドル付き)
+  const discordHint = request.student_discord_handle
+    ? `\n学生の Discord ハンドル: \`${request.student_discord_handle}\`\nDM してES を受け取ってください。`
+    : '\n(学生の Discord ハンドルは未登録です)';
+  void sendBackdoorDm(
+    me.discordUserId,
+    `ES 相談を引き受けました。\n学生: ${request.student_display_name}${discordHint}`,
+  );
+
   return c.json({ request });
 });
 
