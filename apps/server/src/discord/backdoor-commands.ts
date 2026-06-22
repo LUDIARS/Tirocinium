@@ -11,6 +11,9 @@ export type BackdoorCommand =
   | { kind: 'set-students'; value: string }
   | { kind: 'set-industry'; value: string }
   | { kind: 'hide'; target: 'students' | 'industry' }
+  | { kind: 'jobs' }
+  | { kind: 'es-list' }
+  | { kind: 'es-accept'; requestId: string }
   | { kind: 'none' }
   | { kind: 'unknown' };
 
@@ -42,6 +45,15 @@ export function parseBackdoorCommand(content: string, prefix: string): BackdoorC
     case 'hide':
       if (value === 'students' || value === 'industry') return { kind: 'hide', target: value };
       return { kind: 'unknown' };
+    case 'jobs':
+      return { kind: 'jobs' };
+    case 'es':
+      if (value === 'list') return { kind: 'es-list' };
+      if (value.startsWith('accept ')) {
+        const requestId = value.slice('accept '.length).trim();
+        return requestId ? { kind: 'es-accept', requestId } : { kind: 'unknown' };
+      }
+      return { kind: 'unknown' };
     default:
       return { kind: 'unknown' };
   }
@@ -58,5 +70,8 @@ export function renderBackdoorHelp(prefix: string): string {
     `- \`${prefix} hide students|industry\` : 掲載を取り下げる`,
     `- \`${prefix} show\` : 今の登録内容を確認する`,
     `- \`${prefix} delete\` : 自分の登録を削除する`,
+    `- \`${prefix} jobs\` : 公開中の求人一覧を確認する`,
+    `- \`${prefix} es list\` : 自分の会社宛ての ES 相談リクエスト一覧を確認する`,
+    `- \`${prefix} es accept <ID>\` : ES 相談リクエストを引き受ける`,
   ].join('\n');
 }
