@@ -9,5 +9,6 @@ ALTER TABLE backdoor_alumni  RENAME COLUMN discord_user_id            TO cernere
 ALTER TABLE ob_job_postings  RENAME COLUMN posted_by_discord_user_id  TO posted_by_cernere_user_id;
 ALTER TABLE ob_es_requests   RENAME COLUMN matched_ob_discord_user_id TO matched_ob_cernere_user_id;
 
--- マジックリンク / セッション token は不要になったので撤去する (索引もまとめて落ちる)。
-DROP TABLE IF EXISTS backdoor_tokens;
+-- マジックリンク / セッション token (backdoor_tokens) はコードから参照されなくなった。
+-- HARNESS §2.3 (DROP TABLE 禁止) に従い物理削除はせず、 未使用テーブルとして残置する
+-- (保持しているのは揮発トークンのみで残置に実害はない)。

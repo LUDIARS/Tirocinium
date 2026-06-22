@@ -6,4 +6,4 @@ ALTER TABLE backdoor_alumni  RENAME COLUMN discord_user_id            TO cernere
 ALTER TABLE ob_job_postings  RENAME COLUMN posted_by_discord_user_id  TO posted_by_cernere_user_id;
 ALTER TABLE ob_es_requests   RENAME COLUMN matched_ob_discord_user_id TO matched_ob_cernere_user_id;
 
-DROP TABLE IF EXISTS backdoor_tokens;
+-- backdoor_tokens は HARNESS §2.3 (DROP TABLE 禁止) に従い残置 (未使用)。
