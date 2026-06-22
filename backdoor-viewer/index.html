@@ -190,12 +190,14 @@
 
 <script>
 (function () {
-  var SESSION_KEY = 'tr_backdoor_session';
+  // 認証は本体/面接と同じ Cernere に統一。 トークンは localStorage の cernere_token を共有する
+  // (es-requests / 面接 view と同方式)。 旧マジックリンク (Bot B) は廃止した。
+  var CERNERE_KEY = 'cernere_token';
   var $ = function (id) { return document.getElementById(id); };
-  var session = sessionStorage.getItem(SESSION_KEY) || '';
+  var token = localStorage.getItem(CERNERE_KEY) || '';
 
   function authHeaders() {
-    return { 'Authorization': 'Bearer ' + session, 'Content-Type': 'application/json' };
+    return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
   }
 
   function showGate(html) {
@@ -331,38 +333,18 @@
   function startWithSession() {
     fetch('/api/v1/backdoor/me', { headers: authHeaders() })
       .then(function (r) {
-        if (r.status === 401) { sessionStorage.removeItem(SESSION_KEY); session = ''; return null; }
+        if (r.status === 401) { localStorage.removeItem(CERNERE_KEY); token = ''; return null; }
         return r.json();
       })
       .then(function (d) {
-        if (!d) return needLink();
+        if (!d) return needLogin('<p>セッションが切れました。 再ログインしてください。</p>');
         boot(d.entry, d.displayName);
       })
-      .catch(needLink);
+      .catch(function () { needLogin('<p>接続エラー。</p>'); });
   }
 
-  function exchange(token) {
-    fetch('/api/v1/backdoor/auth', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: token }),
-    })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        if (!d) return needLink();
-        session = d.session;
-        sessionStorage.setItem(SESSION_KEY, session);
-        // URL から token を消して再利用エラーを防ぐ
-        history.replaceState(null, '', location.pathname);
-        boot(d.entry, d.entry && d.entry.display_name);
-      })
-      .catch(needLink);
-  }
-
-  function needLink() {
-    showGate(
-      '<p>このページを開くにはワンタイムリンクが必要です。</p>' +
-      '<p>Discord の裏口 Bot で <code>!ob link</code> を実行すると、 DM にリンクが届きます。</p>'
-    );
+  function needLogin(html) {
+    showGate(html || '<p>このページを利用するには Tirocinium へのログインが必要です。</p>');
   }
 
   // 求人投稿
@@ -457,12 +439,9 @@
     }
   });
 
-  // 起動
-  var params = new URLSearchParams(location.search);
-  var urlToken = params.get('token');
-  if (urlToken) exchange(urlToken);
-  else if (session) startWithSession();
-  else needLink();
+  // 起動: Cernere トークンがあれば /me を試行、 無ければログイン要求。
+  if (token) startWithSession();
+  else needLogin();
 })();
 </script>
 </body>

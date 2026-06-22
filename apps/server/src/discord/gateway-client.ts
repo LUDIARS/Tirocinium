@@ -1,6 +1,5 @@
 // 再利用可能な最小 Discord Gateway + REST クライアント。
 // 本体/面接の Bot A (bridge.ts) は音声等の固有処理を持つため独自実装のまま。
-// 裏口の Bot B (backdoor-bot.ts) はこの汎用クライアントを使う (別 token = 別管理)。
 //
 // 提供: gateway 接続 / heartbeat / identify / MESSAGE_CREATE 配送 / メッセージ送信 / DM 送信。
 

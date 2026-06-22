@@ -1,15 +1,13 @@
-// 裏口 (卒業生の自己投稿面) API + マジックリンク認証 + view 配信。 spec/feature/companies/backdoor.md。
-// 認証は Cernere ではなく Bot B 発行の session token (Bearer)。 本体/面接 (Cernere) とは別系統。
+// 裏口 (卒業生/OB の自己投稿面) API + view 配信。 spec/feature/web/backdoor.md。
+// 認証は本体/面接と同じ Cernere に統一 (PASETO Bearer)。 本人アンカーは Cernere の sub。
+// 旧マジックリンク (Bot B 発行 session token) は migration 021 / PR で撤去した。
 
 import { Hono } from 'hono';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { MiddlewareHandler } from 'hono';
-import { config } from '../config.js';
+import { cernereAuth } from '../auth/cernere.js';
 import {
-  exchangeLinkToken,
-  verifySession,
   getEntry,
   upsertEntry,
   deleteEntry,
@@ -28,28 +26,10 @@ import {
   listPendingEsRequestsForOb,
   acceptEsRequest,
 } from '../companies/ob-es-requests-repo.js';
-import { sendBackdoorDm } from '../discord/backdoor-bot.js';
+import { pushNotification } from '../notifications/nuntius.js';
 
 const VIEWER_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../../backdoor-viewer');
 const OB_JOBS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../../ob-jobs-viewer');
-
-declare module 'hono' {
-  interface ContextVariableMap {
-    backdoorUser: { discordUserId: string; displayName: string };
-  }
-}
-
-// Bearer session token を検証して本人を context に載せる。
-const backdoorAuth: MiddlewareHandler = async (c, next) => {
-  const header = c.req.header('authorization');
-  if (!header || !header.toLowerCase().startsWith('bearer ')) {
-    return c.json({ error: 'unauthorized' }, 401);
-  }
-  const session = await verifySession(header.slice(7).trim());
-  if (!session) return c.json({ error: 'invalid_session' }, 401);
-  c.set('backdoorUser', session);
-  await next();
-};
 
 /** POST/PUT /job-postings のリクエスト body を安全な ObJobPatch に絞り込む。 */
 function readJobPatch(body: Record<string, unknown>): ObJobPatch {
@@ -83,40 +63,32 @@ function readPatch(body: Record<string, unknown>): BackdoorPatch {
 
 export const backdoor = new Hono();
 
-// link token を session token に交換する (裏口 view 起動時に 1 回)。
-backdoor.post('/auth', async (c) => {
-  const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
-  const token = typeof body.token === 'string' ? body.token.trim() : '';
-  if (!token) return c.json({ error: 'missing_token' }, 400);
-  const result = await exchangeLinkToken(token, config.discordBackdoor.sessionTtlMin);
-  if (!result) return c.json({ error: 'invalid_or_expired' }, 401);
-  return c.json({ session: result.session, entry: result.entry });
-});
+// 全エンドポイント Cernere 認証。 c.get('user').id が本人の Cernere sub。
 
-// 自分のエントリ取得 (未登録なら identity だけの空テンプレート)。
-backdoor.get('/me', backdoorAuth, async (c) => {
-  const me = c.get('backdoorUser');
-  const entry = await getEntry(me.discordUserId);
-  return c.json({ entry, displayName: me.displayName });
+// 自分のエントリ取得 (未登録なら null。 表示名は本人が設定したエントリ値)。
+backdoor.get('/me', cernereAuth, async (c) => {
+  const user = c.get('user');
+  const entry = await getEntry(user.id);
+  return c.json({ entry, displayName: entry?.display_name ?? '' });
 });
 
 // 自分のエントリを部分更新する。
-backdoor.put('/me', backdoorAuth, async (c) => {
-  const me = c.get('backdoorUser');
+backdoor.put('/me', cernereAuth, async (c) => {
+  const user = c.get('user');
   const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
-  const entry = await upsertEntry(me.discordUserId, me.displayName, readPatch(body));
+  const entry = await upsertEntry(user.id, '', readPatch(body));
   return c.json({ entry });
 });
 
 // 自分のエントリを削除する。
-backdoor.delete('/me', backdoorAuth, async (c) => {
-  const me = c.get('backdoorUser');
-  await deleteEntry(me.discordUserId);
+backdoor.delete('/me', cernereAuth, async (c) => {
+  const user = c.get('user');
+  await deleteEntry(user.id);
   return c.json({ ok: true });
 });
 
 // 業界内向けメッセージ + 在籍ロスター (裏口面の閲覧、 卒業生本人のみ)。
-backdoor.get('/industry', backdoorAuth, async (c) => {
+backdoor.get('/industry', cernereAuth, async (c) => {
   const entries = await listIndustryMessages();
   const messages = entries.map((e) => ({
     display_name: e.display_name,
@@ -133,44 +105,44 @@ backdoor.get('/industry', backdoorAuth, async (c) => {
 // ---- OB 求人 API ----
 
 // OB向け: 全公開求人一覧 + 自分の投稿かどうかフラグ
-backdoor.get('/job-postings', backdoorAuth, async (c) => {
-  const me = c.get('backdoorUser');
-  const postings = await listObJobPostingsForOb(me.discordUserId);
+backdoor.get('/job-postings', cernereAuth, async (c) => {
+  const user = c.get('user');
+  const postings = await listObJobPostingsForOb(user.id);
   return c.json({ postings });
 });
 
 // OB向け: 自分の投稿のみ (アクティブ/非アクティブ含む)
-backdoor.get('/job-postings/mine', backdoorAuth, async (c) => {
-  const me = c.get('backdoorUser');
-  const postings = await listMyObJobPostings(me.discordUserId);
+backdoor.get('/job-postings/mine', cernereAuth, async (c) => {
+  const user = c.get('user');
+  const postings = await listMyObJobPostings(user.id);
   return c.json({ postings });
 });
 
 // 求人を新規投稿する
-backdoor.post('/job-postings', backdoorAuth, async (c) => {
-  const me = c.get('backdoorUser');
+backdoor.post('/job-postings', cernereAuth, async (c) => {
+  const user = c.get('user');
   const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
   const patch = readJobPatch(body);
   if (!patch.title?.trim()) return c.json({ error: 'title_required' }, 400);
-  const posting = await insertObJobPosting(me.discordUserId, patch);
+  const posting = await insertObJobPosting(user.id, patch);
   return c.json({ posting }, 201);
 });
 
 // 投稿者のみ更新できる
-backdoor.put('/job-postings/:id', backdoorAuth, async (c) => {
-  const me = c.get('backdoorUser');
+backdoor.put('/job-postings/:id', cernereAuth, async (c) => {
+  const user = c.get('user');
   const id = c.req.param('id');
   const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
-  const posting = await updateObJobPosting(id, me.discordUserId, readJobPatch(body));
+  const posting = await updateObJobPosting(id, user.id, readJobPatch(body));
   if (!posting) return c.json({ error: 'not_found_or_forbidden' }, 404);
   return c.json({ posting });
 });
 
 // 投稿者のみ削除できる
-backdoor.delete('/job-postings/:id', backdoorAuth, async (c) => {
-  const me = c.get('backdoorUser');
+backdoor.delete('/job-postings/:id', cernereAuth, async (c) => {
+  const user = c.get('user');
   const id = c.req.param('id');
-  const ok = await deleteObJobPosting(id, me.discordUserId);
+  const ok = await deleteObJobPosting(id, user.id);
   if (!ok) return c.json({ error: 'not_found_or_forbidden' }, 404);
   return c.json({ ok: true });
 });
@@ -178,9 +150,9 @@ backdoor.delete('/job-postings/:id', backdoorAuth, async (c) => {
 // ---- ES 添削相談 API (OB側) ----
 
 // 自分の会社宛て pending リクエスト一覧
-backdoor.get('/es-requests', backdoorAuth, async (c) => {
-  const me = c.get('backdoorUser');
-  const entry = await getEntry(me.discordUserId);
+backdoor.get('/es-requests', cernereAuth, async (c) => {
+  const user = c.get('user');
+  const entry = await getEntry(user.id);
   const requests = await listPendingEsRequestsForOb(
     entry?.current_company_id ?? null,
     entry?.current_company ?? '',
@@ -189,25 +161,30 @@ backdoor.get('/es-requests', backdoorAuth, async (c) => {
 });
 
 // リクエストを引き受ける (Web UI 経由)
-backdoor.post('/es-requests/:id/accept', backdoorAuth, async (c) => {
-  const me = c.get('backdoorUser');
+backdoor.post('/es-requests/:id/accept', cernereAuth, async (c) => {
+  const user = c.get('user');
   const id = c.req.param('id');
-  const request = await acceptEsRequest(id, me.discordUserId, me.displayName);
+  const me = await getEntry(user.id);
+  const request = await acceptEsRequest(id, user.id, me?.display_name ?? '');
   if (!request) return c.json({ error: 'not_found_or_already_matched' }, 404);
 
-  // OB 本人へ DM 確認 (学生の Discord ハンドル付き)
+  // 学生本人へ Nuntius で「引き受けられた」通知 (Cernere user id 宛、 fire-and-forget)。
   const discordHint = request.student_discord_handle
-    ? `\n学生の Discord ハンドル: \`${request.student_discord_handle}\`\nDM してES を受け取ってください。`
-    : '\n(学生の Discord ハンドルは未登録です)';
-  void sendBackdoorDm(
-    me.discordUserId,
-    `ES 相談を引き受けました。\n学生: ${request.student_display_name}${discordHint}`,
-  );
+    ? `\n相手の連絡先 (Discord): ${request.student_discord_handle}`
+    : '';
+  void pushNotification({
+    user_id: request.student_cernere_user_id,
+    title: 'ES 添削相談が引き受けられました',
+    body:
+      `${request.target_company_name} の OB (${request.matched_ob_display_name || '卒業生'}) が` +
+      `あなたの ES 添削相談を引き受けました。${discordHint}`,
+    data: { kind: 'es_request_matched', request_id: request.id },
+  });
 
   return c.json({ request });
 });
 
-// 裏口 view (静的 HTML)。 認証なしで開けるが、 操作には URL の link token → session が要る。
+// 裏口 view (静的 HTML)。 認証なしで開けるが、 操作には Cernere ログイン (Bearer) が要る。
 export const backdoorPage = new Hono();
 backdoorPage.get('/', (c) => {
   try {
