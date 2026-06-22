@@ -1,5 +1,5 @@
 // 実 SQLite に対して backdoor-repo を実走させる (fake DB ではなく実 SQL 経路を裏取りする)。
-// migration 019 の DDL・列名・bool 0/1 正規化・token 期限判定をまとめて検証する。
+// migration 019 + 021 の DDL・改名後の列名 (cernere_user_id)・bool 0/1 正規化をまとめて検証する。
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { tmpdir } from 'node:os';
@@ -10,14 +10,12 @@ import { config } from '../config.js';
 import { initSql, sql } from '../db/index.js';
 import { runMigrations } from '../db/migrate.js';
 import {
-  issueLinkToken,
-  exchangeLinkToken,
-  verifySession,
   getEntry,
   upsertEntry,
   deleteEntry,
   listStudentMessages,
   listIndustryMessages,
+  listObsForCompany,
 } from './backdoor-repo.js';
 
 const dbPath = join(tmpdir(), `tr-backdoor-${randomUUID()}.sqlite`);
@@ -36,28 +34,14 @@ afterAll(async () => {
 });
 
 describe('backdoor-repo (real sqlite)', () => {
-  it('link token を発行し session に交換できる (再利用は不可)', async () => {
-    const link = await issueLinkToken('u1', 'Alice', 15);
-    const result = await exchangeLinkToken(link, 720);
-    expect(result).not.toBeNull();
-    expect(result!.entry.discord_user_id).toBe('u1');
-    expect(result!.entry.display_name).toBe('Alice');
+  it('Cernere sub をアンカーに upsert/get できる', async () => {
+    const entry = await upsertEntry('cernere-1', 'Alice', { current_company: 'Acme' });
+    expect(entry.cernere_user_id).toBe('cernere-1');
+    expect(entry.display_name).toBe('Alice');
 
-    const session = await verifySession(result!.session);
-    expect(session).toEqual({ discordUserId: 'u1', displayName: 'Alice' });
-
-    // 同じ link token は used_at で再利用不可
-    const again = await exchangeLinkToken(link, 720);
-    expect(again).toBeNull();
-  });
-
-  it('期限切れ link token は交換できない', async () => {
-    const link = await issueLinkToken('u-exp', 'Old', -1); // 既に期限切れ
-    expect(await exchangeLinkToken(link, 720)).toBeNull();
-  });
-
-  it('不正な session token は弾く', async () => {
-    expect(await verifySession('deadbeef')).toBeNull();
+    const got = await getEntry('cernere-1');
+    expect(got).not.toBeNull();
+    expect(got!.cernere_user_id).toBe('cernere-1');
   });
 
   it('部分更新で既存フィールドを維持し、 publish フラグが list に反映される', async () => {
@@ -83,22 +67,22 @@ describe('backdoor-repo (real sqlite)', () => {
     expect(entry!.current_company_id).toBeNull();
 
     const students = await listStudentMessages();
-    expect(students.some((e) => e.discord_user_id === 'u2')).toBe(true);
+    expect(students.some((e) => e.cernere_user_id === 'u2')).toBe(true);
     const industry = await listIndustryMessages();
-    expect(industry.some((e) => e.discord_user_id === 'u2')).toBe(true);
+    expect(industry.some((e) => e.cernere_user_id === 'u2')).toBe(true);
 
     // 取り下げると学生向け list から消える
     await upsertEntry('u2', 'Bob', { students_published: false });
     const students2 = await listStudentMessages();
-    expect(students2.some((e) => e.discord_user_id === 'u2')).toBe(false);
+    expect(students2.some((e) => e.cernere_user_id === 'u2')).toBe(false);
   });
 
   it('本文が空のエントリは published でも list に出さない', async () => {
     await upsertEntry('u3', 'Empty', { students_published: true, industry_published: true });
     const students = await listStudentMessages();
     const industry = await listIndustryMessages();
-    expect(students.some((e) => e.discord_user_id === 'u3')).toBe(false);
-    expect(industry.some((e) => e.discord_user_id === 'u3')).toBe(false);
+    expect(students.some((e) => e.cernere_user_id === 'u3')).toBe(false);
+    expect(industry.some((e) => e.cernere_user_id === 'u3')).toBe(false);
   });
 
   it('本人がエントリを削除できる', async () => {
@@ -106,5 +90,11 @@ describe('backdoor-repo (real sqlite)', () => {
     expect(await getEntry('u4')).not.toBeNull();
     await deleteEntry('u4');
     expect(await getEntry('u4')).toBeNull();
+  });
+
+  it('listObsForCompany は Cernere user id を返す', async () => {
+    // company_id 未解決でも null は返らず空配列 (存在しない id)
+    const obs = await listObsForCompany(randomUUID());
+    expect(Array.isArray(obs)).toBe(true);
   });
 });

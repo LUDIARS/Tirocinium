@@ -1,5 +1,5 @@
-// OB が投稿する求人の永続化。 migration 020。
-// posted_by_discord_user_id は内部管理のみ。 在校生向け API / 公開 API には返さない。
+// OB が投稿する求人の永続化。 migration 020 + 021。
+// posted_by_cernere_user_id は内部管理のみ。 在校生向け API / 公開 API には返さない。
 
 import { sql } from '../db/index.js';
 import { normalizeName } from '@tirocinium/companies';
@@ -34,7 +34,7 @@ export type ObJobPatch = {
 
 type PostingRow = {
   id: string;
-  posted_by_discord_user_id: string;
+  posted_by_cernere_user_id: string;
   title: string;
   role: string;
   description: string;
@@ -76,23 +76,23 @@ async function resolveCompanyId(companyName: string): Promise<string | null> {
 
 /** 求人を新規作成する。 */
 export async function insertObJobPosting(
-  discordUserId: string,
+  cernereUserId: string,
   patch: ObJobPatch,
 ): Promise<ObJobPosting> {
   const companyId = patch.company_name ? await resolveCompanyId(patch.company_name) : null;
   const rows = await sql<PostingRow[]>`
     INSERT INTO ob_job_postings (
-      posted_by_discord_user_id, title, role, description,
+      posted_by_cernere_user_id, title, role, description,
       company_name, company_id, location, employment_type,
       deadline, is_active, updated_at
     ) VALUES (
-      ${discordUserId}, ${patch.title ?? ''}, ${patch.role ?? ''},
+      ${cernereUserId}, ${patch.title ?? ''}, ${patch.role ?? ''},
       ${patch.description ?? ''}, ${patch.company_name ?? ''},
       ${companyId}, ${patch.location ?? ''}, ${patch.employment_type ?? ''},
       ${patch.deadline ?? ''}, ${patch.is_active !== false},
       ${new Date()}
     )
-    RETURNING id, posted_by_discord_user_id, title, role, description,
+    RETURNING id, posted_by_cernere_user_id, title, role, description,
               company_name, company_id, location, employment_type,
               deadline, is_active, created_at, updated_at
   `;
@@ -104,16 +104,16 @@ export async function insertObJobPosting(
 /** 投稿者のみ更新できる。 投稿者不一致なら null を返す。 */
 export async function updateObJobPosting(
   id: string,
-  discordUserId: string,
+  cernereUserId: string,
   patch: ObJobPatch,
 ): Promise<ObJobPosting | null> {
   const cur = await sql<PostingRow[]>`
-    SELECT id, posted_by_discord_user_id, title, role, description,
+    SELECT id, posted_by_cernere_user_id, title, role, description,
            company_name, company_id, location, employment_type,
            deadline, is_active, created_at, updated_at
     FROM ob_job_postings WHERE id = ${id}
   `;
-  if (!cur[0] || cur[0].posted_by_discord_user_id !== discordUserId) return null;
+  if (!cur[0] || cur[0].posted_by_cernere_user_id !== cernereUserId) return null;
 
   const next = {
     title: patch.title ?? cur[0].title,
@@ -135,7 +135,7 @@ export async function updateObJobPosting(
       deadline = ${next.deadline}, is_active = ${next.is_active},
       updated_at = ${new Date()}
     WHERE id = ${id}
-    RETURNING id, posted_by_discord_user_id, title, role, description,
+    RETURNING id, posted_by_cernere_user_id, title, role, description,
               company_name, company_id, location, employment_type,
               deadline, is_active, created_at, updated_at
   `;
@@ -143,36 +143,36 @@ export async function updateObJobPosting(
 }
 
 /** 投稿者のみ削除できる。 投稿者不一致なら false を返す。 */
-export async function deleteObJobPosting(id: string, discordUserId: string): Promise<boolean> {
-  const rows = await sql<{ posted_by_discord_user_id: string }[]>`
-    SELECT posted_by_discord_user_id FROM ob_job_postings WHERE id = ${id}
+export async function deleteObJobPosting(id: string, cernereUserId: string): Promise<boolean> {
+  const rows = await sql<{ posted_by_cernere_user_id: string }[]>`
+    SELECT posted_by_cernere_user_id FROM ob_job_postings WHERE id = ${id}
   `;
-  if (!rows[0] || rows[0].posted_by_discord_user_id !== discordUserId) return false;
+  if (!rows[0] || rows[0].posted_by_cernere_user_id !== cernereUserId) return false;
   await sql`DELETE FROM ob_job_postings WHERE id = ${id}`;
   return true;
 }
 
 /** OB向け: 全求人一覧 (is_active=trueのみ、自分の投稿には is_mine=true)。 */
-export async function listObJobPostingsForOb(discordUserId: string): Promise<ObJobPostingWithOwner[]> {
+export async function listObJobPostingsForOb(cernereUserId: string): Promise<ObJobPostingWithOwner[]> {
   const rows = await sql<PostingRow[]>`
-    SELECT id, posted_by_discord_user_id, title, role, description,
+    SELECT id, posted_by_cernere_user_id, title, role, description,
            company_name, company_id, location, employment_type,
            deadline, is_active, created_at, updated_at
     FROM ob_job_postings
     WHERE is_active = ${true}
     ORDER BY created_at DESC
   `;
-  return rows.map((r) => ({ ...mapPosting(r), is_mine: r.posted_by_discord_user_id === discordUserId }));
+  return rows.map((r) => ({ ...mapPosting(r), is_mine: r.posted_by_cernere_user_id === cernereUserId }));
 }
 
 /** OB向け: 自分の投稿のみ (アクティブ/非アクティブ含む)。 */
-export async function listMyObJobPostings(discordUserId: string): Promise<ObJobPostingWithOwner[]> {
+export async function listMyObJobPostings(cernereUserId: string): Promise<ObJobPostingWithOwner[]> {
   const rows = await sql<PostingRow[]>`
-    SELECT id, posted_by_discord_user_id, title, role, description,
+    SELECT id, posted_by_cernere_user_id, title, role, description,
            company_name, company_id, location, employment_type,
            deadline, is_active, created_at, updated_at
     FROM ob_job_postings
-    WHERE posted_by_discord_user_id = ${discordUserId}
+    WHERE posted_by_cernere_user_id = ${cernereUserId}
     ORDER BY created_at DESC
   `;
   return rows.map((r) => ({ ...mapPosting(r), is_mine: true }));
@@ -181,7 +181,7 @@ export async function listMyObJobPostings(discordUserId: string): Promise<ObJobP
 /** 在校生向け: 有効な求人のみ、投稿者情報なし。 */
 export async function listObJobPostingsPublic(): Promise<ObJobPosting[]> {
   const rows = await sql<PostingRow[]>`
-    SELECT id, posted_by_discord_user_id, title, role, description,
+    SELECT id, posted_by_cernere_user_id, title, role, description,
            company_name, company_id, location, employment_type,
            deadline, is_active, created_at, updated_at
     FROM ob_job_postings

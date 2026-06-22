@@ -25,18 +25,6 @@ export const config = {
     allowedChannelIds: [] as string[],
     commandPrefix: '!tr',
   },
-  // 裏口 (卒業生の自己投稿面) 専用の Bot B。 本体/面接の Bot A (上の discord) とは別管理 (別 token/guild)。
-  // botToken 空なら Bot B は起動しない (裏口 API/view は動くが Discord 連携のみ無効)。
-  discordBackdoor: {
-    botToken: '',
-    guildId: '',
-    allowedChannelIds: [] as string[],
-    commandPrefix: '!ob',
-    // 裏口 view の公開 URL ベース。 Bot B が DM するマジックリンクの組み立てに使う。
-    appBaseUrl: 'http://127.0.0.1:8084',
-    linkTtlMin: 15,     // ワンタイム link token の有効期限 (分)
-    sessionTtlMin: 720, // 交換後 session token の有効期限 (分、 既定 12h)
-  },
   companyCrawl: {
     maxPages: 20,
     fetchTimeoutMs: 15_000,

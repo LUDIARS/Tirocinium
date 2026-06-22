@@ -21,7 +21,6 @@ import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
 import { startEnrichQueue, stopEnrichQueue } from './companies/enrich-queue.js';
 import { startJobNewsQueue, stopJobNewsQueue } from './companies/job-news-queue.js';
 import { startDiscordBridge } from './discord/bridge.js';
-import { startBackdoorBot } from './discord/backdoor-bot.js';
 import { hydrateSecrets } from './secrets/hydrate.js';
 import { initSql } from './db/index.js';
 import { assertSafeAuthConfig } from './auth/cernere.js';
@@ -78,18 +77,9 @@ void startDiscordBridge()
   .then((stop) => { stopDiscordBridge = stop; })
   .catch((err) => console.error('[discord] start failed', err));
 
-// 裏口 Bot B (本体/面接の Bot A とは別 token・別 gateway)。 token 未設定なら no-op。
-let stopBackdoorBot: (() => void) | null = null;
-try {
-  stopBackdoorBot = startBackdoorBot();
-} catch (err) {
-  console.error('[discord:backdoor] start failed', err);
-}
-
 const shutdown = () => {
   console.log('shutting down');
   stopDiscordBridge?.();
-  stopBackdoorBot?.();
   stopTickScheduler();
   stopEnrichQueue();
   stopJobNewsQueue();
