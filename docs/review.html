@@ -46,7 +46,7 @@
       <div class="card"><h3 style="color:var(--warn)">主な gap</h3>
         <p>GPT-5.5 は gpt-4o 代替で待機 · prompt cache 未実装 · Iv TTS 結線 TODO · VAD は暫定 (energy 版) · FT-loop 起動は 501 · gBizINFO の URL 検索ステップ未確定。</p></div>
       <div class="card"><h3 style="color:var(--bad)">未実装の仕様</h3>
-        <p><code>spec/companies/interview-questions.md</code> の面接質問プール (テーブル + API) が一式欠落。面接質問生成の最優先素材として仕様化されているが供給経路がない。</p></div>
+        <p><code>spec/feature/companies/interview-questions.md</code> の面接質問プール (テーブル + API) が一式欠落。面接質問生成の最優先素材として仕様化されているが供給経路がない。</p></div>
     </div>
   </section>
 
@@ -55,31 +55,31 @@
     <table>
       <thead><tr><th>仕様</th><th>対応コード</th><th>状態</th><th>所見</th></tr></thead>
       <tbody>
-        <tr><td>spec/llm/README.md<br><span class="muted small">3 機種協調・5 段 prompt・prompt cache</span></td>
+        <tr><td>spec/feature/llm/README.md<br><span class="muted small">3 機種協調・5 段 prompt・prompt cache</span></td>
           <td><code>packages/llm/src/{anthropic,response,evaluator,refine,examinee-simulator}.ts</code></td>
           <td class="status partial">🟡</td>
           <td>Sonnet/Opus/Haiku は実装。GPT-5.5 は <code>openai.ts</code> で gpt-4o 代替。prompt cache (ephemeral) は未実装。</td></tr>
-        <tr><td>spec/inference/model-profiles.md<br><span class="muted small">役割別既定・collapse・env override</span></td>
+        <tr><td>spec/feature/inference/model-profiles.md<br><span class="muted small">役割別既定・collapse・env override</span></td>
           <td><code>packages/llm/src/anthropic.ts</code> (resolveModels) / <code>models.test.ts</code></td>
           <td class="status ok">✅</td>
           <td>default / opus-only / economy と <code>TIROCINIUM_MODEL_&lt;ROLE&gt;</code> override を完全実装。</td></tr>
-        <tr><td>spec/inference/interviewer-engine.md<br><span class="muted small">turn パイプライン・劣化戦略</span></td>
+        <tr><td>spec/feature/inference/interviewer-engine.md<br><span class="muted small">turn パイプライン・劣化戦略</span></td>
           <td><code>apps/server/src/ws/session-runtime.ts</code> / <code>packages/llm/src/{response,judge,refine,evaluator}.ts</code></td>
           <td class="status ok">✅</td>
           <td>user→Sonnet stream→judge/refine/eval の非同期フロー・RAG/弱点注入・key 無し skip まで一致。</td></tr>
-        <tr><td>spec/inference/dialectic-engine.md<br><span class="muted small">phase 状態機・正反合</span></td>
+        <tr><td>spec/feature/inference/dialectic-engine.md<br><span class="muted small">phase 状態機・正反合</span></td>
           <td><code>packages/llm/src/{phase,prompts,judge}.ts</code> / <code>phase.test.ts</code></td>
           <td class="status ok">✅</td>
           <td>5 phase 遷移 (time-box + signals) と DIALECTIC_PROBE を実装。</td></tr>
-        <tr><td>spec/persona/README.md<br><span class="muted small">面接官 / 受験者ペルソナ属性</span></td>
+        <tr><td>spec/feature/persona/README.md<br><span class="muted small">面接官 / 受験者ペルソナ属性</span></td>
           <td><code>apps/server/src/routes/personas.ts</code> / <code>migrations/002_*.sql</code> / <code>response.ts</code></td>
           <td class="status ok">✅</td>
           <td>全属性に対応する CRUD。pressure→挙動マッピングの一部は prompt 側で展開予定。</td></tr>
-        <tr><td>spec/voice/README.md<br><span class="muted small">VAD・Iv STT/TTS・並走</span></td>
+        <tr><td>spec/feature/voice/README.md<br><span class="muted small">VAD・Iv STT/TTS・並走</span></td>
           <td><code>packages/voice/src/{vad,iv-client,stt-provider,stt-grpc-client,queue}.ts</code></td>
           <td class="status partial">🟡</td>
           <td>VAD は SimpleEnergyVad (暫定、webrtc-vad 置換予定)。STT は grpc/api/off 切替可。<strong>Iv TTS 結線は TODO</strong>。</td></tr>
-        <tr><td>spec/feedback/README.md<br><span class="muted small">human_feedback・FT-loop</span></td>
+        <tr><td>spec/feature/feedback/README.md<br><span class="muted small">human_feedback・FT-loop</span></td>
           <td><code>apps/server/src/routes/{feedback,ft_runs}.ts</code> / <code>migrations/002_*.sql</code></td>
           <td class="status partial">🟡</td>
           <td>feedback 記録は実装。FT-loop の起動は <code>ft_runs.ts</code> で 501 (後続 PR 待ち)。</td></tr>
@@ -96,7 +96,7 @@
     <table>
       <thead><tr><th>仕様</th><th>対応コード</th><th>状態</th><th>所見</th></tr></thead>
       <tbody>
-        <tr><td>spec/reservation/README.md<br><span class="muted small">slot 確保・行ロック・同時 1 件</span></td>
+        <tr><td>spec/feature/reservation/README.md<br><span class="muted small">slot 確保・行ロック・同時 1 件</span></td>
           <td><code>apps/server/src/reservation/coordinator.ts</code> / <code>routes/reservations.ts</code> / <code>migrations/001_init.sql</code></td>
           <td class="status ok">✅</td>
           <td><code>tryStart</code> / <code>SELECT … FOR UPDATE</code> / <code>UNIQUE(user_id) WHERE status IN ('held','started')</code> を実装。</td></tr>
@@ -104,7 +104,7 @@
           <td><code>apps/server/src/reservation/tick.ts</code> (scheduler)</td>
           <td class="status partial">🟡</td>
           <td>tick scheduler は起動するが、Nuntius 通知/no-show 処理の実体は要確認。</td></tr>
-        <tr><td>spec/schema/README.md<br><span class="muted small">コア + 企業系テーブル</span></td>
+        <tr><td>spec/data/README.md<br><span class="muted small">コア + 企業系テーブル</span></td>
           <td><code>apps/server/migrations/001-019_*.sql</code></td>
           <td class="status partial">🟡</td>
           <td>コア 13 表 + 企業系を実装。SQLite/PostgreSQL 二系統。<code>company_interview_questions</code> のみ未作成 (§下記)。</td></tr>
@@ -117,31 +117,31 @@
     <table>
       <thead><tr><th>仕様</th><th>対応コード</th><th>状態</th><th>所見</th></tr></thead>
       <tbody>
-        <tr><td>spec/companies/README.md<br><span class="muted small">おすすめ + クロール 2 層</span></td>
+        <tr><td>spec/feature/companies/README.md<br><span class="muted small">おすすめ + クロール 2 層</span></td>
           <td><code>packages/companies/src/*</code> / <code>apps/server/src/companies/*</code> / <code>routes/{companies,recommend}.ts</code></td>
           <td class="status ok">✅</td>
           <td>2 層分離・admin allowlist・ES 本文非保存まで一致。</td></tr>
-        <tr><td>spec/companies/game-graph.md<br><span class="muted small">ゲーム×企業・OB・社名マージ</span></td>
+        <tr><td>spec/feature/companies/game-graph.md<br><span class="muted small">ゲーム×企業・OB・社名マージ</span></td>
           <td><code>migrations/{009,011,016}_*.sql</code> / <code>packages/companies/src/{game,staff-credits,ob}.ts</code> / <code>companies/{games-repo,ob-repo,company-merge-*}.ts</code></td>
           <td class="status ok">✅</td>
           <td>Phase 1-5 (Game DB / スタッフロール / OB 集計 / IR 裏取り / 英⇔カナ マージ) 実装。</td></tr>
-        <tr><td>spec/companies/gbizinfo.md<br><span class="muted small">gBizINFO 取込</span></td>
+        <tr><td>spec/feature/companies/gbizinfo.md<br><span class="muted small">gBizINFO 取込</span></td>
           <td><code>apps/server/src/companies/{gbizinfo,gbiz-import}.ts</code> / <code>packages/companies/src/gbizinfo.ts</code></td>
           <td class="status partial">🟡</td>
           <td>決定論マッピング・DI client・is_smb 確定は実装。<strong>URL 欠落時の「社名→公式HP検索」(gBiz 向け) は未確定</strong>。</td></tr>
-        <tr><td>spec/companies/interview-articles.md<br><span class="muted small">インタビュー記事 + 新卒像</span></td>
+        <tr><td>spec/feature/companies/interview-articles.md<br><span class="muted small">インタビュー記事 + 新卒像</span></td>
           <td><code>migrations/{005,006}_*.sql</code> / <code>packages/companies/src/interview.ts</code> / <code>companies/newgrad*.ts</code></td>
           <td class="status ok">✅</td>
           <td>記事クロール → 役職別新卒像サマリまで実装。</td></tr>
-        <tr><td>spec/companies/job-news.md<br><span class="muted small">求人ニュース</span></td>
+        <tr><td>spec/feature/companies/job-news.md<br><span class="muted small">求人ニュース</span></td>
           <td><code>migrations/018_*.sql</code> / <code>packages/companies/src/job-posting.ts</code> / <code>companies/job-news-*.ts</code></td>
           <td class="status ok">✅</td>
           <td>RSS/抽出・dedup・opt-in・Nuntius 通知を実装。</td></tr>
-        <tr><td>spec/companies/listing-bundle.md<br><span class="muted small">複数ソース統合・tier</span></td>
+        <tr><td>spec/feature/companies/listing-bundle.md<br><span class="muted small">複数ソース統合・tier</span></td>
           <td><code>migrations/007_*.sql</code> / <code>packages/companies/src/{listing,classify,provenance}.ts</code> / <code>companies/listing-crawler.ts</code></td>
           <td class="status ok">✅</td>
           <td>chunk 分割・provenance 累積・SMB 判定・tier 競合解決を実装。</td></tr>
-        <tr><td>spec/companies/interview-questions.md<br><span class="muted small">会社別 面接質問プール</span></td>
+        <tr><td>spec/feature/companies/interview-questions.md<br><span class="muted small">会社別 面接質問プール</span></td>
           <td>— (テーブル・API なし)</td>
           <td class="status no">❌</td>
           <td><code>company_interview_questions</code> 表 / 投稿・upvote API / Notion 取込が<strong>一式欠落</strong>。面接質問生成の最優先素材。</td></tr>
@@ -154,23 +154,23 @@
     <table>
       <thead><tr><th>仕様</th><th>対応コード</th><th>状態</th><th>所見</th></tr></thead>
       <tbody>
-        <tr><td>spec/web/README.md<br><span class="muted small">Tauri クライアント・WS フレーム</span></td>
+        <tr><td>spec/feature/web/README.md<br><span class="muted small">Tauri クライアント・WS フレーム</span></td>
           <td><code>apps/desktop/src/pages/*</code> / <code>components/session/*</code> / <code>ws/SessionWebSocket.ts</code></td>
           <td class="status ok">✅</td>
           <td>ページ群と WS フレーム定義が一致。Persona Catalog はナビ非表示 (route は残存)。</td></tr>
-        <tr><td>spec/web/backdoor.md<br><span class="muted small">裏口 (卒業生投稿)</span></td>
+        <tr><td>spec/feature/web/backdoor.md<br><span class="muted small">裏口 (卒業生投稿)</span></td>
           <td><code>routes/backdoor.ts</code> / <code>discord/backdoor-bot.ts</code> / <code>companies/backdoor-repo.ts</code> / <code>migrations/019_*.sql</code></td>
           <td class="status ok">✅</td>
           <td>link token → session token、Bot B 分離、TTL 制御まで実装。</td></tr>
-        <tr><td>spec/web/errors.md<br><span class="muted small">エラーコード カタログ</span></td>
+        <tr><td>spec/interface/errors.md<br><span class="muted small">エラーコード カタログ</span></td>
           <td><code>apps/server/src/index.ts</code> (onError) + 各 route</td>
           <td class="status ok">✅</td>
           <td>標準コードに加え企業/裏口 scope のコードを追加。内部例外は <code>internal</code> に丸める。</td></tr>
-        <tr><td>spec/web/performance.md<br><span class="muted small">SLI/SLO・CI bench</span></td>
+        <tr><td>spec/test/performance.md<br><span class="muted small">SLI/SLO・CI bench</span></td>
           <td><code>apps/server/bench/request-latency.ts</code> / <code>.github/workflows/ci.yml</code></td>
           <td class="status ok">✅</td>
           <td>request overhead p95 を CI gate 化。端から端の SLO は standalone で別検証。</td></tr>
-        <tr><td>spec/notion/README.md<br><span class="muted small">Notion クローラー</span></td>
+        <tr><td>spec/interface/notion/README.md<br><span class="muted small">Notion クローラー</span></td>
           <td><code>scripts/companies-notion-import/index.ts</code> / <code>companies/notion-canalis.ts</code></td>
           <td class="status ok">✅</td>
           <td>@ludiars/canalis 依存・LLM 不使用・secret-agent から設定取得。</td></tr>
@@ -178,7 +178,7 @@
           <td><code>docker-compose.yml</code> / <code>scripts/dev.mjs</code> / <code>secrets/hydrate.ts</code> / <code>discord/{bridge,backdoor-bot}.ts</code></td>
           <td class="status ok">✅</td>
           <td>secret hydration・STT backend 切替・Bot A/B 分離が仕様通り。STT API backend は seam 状態。</td></tr>
-        <tr><td>spec/code/README.md<br><span class="muted small">ディレクトリ構成・主要クラス</span></td>
+        <tr><td>spec/plan/README.md<br><span class="muted small">ディレクトリ構成・主要クラス</span></td>
           <td>monorepo 全体</td>
           <td class="status ok">✅</td>
           <td>構成一致。仕様に無い package (analytics / companies / secrets) が追加。</td></tr>
