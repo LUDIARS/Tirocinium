@@ -231,3 +231,14 @@ export async function verifySession(
 export async function purgeExpiredTokens(): Promise<void> {
   await sql`DELETE FROM backdoor_tokens WHERE expires_at <= ${new Date()}`;
 }
+
+/** 指定 company_id に勤める OB の Discord user id 一覧 (ES相談通知用)。 */
+export async function listObsForCompany(
+  companyId: string,
+): Promise<{ discord_user_id: string; display_name: string }[]> {
+  return sql<{ discord_user_id: string; display_name: string }[]>`
+    SELECT discord_user_id, display_name
+    FROM backdoor_alumni
+    WHERE current_company_id = ${companyId}
+  `;
+}

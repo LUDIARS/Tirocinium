@@ -14,7 +14,8 @@ import { companies } from './routes/companies.js';
 import { recommendRoute } from './routes/recommend.js';
 import { resources } from './routes/resources.js';
 import { analyticsRoute } from './routes/analytics.js';
-import { backdoor, backdoorPage } from './routes/backdoor.js';
+import { backdoor, backdoorPage, obJobsPage } from './routes/backdoor.js';
+import { esRequests, esRequestsPage } from './routes/es-requests.js';
 import { attachSessionWs } from './ws/handler.js';
 import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
 import { startEnrichQueue, stopEnrichQueue } from './companies/enrich-queue.js';
@@ -49,6 +50,9 @@ app.route('/api/v1/resources', resources);
 app.route('/api/v1/analytics', analyticsRoute);
 app.route('/api/v1/backdoor', backdoor);
 app.route('/backdoor', backdoorPage);
+app.route('/ob-jobs', obJobsPage);
+app.route('/api/v1/es-requests', esRequests);
+app.route('/es-requests', esRequestsPage);
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404));
 

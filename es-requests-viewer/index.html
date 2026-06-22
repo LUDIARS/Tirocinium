@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Tirocinium — ES添削相談</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --panel2: #1f232c; --line: #2a2f3a;
+    --fg: #e8eaed; --subtle: #9aa3b2; --accent: #6ea8fe; --accent2: #3b82f6;
+    --ok: #4ade80; --danger: #f87171; --warn: #facc15; --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    line-height: 1.7;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.25rem; margin: 8px 0 4px; }
+  .lead { color: var(--subtle); font-size: 0.88rem; margin: 0 0 24px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 1rem; margin: 0 0 14px; }
+  label { display: block; font-size: 0.85rem; color: var(--subtle); margin: 0 0 6px; }
+  input[type="text"], textarea, select {
+    width: 100%; background: var(--panel2); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 13px;
+    font: inherit; resize: vertical;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+  .field { margin-bottom: 16px; }
+  .hint { font-size: 0.78rem; color: var(--subtle); margin: 4px 0 0; }
+  button {
+    background: var(--accent2); color: #fff; border: 0; border-radius: 10px;
+    padding: 10px 18px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: var(--accent); }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--subtle); }
+  button.ghost:hover { color: var(--fg); border-color: var(--subtle); }
+  button.danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .status { font-size: 0.85rem; min-height: 1.2em; }
+  .status.ok { color: var(--ok); } .status.err { color: var(--danger); }
+  .req { border-top: 1px solid var(--line); padding: 14px 0; }
+  .req:first-of-type { border-top: 0; padding-top: 0; }
+  .req-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .req-company { font-weight: 600; }
+  .req-status {
+    font-size: 0.78rem; border-radius: 999px; padding: 2px 10px;
+    background: var(--panel2); border: 1px solid var(--line); color: var(--subtle);
+  }
+  .req-status.matched { color: var(--ok); border-color: var(--ok); }
+  .req-status.pending { color: var(--warn); border-color: var(--warn); }
+  .req-meta { font-size: 0.82rem; color: var(--subtle); margin: 4px 0; }
+  .req-note { font-size: 0.88rem; white-space: pre-wrap; margin: 6px 0 0; }
+  .req-ob { font-size: 0.85rem; color: var(--ok); margin-top: 6px; }
+  .gate { text-align: center; padding: 40px 16px; color: var(--subtle); }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ES添削相談</h1>
+  <p class="lead">卒業生 (OB) が在籍する企業へ、エントリーシートの添削を依頼できます。</p>
+
+  <div id="gate" class="gate">
+    <p>読み込み中…</p>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="card">
+      <h2>新しい相談を申し込む</h2>
+      <div class="field">
+        <label for="f-company">相談したい企業名</label>
+        <input id="f-company" type="text" placeholder="例: 株式会社サンプルゲームス" />
+        <p class="hint">その企業に在籍するOBに届きます。</p>
+      </div>
+      <div class="field">
+        <label for="f-name">お名前 (表示用)</label>
+        <input id="f-name" type="text" placeholder="例: 田中 花子" />
+      </div>
+      <div class="field">
+        <label for="f-discord">Discord ハンドル (任意)</label>
+        <input id="f-discord" type="text" placeholder="例: hanako_t" />
+        <p class="hint">OBが引き受けた後、Discord DM でESを送ってください。</p>
+      </div>
+      <div class="field">
+        <label for="f-note">補足・コメント</label>
+        <textarea id="f-note" rows="3" placeholder="志望理由や知りたいことなど (任意)"></textarea>
+      </div>
+      <div class="actions">
+        <button id="submit">相談を申し込む</button>
+        <span id="submit-status" class="status"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>申し込み中の相談</h2>
+      <div id="my-requests"><p class="hint" style="margin:0">読み込み中…</p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var CERNERE_KEY = 'cernere_token';
+  var $ = function (id) { return document.getElementById(id); };
+  var token = localStorage.getItem(CERNERE_KEY) || '';
+
+  function authHeaders() {
+    return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+  }
+
+  function showGate(html) { $('gate').innerHTML = html; $('gate').classList.remove('hidden'); $('app').classList.add('hidden'); }
+  function showApp() { $('gate').classList.add('hidden'); $('app').classList.remove('hidden'); }
+  function setStatus(id, msg, ok) {
+    var el = $(id);
+    el.textContent = msg;
+    el.className = 'status ' + (ok ? 'ok' : 'err');
+    if (msg) setTimeout(function () { if (el.textContent === msg) el.textContent = ''; }, 4000);
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function statusLabel(s) {
+    return s === 'matched' ? '引き受け済み' : s === 'closed' ? 'クローズ' : '受付中';
+  }
+
+  function renderRequests(requests) {
+    var el = $('my-requests');
+    if (!requests.length) { el.innerHTML = '<p class="hint" style="margin:0">申し込み中の相談はありません。</p>'; return; }
+    el.innerHTML = requests.map(function (r) {
+      var ob = r.status === 'matched' && r.matched_ob_display_name
+        ? '<div class="req-ob">引き受けてくれたOB: ' + esc(r.matched_ob_display_name) + ' (DM をお待ちください)</div>'
+        : '';
+      var note = r.request_note ? '<div class="req-note">' + esc(r.request_note) + '</div>' : '';
+      var canClose = r.status === 'pending';
+      return [
+        '<div class="req">',
+        '<div class="req-head">',
+        '<span class="req-company">' + esc(r.target_company_name) + '</span>',
+        '<span class="req-status ' + esc(r.status) + '">' + statusLabel(r.status) + '</span>',
+        '</div>',
+        '<div class="req-meta">' + new Date(r.created_at).toLocaleDateString('ja-JP') + '</div>',
+        note, ob,
+        canClose ? '<div style="margin-top:8px"><button class="danger" data-close="' + esc(r.id) + '">取り下げる</button></div>' : '',
+        '</div>',
+      ].join('');
+    }).join('');
+  }
+
+  function loadRequests() {
+    fetch('/api/v1/es-requests', { headers: authHeaders() })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d) renderRequests(d.requests || []); });
+  }
+
+  function boot() {
+    showApp();
+    loadRequests();
+  }
+
+  function tryAuth() {
+    if (!token) { showGate('<p>このページを利用するには Tirocinium へのログインが必要です。</p>'); return; }
+    fetch('/api/v1/es-requests', { headers: authHeaders() })
+      .then(function (r) {
+        if (r.status === 401) { showGate('<p>セッションが切れました。再ログインしてください。</p>'); return; }
+        boot();
+      })
+      .catch(function () { showGate('<p>接続エラー。</p>'); });
+  }
+
+  $('submit').addEventListener('click', function () {
+    var company = $('f-company').value.trim();
+    if (!company) { setStatus('submit-status', '企業名を入力してください', false); return; }
+    var body = {
+      target_company_name: company,
+      student_display_name: $('f-name').value.trim(),
+      student_discord_handle: $('f-discord').value.trim(),
+      request_note: $('f-note').value.trim(),
+    };
+    fetch('/api/v1/es-requests', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function () {
+        setStatus('submit-status', '相談を申し込みました', true);
+        $('f-company').value = ''; $('f-note').value = '';
+        loadRequests();
+      })
+      .catch(function () { setStatus('submit-status', '送信に失敗しました', false); });
+  });
+
+  document.addEventListener('click', function (e) {
+    var id = e.target.getAttribute && e.target.getAttribute('data-close');
+    if (!id) return;
+    if (!confirm('この相談を取り下げますか？')) return;
+    fetch('/api/v1/es-requests/' + id, { method: 'DELETE', headers: authHeaders() })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function () { loadRequests(); })
+      .catch(function () { alert('取り下げに失敗しました。'); });
+  });
+
+  tryAuth();
+})();
+</script>
+</body>
+</html>

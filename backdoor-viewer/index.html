@@ -53,6 +53,31 @@
   .gate { text-align: center; padding: 40px 16px; color: var(--subtle); }
   .gate code { background: var(--panel2); padding: 2px 6px; border-radius: 6px; color: var(--fg); }
   .hidden { display: none; }
+  select {
+    width: 100%; background: var(--panel2); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
+    font: inherit;
+  }
+  select:focus { outline: none; border-color: var(--accent); }
+  .job { border-top: 1px solid var(--line); padding: 12px 0; }
+  .job:first-of-type { border-top: 0; padding-top: 0; }
+  .job-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .job-title { font-weight: 600; flex: 1; }
+  .mine-badge {
+    font-size: 0.72rem; background: rgba(59,130,246,.15); color: var(--accent);
+    border: 1px solid rgba(59,130,246,.3); border-radius: 999px; padding: 1px 8px;
+  }
+  .job-meta { font-size: 0.82rem; color: var(--subtle); margin: 4px 0; }
+  .job-desc { font-size: 0.88rem; white-space: pre-wrap; margin: 6px 0 0; }
+  .job-actions { margin-top: 8px; display: flex; gap: 8px; }
+  .es-req { border-top: 1px solid var(--line); padding: 12px 0; }
+  .es-req:first-of-type { border-top: 0; padding-top: 0; }
+  .es-student { font-weight: 600; }
+  .es-note { font-size: 0.85rem; color: var(--subtle); margin-top: 4px; }
+  .es-discord { font-size: 0.82rem; color: var(--accent); margin-top: 2px; }
+  button.small { padding: 6px 12px; font-size: 0.85rem; }
+  button.danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+  button.danger:hover { background: rgba(248,113,113,.1); }
 </style>
 </head>
 <body>
@@ -101,6 +126,64 @@
     <div class="card">
       <h2>在籍ロスター</h2>
       <div id="roster" class="roster"><p class="hint">読み込み中…</p></div>
+    </div>
+
+    <div class="card">
+      <h2>求人を投稿する</h2>
+      <div class="field">
+        <label for="j-title">求人タイトル</label>
+        <input id="j-title" type="text" placeholder="例: 新卒エンジニア採用 2026" />
+      </div>
+      <div class="field">
+        <label for="j-company">企業名</label>
+        <input id="j-company" type="text" placeholder="今いる企業が自動入力されます" />
+      </div>
+      <div class="field">
+        <label for="j-role">職種</label>
+        <select id="j-role">
+          <option value="">選択してください</option>
+          <option value="プランナー">プランナー</option>
+          <option value="プログラマ">プログラマ</option>
+          <option value="デザイナー">デザイナー</option>
+          <option value="サウンド">サウンド</option>
+          <option value="総合職">総合職</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="j-location">勤務地</label>
+        <input id="j-location" type="text" placeholder="例: 東京都渋谷区 (リモート可)" />
+      </div>
+      <div class="field">
+        <label for="j-etype">雇用形態</label>
+        <input id="j-etype" type="text" placeholder="例: 正社員 / アルバイト / インターン" />
+      </div>
+      <div class="field">
+        <label for="j-deadline">応募締め切り</label>
+        <input id="j-deadline" type="text" placeholder="例: 2026-08-31" />
+      </div>
+      <div class="field">
+        <label for="j-desc">求人詳細・連絡方法</label>
+        <textarea id="j-desc" rows="5" placeholder="仕事内容、求めるスキル、応募・問い合わせ方法などを記載してください。"></textarea>
+      </div>
+      <div class="actions">
+        <button id="job-post">求人を投稿する</button>
+        <span id="job-status" class="status"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>自分が投稿した求人</h2>
+      <div id="my-jobs"><p class="hint">読み込み中…</p></div>
+    </div>
+
+    <div class="card">
+      <h2>ES添削相談 — 届いたリクエスト</h2>
+      <p class="hint" style="margin:0 0 12px">自分の会社宛ての相談が表示されます。会社を登録してください。</p>
+      <div id="es-requests"><p class="hint">読み込み中…</p></div>
+      <div class="actions" style="margin-top:14px">
+        <button id="es-reload" class="ghost">再読み込み</button>
+      </div>
     </div>
   </div>
 </div>
@@ -175,10 +258,74 @@
       .then(function (d) { if (d) renderIndustry(d); });
   }
 
+  function setJobStatus(msg, ok) {
+    var el = $('job-status');
+    el.textContent = msg;
+    el.className = 'status ' + (ok ? 'ok' : 'err');
+    if (msg) setTimeout(function () { if (el.textContent === msg) el.textContent = ''; }, 4000);
+  }
+
+  function renderMyJobs(postings) {
+    var el = $('my-jobs');
+    if (!postings.length) { el.innerHTML = '<p class="hint">投稿した求人はありません。</p>'; return; }
+    el.innerHTML = postings.map(function (p) {
+      var meta = [p.company_name, p.location, p.employment_type].filter(Boolean).join(' · ');
+      var inactive = !p.is_active ? ' <span style="color:var(--danger);font-size:.8rem;">(非公開)</span>' : '';
+      return [
+        '<div class="job">',
+        '<div class="job-head"><span class="job-title">' + escapeHtml(p.title) + '</span>',
+        p.role ? '<span class="mine-badge">' + escapeHtml(p.role) + '</span>' : '',
+        inactive,
+        '</div>',
+        meta ? '<div class="job-meta">' + escapeHtml(meta) + '</div>' : '',
+        p.deadline ? '<div class="job-meta">締め切り: ' + escapeHtml(p.deadline) + '</div>' : '',
+        '<div class="job-actions">',
+        '<button class="ghost small" data-job-toggle="' + escapeHtml(p.id) + '" data-active="' + (p.is_active ? '1' : '0') + '">',
+        p.is_active ? '非公開にする' : '再公開する',
+        '</button>',
+        '<button class="danger small" data-job-delete="' + escapeHtml(p.id) + '">削除</button>',
+        '</div>',
+        '</div>',
+      ].join('');
+    }).join('');
+  }
+
+  function loadMyJobs() {
+    fetch('/api/v1/backdoor/job-postings/mine', { headers: authHeaders() })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d) renderMyJobs(d.postings || []); });
+  }
+
+  function renderEsRequests(requests) {
+    var el = $('es-requests');
+    if (!requests.length) { el.innerHTML = '<p class="hint">届いているリクエストはありません。</p>'; return; }
+    el.innerHTML = requests.map(function (r) {
+      var discord = r.student_discord_handle ? '<div class="es-discord">Discord: ' + escapeHtml(r.student_discord_handle) + '</div>' : '';
+      var note = r.request_note ? '<div class="es-note">' + escapeHtml(r.request_note) + '</div>' : '';
+      return [
+        '<div class="es-req">',
+        '<span class="es-student">' + escapeHtml(r.student_display_name || '在校生') + '</span>',
+        ' — ' + escapeHtml(r.target_company_name),
+        discord, note,
+        '<div class="job-actions"><button class="small" data-es-accept="' + escapeHtml(r.id) + '">引き受ける</button></div>',
+        '</div>',
+      ].join('');
+    }).join('');
+  }
+
+  function loadEsRequests() {
+    fetch('/api/v1/backdoor/es-requests', { headers: authHeaders() })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d) renderEsRequests(d.requests || []); });
+  }
+
   function boot(entry, fallbackName) {
     fillForm(entry, fallbackName);
+    if (entry && entry.current_company) $('j-company').value = entry.current_company;
     showApp();
     loadIndustry();
+    loadMyJobs();
+    loadEsRequests();
   }
 
   function startWithSession() {
@@ -218,7 +365,74 @@
     );
   }
 
-  // 保存
+  // 求人投稿
+  document.addEventListener('click', function (e) {
+    if (e.target.id === 'job-post') {
+      var title = $('j-title').value.trim();
+      if (!title) { setJobStatus('タイトルを入力してください', false); return; }
+      var body = {
+        title: title,
+        company_name: $('j-company').value.trim(),
+        role: $('j-role').value,
+        location: $('j-location').value.trim(),
+        employment_type: $('j-etype').value.trim(),
+        deadline: $('j-deadline').value.trim(),
+        description: $('j-desc').value.trim(),
+        is_active: true,
+      };
+      fetch('/api/v1/backdoor/job-postings', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function () {
+          setJobStatus('投稿しました', true);
+          $('j-title').value = ''; $('j-desc').value = ''; $('j-deadline').value = '';
+          loadMyJobs();
+        })
+        .catch(function () { setJobStatus('投稿に失敗しました', false); });
+      return;
+    }
+    // 公開/非公開切替
+    var jobId = e.target.getAttribute && e.target.getAttribute('data-job-toggle');
+    if (jobId) {
+      var isActive = e.target.getAttribute('data-active') === '1';
+      fetch('/api/v1/backdoor/job-postings/' + jobId, {
+        method: 'PUT', headers: authHeaders(),
+        body: JSON.stringify({ is_active: !isActive }),
+      })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function () { loadMyJobs(); })
+        .catch(function () { alert('更新に失敗しました。'); });
+      return;
+    }
+    // 求人削除
+    var delId = e.target.getAttribute && e.target.getAttribute('data-job-delete');
+    if (delId) {
+      if (!confirm('この求人を削除しますか？')) return;
+      fetch('/api/v1/backdoor/job-postings/' + delId, { method: 'DELETE', headers: authHeaders() })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function () { loadMyJobs(); })
+        .catch(function () { alert('削除に失敗しました。'); });
+      return;
+    }
+    // ES引き受け
+    var esId = e.target.getAttribute && e.target.getAttribute('data-es-accept');
+    if (esId) {
+      fetch('/api/v1/backdoor/es-requests/' + esId + '/accept', { method: 'POST', headers: authHeaders() })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function (d) {
+          var h = d.request && d.request.student_discord_handle;
+          alert('引き受けました。' + (h ? '\n学生の Discord ハンドル: ' + h : '') + '\nDMしてESを受け取ってください。');
+          loadEsRequests();
+        })
+        .catch(function () { alert('引き受けに失敗しました。すでに引き受け済みかもしれません。'); });
+      return;
+    }
+  });
+
+  document.addEventListener('click', function (e) {
+    if (e.target.id === 'es-reload') { loadEsRequests(); return; }
+  });
+
+  // プロフィール保存
   document.addEventListener('click', function (e) {
     if (e.target.id === 'save') {
       var body = {
