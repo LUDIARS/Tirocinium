@@ -1,18 +1,13 @@
-// 卒業生「裏口」: 自己投稿エントリ + マジックリンク/セッション token の永続化。 migration 019。
-// 本人が同意して書く自己申告データ (harvest した PII ではない)。 Discord identity をアンカーにする。
-// Cernere ではなく Discord (Bot B) 認証で本人確認する (Discutere と同じ Cernere 非依存方針)。
-//
-// 時刻比較の注意: SQLite の datetime('now') は 'YYYY-MM-DD HH:MM:SS' (space) だが JS の ISO は
-// 'YYYY-MM-DDTHH:MM:SS.sssZ' (T) で字句順比較が不整合になる。 token 期限の判定は SQL の now() に
-// 依存せず、 比較・保存とも JS の Date を渡して JS 側 (new Date(...) 比較) で判定する。
+// 卒業生「裏口」: 自己投稿エントリの永続化。 migration 019 + 021。
+// 本人が同意して書く自己申告データ (harvest した PII ではない)。 本人アンカーは Cernere の sub。
+// 認証は本体/面接と同じ Cernere に統一する (旧: Discord Bot B のマジックリンク。 021 で撤去)。
 
-import { randomBytes } from 'node:crypto';
 import { sql } from '../db/index.js';
 import { normalizeName } from '@tirocinium/companies';
 
 export type BackdoorEntry = {
   id: string;
-  discord_user_id: string;
+  cernere_user_id: string;
   display_name: string;
   current_company: string;
   current_company_id: string | null;
@@ -35,7 +30,7 @@ export type BackdoorPatch = {
 
 type EntryRow = {
   id: string;
-  discord_user_id: string;
+  cernere_user_id: string;
   display_name: string;
   current_company: string;
   current_company_id: string | null;
@@ -50,7 +45,7 @@ type EntryRow = {
 function mapEntry(row: EntryRow): BackdoorEntry {
   return {
     id: row.id,
-    discord_user_id: row.discord_user_id,
+    cernere_user_id: row.cernere_user_id,
     display_name: row.display_name,
     current_company: row.current_company,
     current_company_id: row.current_company_id ?? null,
@@ -72,11 +67,11 @@ async function resolveCompanyId(companyName: string): Promise<string | null> {
   return rows[0]?.id ?? null;
 }
 
-/** 指定 Discord ユーザのエントリを取得する。 未登録なら null。 */
-export async function getEntry(discordUserId: string): Promise<BackdoorEntry | null> {
+/** 指定 Cernere ユーザのエントリを取得する。 未登録なら null。 */
+export async function getEntry(cernereUserId: string): Promise<BackdoorEntry | null> {
   const rows = await sql<EntryRow[]>`
-    SELECT id, discord_user_id, display_name, current_company, current_company_id,
-           message_to_students, message_to_industry, students_published, industry_published, updated_at FROM backdoor_alumni WHERE discord_user_id = ${discordUserId}
+    SELECT id, cernere_user_id, display_name, current_company, current_company_id,
+           message_to_students, message_to_industry, students_published, industry_published, updated_at FROM backdoor_alumni WHERE cernere_user_id = ${cernereUserId}
   `;
   return rows[0] ? mapEntry(rows[0]) : null;
 }
@@ -86,11 +81,11 @@ export async function getEntry(discordUserId: string): Promise<BackdoorEntry | n
  * current_company が変わるたび current_company_id を再解決する。
  */
 export async function upsertEntry(
-  discordUserId: string,
+  cernereUserId: string,
   fallbackDisplayName: string,
   patch: BackdoorPatch,
 ): Promise<BackdoorEntry> {
-  const cur = await getEntry(discordUserId);
+  const cur = await getEntry(cernereUserId);
   const next = {
     display_name: patch.display_name ?? cur?.display_name ?? fallbackDisplayName ?? '',
     current_company: patch.current_company ?? cur?.current_company ?? '',
@@ -103,14 +98,14 @@ export async function upsertEntry(
 
   const rows = await sql<EntryRow[]>`
     INSERT INTO backdoor_alumni (
-      discord_user_id, display_name, current_company, current_company_id,
+      cernere_user_id, display_name, current_company, current_company_id,
       message_to_students, message_to_industry, students_published, industry_published, updated_at
     ) VALUES (
-      ${discordUserId}, ${next.display_name}, ${next.current_company}, ${companyId},
+      ${cernereUserId}, ${next.display_name}, ${next.current_company}, ${companyId},
       ${next.message_to_students}, ${next.message_to_industry},
       ${next.students_published}, ${next.industry_published}, ${new Date()}
     )
-    ON CONFLICT (discord_user_id) DO UPDATE SET
+    ON CONFLICT (cernere_user_id) DO UPDATE SET
       display_name = excluded.display_name,
       current_company = excluded.current_company,
       current_company_id = excluded.current_company_id,
@@ -119,7 +114,7 @@ export async function upsertEntry(
       students_published = excluded.students_published,
       industry_published = excluded.industry_published,
       updated_at = excluded.updated_at
-    RETURNING id, discord_user_id, display_name, current_company, current_company_id,
+    RETURNING id, cernere_user_id, display_name, current_company, current_company_id,
            message_to_students, message_to_industry, students_published, industry_published, updated_at
   `;
   const row = rows[0];
@@ -128,14 +123,14 @@ export async function upsertEntry(
 }
 
 /** 本人がエントリを削除する。 */
-export async function deleteEntry(discordUserId: string): Promise<void> {
-  await sql`DELETE FROM backdoor_alumni WHERE discord_user_id = ${discordUserId}`;
+export async function deleteEntry(cernereUserId: string): Promise<void> {
+  await sql`DELETE FROM backdoor_alumni WHERE cernere_user_id = ${cernereUserId}`;
 }
 
 /** 学生向けに公開されたメッセージ (本体の「卒業生からのメッセージ」面に出す)。 */
 export async function listStudentMessages(): Promise<BackdoorEntry[]> {
   const rows = await sql<EntryRow[]>`
-    SELECT id, discord_user_id, display_name, current_company, current_company_id,
+    SELECT id, cernere_user_id, display_name, current_company, current_company_id,
            message_to_students, message_to_industry, students_published, industry_published, updated_at FROM backdoor_alumni
     WHERE students_published = ${true} AND message_to_students <> ''
     ORDER BY updated_at DESC
@@ -146,7 +141,7 @@ export async function listStudentMessages(): Promise<BackdoorEntry[]> {
 /** 業界向けに公開されたメッセージ (裏口面に出す)。 */
 export async function listIndustryMessages(): Promise<BackdoorEntry[]> {
   const rows = await sql<EntryRow[]>`
-    SELECT id, discord_user_id, display_name, current_company, current_company_id,
+    SELECT id, cernere_user_id, display_name, current_company, current_company_id,
            message_to_students, message_to_industry, students_published, industry_published, updated_at FROM backdoor_alumni
     WHERE industry_published = ${true} AND message_to_industry <> ''
     ORDER BY updated_at DESC
@@ -154,90 +149,12 @@ export async function listIndustryMessages(): Promise<BackdoorEntry[]> {
   return rows.map(mapEntry);
 }
 
-// ---- マジックリンク / セッション token ----
-
-type TokenRow = {
-  token: string;
-  kind: string;
-  discord_user_id: string;
-  display_name: string;
-  expires_at: string;
-  used_at: string | null;
-};
-
-function newToken(): string {
-  return randomBytes(24).toString('hex');
-}
-
-/** Bot B が DM で配るワンタイム link token を発行する。 */
-export async function issueLinkToken(
-  discordUserId: string,
-  displayName: string,
-  ttlMin: number,
-): Promise<string> {
-  const token = newToken();
-  const expires = new Date(Date.now() + ttlMin * 60_000);
-  await sql`
-    INSERT INTO backdoor_tokens (token, kind, discord_user_id, display_name, expires_at)
-    VALUES (${token}, 'link', ${discordUserId}, ${displayName}, ${expires})
-  `;
-  return token;
-}
-
-/**
- * link token を検証し、 有効なら session token に交換する (link は used_at で再利用不可に)。
- * 交換と同時にエントリの存在を保証して返す。 無効/期限切れ/使用済みは null。
- */
-export async function exchangeLinkToken(
-  token: string,
-  sessionTtlMin: number,
-): Promise<{ session: string; entry: BackdoorEntry } | null> {
-  const now = new Date();
-  const rows = await sql<TokenRow[]>`
-    SELECT token, kind, discord_user_id, display_name, expires_at, used_at
-    FROM backdoor_tokens WHERE token = ${token} AND kind = ${'link'}
-  `;
-  const row = rows[0];
-  if (!row || row.used_at) return null;
-  if (new Date(row.expires_at) <= now) return null;
-
-  await sql`UPDATE backdoor_tokens SET used_at = ${now} WHERE token = ${token}`;
-
-  const session = newToken();
-  const sExpires = new Date(now.getTime() + sessionTtlMin * 60_000);
-  await sql`
-    INSERT INTO backdoor_tokens (token, kind, discord_user_id, display_name, expires_at)
-    VALUES (${session}, 'session', ${row.discord_user_id}, ${row.display_name}, ${sExpires})
-  `;
-
-  const entry = await upsertEntry(row.discord_user_id, row.display_name, {});
-  return { session, entry };
-}
-
-/** session token を検証する。 有効なら本人の identity を返す。 */
-export async function verifySession(
-  token: string,
-): Promise<{ discordUserId: string; displayName: string } | null> {
-  const rows = await sql<TokenRow[]>`
-    SELECT discord_user_id, display_name, expires_at FROM backdoor_tokens
-    WHERE token = ${token} AND kind = ${'session'}
-  `;
-  const row = rows[0];
-  if (!row || new Date(row.expires_at) <= new Date()) return null;
-  return { discordUserId: row.discord_user_id, displayName: row.display_name };
-}
-
-/** 期限切れ token を掃除する (任意呼び出し)。 */
-export async function purgeExpiredTokens(): Promise<void> {
-  await sql`DELETE FROM backdoor_tokens WHERE expires_at <= ${new Date()}`;
-}
-
-/** 指定 company_id に勤める OB の Discord user id 一覧 (ES相談通知用)。 */
+/** 指定 company_id に勤める OB の Cernere user id 一覧 (ES相談の Nuntius 通知用)。 */
 export async function listObsForCompany(
   companyId: string,
-): Promise<{ discord_user_id: string; display_name: string }[]> {
-  return sql<{ discord_user_id: string; display_name: string }[]>`
-    SELECT discord_user_id, display_name
+): Promise<{ cernere_user_id: string; display_name: string }[]> {
+  return sql<{ cernere_user_id: string; display_name: string }[]>`
+    SELECT cernere_user_id, display_name
     FROM backdoor_alumni
     WHERE current_company_id = ${companyId}
   `;

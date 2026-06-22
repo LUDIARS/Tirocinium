@@ -3,7 +3,7 @@
 
 import { config } from '../config.js';
 import { resolveSecrets, readLocalSecrets, SecretAgentError, localConfigPath, type ResolvedSecrets } from '@tirocinium/secrets';
-import { applyDiscordSecrets, applyBackdoorSecrets, applyServerConfig } from './apply.js';
+import { applyDiscordSecrets, applyServerConfig } from './apply.js';
 
 /** secret-agent の service code (既定 'tirocinium')。 */
 const SERVICE_CODE = process.env['TIROCINIUM_SERVICE_CODE'] ?? 'tirocinium';
@@ -60,20 +60,12 @@ export const SECRET_KEYS = [
   // セッションレート制限
   'SESSION_RATELIMIT_WINDOW_MS',
   'SESSION_RATELIMIT_MAX',
-  // Discord Bot A (本体/面接)
+  // Discord Bot A (本体/面接)。 裏口 Bot B は廃止 (認証を Cernere に統一)。
   'TIROCINIUM_DISCORD_BOT_TOKEN',
   'TIROCINIUM_DISCORD_GUILD_ID',
   'TIROCINIUM_DISCORD_CATEGORY_ID',
   'TIROCINIUM_DISCORD_TEXT_CHANNEL_IDS',
   'TIROCINIUM_DISCORD_COMMAND_PREFIX',
-  // Discord Bot B (裏口、 Bot A とは別 token・別管理)
-  'TIROCINIUM_BACKDOOR_BOT_TOKEN',
-  'TIROCINIUM_BACKDOOR_GUILD_ID',
-  'TIROCINIUM_BACKDOOR_TEXT_CHANNEL_IDS',
-  'TIROCINIUM_BACKDOOR_COMMAND_PREFIX',
-  'TIROCINIUM_BACKDOOR_APP_BASE_URL',
-  'TIROCINIUM_BACKDOOR_LINK_TTL_MIN',
-  'TIROCINIUM_BACKDOOR_SESSION_TTL_MIN',
 ];
 
 function envSecrets(): ResolvedSecrets {
@@ -115,7 +107,6 @@ export async function hydrateSecrets(): Promise<void> {
   secrets = { ...secrets, ...envSecrets() };
   const applied1 = applyServerConfig(config, secrets);
   const applied2 = applyDiscordSecrets(config.discord, secrets);
-  const applied3 = applyBackdoorSecrets(config.discordBackdoor, secrets);
-  const all = [...applied1, ...applied2, ...applied3];
+  const all = [...applied1, ...applied2];
   console.log(`[secrets] hydrated from ${source}: ${all.length} key(s) [${all.join(', ')}]`);
 }

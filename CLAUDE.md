@@ -17,11 +17,13 @@
 |---|---|---|---|
 | 本体 | Tr ビュー | なし | Bot A (`!tr`) |
 | 面接 | 認証付き Tr ビュー | Cernere | Bot A (`!tr`) |
-| 裏口 | Tr ビュー (`/backdoor`) | Discord マジックリンク | Bot B (`!ob`) |
+| 裏口 | Tr ビュー (`/backdoor`) | Cernere | — |
 
-- 裏口 = 卒業生の自己投稿面 (今いる企業 / 学生向け / 業界向けメッセージ)。 詳細 `spec/feature/web/backdoor.md`。
-- **Bot A と Bot B は別 token・別 gateway で別管理** (`config.discord` / `config.discordBackdoor`)。
-- 裏口の認証は Cernere ではなく Discord (Bot B 発行の session token)。
+- 裏口 = 卒業生/OB の自己投稿面 (今いる企業 / 学生向け / 業界向けメッセージ / OB求人 / ES添削相談)。 詳細 `spec/feature/web/backdoor.md`。
+- **認証は 3 面とも Cernere に統一** (PASETO Bearer、 本人アンカー = Cernere の sub)。
+  旧裏口のマジックリンク (Discord Bot B 発行 session token) は撤去した (migration 021)。
+- データ責務: 個人情報 / ES / 面接情報は **Cernere**。 Tr が持つのは **履歴 + OB 求人 + 企業キャッシュ** のみ。
+- OB への到達通知 (ES相談等) は **Nuntius** (Cernere user id 宛)。
 
 ## branch 運用
 
