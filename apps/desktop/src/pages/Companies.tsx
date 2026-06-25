@@ -296,6 +296,16 @@ export function Companies() {
               {crawlQueue.lastDetail && <span className="enrich-queue-last">直近: {crawlQueue.lastDetail}</span>}
             </>
           )}
+          {(() => {
+            // 子クローラ (深掘り: works→ゲーム紐付け + 求人 + 企業情報) の進行を併記。
+            const chaining = crawlQueue.recent.filter((j) => j.child_status === 'spawned' || j.child_status === 'running');
+            const lastChild = crawlQueue.recent.find((j) => j.child_status === 'done' && j.child_detail);
+            if (chaining.length > 0) {
+              return <div className="enrich-queue-last">↳ 深掘り中 {chaining.length} 件（works→ゲーム紐付け / 求人 / 企業情報）</div>;
+            }
+            if (lastChild) return <div className="enrich-queue-last">↳ 深掘り直近: {lastChild.child_detail}</div>;
+            return null;
+          })()}
         </div>
       )}
 
