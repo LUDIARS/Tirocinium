@@ -21,7 +21,7 @@ export type CompanyFilter = {
   tag?: string;
   industry?: string;
   q?: string;
-  /** ノイズ除外: いずれかのゲームに紐付く企業のみ (概要の有無は問わない — 未取得は enrich 対象)。 */
+  /** ノイズ除外: ゲームに紐付く or 求人(job_postings)を持つ企業のみ (概要の有無は問わない — 未取得は enrich 対象)。 */
   quality?: boolean;
   /** 情報あり (会社概要 description が非空) の企業のみ。 未取得は除外 (チェックで解除)。 */
   summarized?: boolean;
@@ -85,7 +85,10 @@ function companyFilterSql(filter: CompanyFilter) {
       ${filter.tag ? (isSqlite ? sql`AND EXISTS (SELECT 1 FROM json_each(c.tags) WHERE value = ${filter.tag})` : sql`AND ${filter.tag} = ANY(c.tags)`) : sql``}
       ${filter.industry ? sql`AND c.industry = ${filter.industry}` : sql``}
       ${filter.quality ? sql`
-        AND EXISTS (SELECT 1 FROM company_game cg WHERE cg.company_id = c.id)
+        AND (
+          EXISTS (SELECT 1 FROM company_game cg WHERE cg.company_id = c.id)
+          OR EXISTS (SELECT 1 FROM job_postings jp WHERE jp.company_id = c.id)
+        )
       ` : sql``}
       ${filter.summarized ? sql`AND c.description <> ''` : sql``}
       ${filter.newgrad ? sql`AND c.is_newgrad` : sql``}
