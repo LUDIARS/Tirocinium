@@ -30,8 +30,15 @@ export type JobNewsCrawlSummary = {
   errors: { url: string; message: string }[];
 };
 
-/** 求人ニュース クロールを実行する。 sourceId 指定で 1 ソースに絞れる。 */
-export async function runJobNewsCrawl(sourceId?: string): Promise<JobNewsCrawlSummary> {
+/**
+ * 求人ニュース クロールを実行する。 sourceId 指定で 1 ソースに絞れる。
+ * injectedSources を渡すと news-sources.json ではなくその配列をそのまま使う
+ * (enrich-chain がアドホックな recruit-page ソースを流すための注入口。 active 判定はスキップ)。
+ */
+export async function runJobNewsCrawl(
+  sourceId?: string,
+  injectedSources?: NewsSourceConfig[],
+): Promise<JobNewsCrawlSummary> {
   const summary: JobNewsCrawlSummary = {
     sources: [],
     fetched: 0,
@@ -42,7 +49,7 @@ export async function runJobNewsCrawl(sourceId?: string): Promise<JobNewsCrawlSu
     errors: [],
   };
 
-  const sources = selectActiveNewsSources(await loadNewsSources(), sourceId);
+  const sources = injectedSources ?? selectActiveNewsSources(await loadNewsSources(), sourceId);
   if (sources.length === 0) return summary;
 
   const fetcher = new PoliteFetcher({

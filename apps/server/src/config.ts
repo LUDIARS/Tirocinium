@@ -71,6 +71,9 @@ export const config = {
     enabled: true,
     intervalMs: 15_000, // この間隔で次の 1 件を取り出す (礼節)
     maxAttempts: 3, // 失敗時の最大試行回数
+    // 企業 upsert 後に CLI 子クローラ (cli backend) を spawn して深掘り (works→ゲーム紐付け +
+    // recruit-page 求人 + 企業情報) を連鎖させる。 Web 本体は spawn するだけでブロックしない。
+    chainEnrich: true,
   },
   // 求人ニュース クロール (data/companies/news-sources.json)。 新着求人を検出 → Web 表示 + Nuntius 通知。
   // enabled=true で定期クロールを自動起動。 notifyUserId が空なら Nuntius 通知は no-op (Web 表示のみ)。

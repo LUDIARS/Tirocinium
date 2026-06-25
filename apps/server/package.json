@@ -13,6 +13,7 @@
     "seed-personas": "tsx ../../scripts/seed-personas/index.ts",
     "companies:seed-import": "tsx ../../scripts/companies-seed-import/index.ts",
     "companies:newgrad-crawl": "tsx ../../scripts/companies-newgrad-crawl/index.ts",
+    "companies:enrich-chain": "tsx ../../scripts/company-enrich/index.ts",
     "companies:wikidata-enrich": "tsx ../../scripts/companies-wikidata-enrich/index.ts",
     "companies:tech-build": "tsx ../../scripts/companies-tech-build/index.ts",
     "companies:ob-import": "tsx ../../scripts/companies-ob-import/index.ts",

@@ -148,6 +148,9 @@ export type CrawlJob = {
   error: string;
   enqueued_at: string;
   finished_at: string | null;
+  /** 子クローラ連鎖 (works→ゲーム紐付け + 求人 + 企業情報)。 */
+  child_status: 'none' | 'spawned' | 'running' | 'done' | 'failed';
+  child_detail: string;
 };
 
 export type CrawlQueueStatus = {
