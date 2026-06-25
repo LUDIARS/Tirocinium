@@ -4,6 +4,7 @@
 
 import { config } from '../config.js';
 import { runCrawl } from './crawler.js';
+import { spawnChildEnrich } from './child-enrich-spawn.js';
 import {
   claimNextCrawlJob,
   markCrawlDone,
@@ -52,6 +53,10 @@ async function tick(): Promise<void> {
       state.lastDetail = ok
         ? `${job.url}: ${summary.upserted} 社を取得`
         : `${job.url}: 企業情報を抽出できず (errors=${summary.errors.length})`;
+      // 連鎖: upsert できた企業ごとに CLI 子クローラを spawn して深掘り (cli backend)。
+      if (config.crawlQueue.chainEnrich && summary.upsertedCompanyIds.length > 0) {
+        for (const companyId of summary.upsertedCompanyIds) spawnChildEnrich(job.id, companyId);
+      }
     } catch (err) {
       const message = (err as Error).message;
       await markCrawlFailed(job.id, message, config.crawlQueue.maxAttempts);

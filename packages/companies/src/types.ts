@@ -303,6 +303,8 @@ export type CrawlSummary = {
   upserted: number;
   skipped: number;
   errors: { url: string; message: string }[];
+  /** upsert できた企業の id 群 (子クローラ連鎖の対象)。 */
+  upsertedCompanyIds: string[];
 };
 
 // ── recommend ─────────────────────────────────────────────────────────

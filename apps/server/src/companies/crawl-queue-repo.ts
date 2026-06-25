@@ -21,6 +21,10 @@ export type StoredCrawlJob = {
   enqueued_at: string;
   started_at: string | null;
   finished_at: string | null;
+  /** 子クローラ連鎖 (migration 023)。 */
+  child_status: string;
+  child_log: string;
+  child_detail: string;
 };
 
 export type EnqueueInput = {
@@ -38,7 +42,8 @@ export type EnqueueResult = { job: StoredCrawlJob; deduped: boolean };
 // クエリ実行時 (initSql 済) に展開されるよう関数で遅延生成する。
 const cols = () => sql`
   id, url, name_hint, source, status, max_pages, attempts,
-  summary, error, requested_by, enqueued_at, started_at, finished_at
+  summary, error, requested_by, enqueued_at, started_at, finished_at,
+  child_status, child_log, child_detail
 `;
 
 /** queued/running の同一 URL ジョブを 1 件返す (無ければ null)。 enqueue の重複畳み込み用。 */
@@ -121,6 +126,26 @@ export async function markCrawlFailed(id: string, message: string, maxAttempts: 
     SET status = CASE WHEN attempts >= ${maxAttempts} THEN 'failed' ELSE 'queued' END,
         error = ${message},
         finished_at = CASE WHEN attempts >= ${maxAttempts} THEN ${nowIso()} ELSE finished_at END
+    WHERE id = ${id}
+  `;
+}
+
+/** 子クローラを spawn したことを記録する (status=spawned + ログパス)。 */
+export async function markChildSpawned(id: string, logPath: string): Promise<void> {
+  await sql`
+    UPDATE crawl_jobs SET child_status = 'spawned', child_log = ${logPath}, child_detail = ''
+    WHERE id = ${id}
+  `;
+}
+
+/** 子クローラの実行状態を更新する (running / done / failed + サマリ 1 行)。 */
+export async function markChildResult(
+  id: string,
+  status: 'running' | 'done' | 'failed',
+  detail: string,
+): Promise<void> {
+  await sql`
+    UPDATE crawl_jobs SET child_status = ${status}, child_detail = ${detail.slice(0, 500)}
     WHERE id = ${id}
   `;
 }

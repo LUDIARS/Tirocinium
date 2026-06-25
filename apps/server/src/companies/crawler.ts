@@ -17,7 +17,7 @@ import {
   type CrawlSummary,
 } from '@tirocinium/companies';
 import { config } from '../config.js';
-import { upsertCompany } from './repo.js';
+import { upsertCompany, getCompanyByNormalizedName } from './repo.js';
 import { safeFetch } from './ssrf-guard.js';
 
 export type RunCrawlInput = {
@@ -64,6 +64,7 @@ export async function runCrawl(input: RunCrawlInput): Promise<CrawlSummary> {
     upserted: 0,
     skipped: 0,
     errors: [],
+    upsertedCompanyIds: [],
   };
 
   // LLM client は 1 回だけ用意 (鍵が無ければ heuristic のみ)。
@@ -90,6 +91,9 @@ export async function runCrawl(input: RunCrawlInput): Promise<CrawlSummary> {
       summary.extracted++;
       await upsertCompany(normalized);
       summary.upserted++;
+      // 子クローラ連鎖の対象 id を拾う (normalized_name で解決)。
+      const company = await getCompanyByNormalizedName(normalized.normalized_name);
+      if (company) summary.upsertedCompanyIds.push(company.id);
     } catch (err) {
       summary.errors.push({ url: seed.url, message: (err as Error).message });
     }
