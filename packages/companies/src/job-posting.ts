@@ -12,7 +12,8 @@ import type { FeedItem } from './rss.js';
 /** DB 投入前の正規化済み求人 1 件。 dedupKey が冪等キー。 */
 export type JobPostingItem = {
   source: string;
-  kind: 'rss' | 'job-listing';
+  /** rss=ニュースフィード / job-listing=求人一覧ページ / recruit-page=企業の自社採用ページ。 */
+  kind: 'rss' | 'job-listing' | 'recruit-page';
   /** 冪等キー (= normalizeUrl(url))。 UNIQUE。 */
   dedupKey: string;
   url: string;
@@ -165,25 +166,31 @@ export function parseJobListing(text: string): JobListingEntry[] {
 /**
  * JobListingEntry → JobPostingItem。 詳細 URL があればそれを、 無ければ pageUrl#title を dedup キーにする
  * (同一ページ内で再掲を取りこぼさないため title を識別子に混ぜる)。
+ *
+ * opts.companyName: 募集元が既知のとき (recruit-page = 企業の自社採用ページ) に社名を固定する。
+ *   自社ページの各求人に社名表記が無くても company_id 解決できるよう、 LLM 抽出値より優先する。
+ * opts.kind: 出力する kind (既定 'job-listing')。 recruit-page ソースは 'recruit-page' を渡す。
  */
 export function jobPostingFromListing(
   source: string,
   pageUrl: string,
   entry: JobListingEntry,
+  opts: { companyName?: string; kind?: JobPostingItem['kind'] } = {},
 ): JobPostingItem | null {
   const title = entry.title.trim();
   if (!title) return null;
+  const companyName = opts.companyName?.trim() || decodeEntities(entry.companyName);
   const url = entry.url || pageUrl;
   const dedupKey = entry.url
     ? normalizeUrl(entry.url)
-    : `${normalizeUrl(pageUrl)}#${title}${entry.companyName ? `@${entry.companyName}` : ''}`;
+    : `${normalizeUrl(pageUrl)}#${title}${companyName ? `@${companyName}` : ''}`;
   return {
     source,
-    kind: 'job-listing',
+    kind: opts.kind ?? 'job-listing',
     dedupKey,
     url,
     title,
-    companyName: decodeEntities(entry.companyName),
+    companyName,
     role: entry.role,
     location: entry.location,
     employmentType: entry.employmentType,

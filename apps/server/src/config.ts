@@ -65,6 +65,13 @@ export const config = {
     enabled: true,
     intervalMs: 60_000, // 1 分に 1 件 (礼節)
   },
+  // 企業クロールキュー: URL を投入すると 1 件ずつ順次クロールして企業を upsert する常駐 worker。
+  // Web 取得は直列 (重複リクエストの無駄処理回避 + 負荷対策)。 enqueue 時に同一 URL の重複は畳む。
+  crawlQueue: {
+    enabled: true,
+    intervalMs: 15_000, // この間隔で次の 1 件を取り出す (礼節)
+    maxAttempts: 3, // 失敗時の最大試行回数
+  },
   // 求人ニュース クロール (data/companies/news-sources.json)。 新着求人を検出 → Web 表示 + Nuntius 通知。
   // enabled=true で定期クロールを自動起動。 notifyUserId が空なら Nuntius 通知は no-op (Web 表示のみ)。
   jobNews: {

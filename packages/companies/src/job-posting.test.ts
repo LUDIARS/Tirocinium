@@ -111,4 +111,19 @@ describe('jobPostingFromListing', () => {
     expect(a!.dedupKey).not.toBe(b!.dedupKey);
     expect(a!.dedupKey).toBe('https://x/jobs#QA@A社');
   });
+  it('recruit-page: opts で社名と kind を固定する', () => {
+    // 自社採用ページの求人に社名表記が無くても、 既知社名で company_id 解決できるよう固定する。
+    const item = jobPostingFromListing('melpot-career', 'https://melpot.com/career/',
+      entry({ title: '3Dアーティスト', companyName: '' }),
+      { companyName: '株式会社MELPOT', kind: 'recruit-page' });
+    expect(item!.kind).toBe('recruit-page');
+    expect(item!.companyName).toBe('株式会社MELPOT');
+    // dedupKey の合成にも固定社名が乗る (normalizeUrl は末尾スラッシュを落とす)。
+    expect(item!.dedupKey).toBe('https://melpot.com/career#3Dアーティスト@株式会社MELPOT');
+  });
+  it('opts.companyName は LLM 抽出値より優先する', () => {
+    const item = jobPostingFromListing('s', 'https://x/career', entry({ title: 'UI', companyName: '誤抽出社' }),
+      { companyName: '株式会社リンクトブレイン', kind: 'recruit-page' });
+    expect(item!.companyName).toBe('株式会社リンクトブレイン');
+  });
 });
