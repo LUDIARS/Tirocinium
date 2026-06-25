@@ -18,6 +18,24 @@ describe('parseNewsSources', () => {
     expect(s!.company).toBe('株式会社MELPOT');
   });
 
+  it('newgradOnly 既定は kind 依存 (recruit-page=false / job-listing=true / rss=true)', () => {
+    const out = parseNewsSources([
+      { id: 'r', kind: 'recruit-page', urls: ['https://x/c'] },
+      { id: 'j', kind: 'job-listing', urls: ['https://x/j'] },
+      { id: 's', kind: 'rss', urls: ['https://x/f'] },
+    ]);
+    expect(out.map((s) => s.newgradOnly)).toEqual([false, true, true]);
+  });
+
+  it('newgradOnly は明示値があれば既定より優先', () => {
+    const [r, j] = parseNewsSources([
+      { id: 'r', kind: 'recruit-page', urls: ['https://x/c'], newgradOnly: true },
+      { id: 'j', kind: 'job-listing', urls: ['https://x/j'], newgradOnly: false },
+    ]);
+    expect(r!.newgradOnly).toBe(true);
+    expect(j!.newgradOnly).toBe(false);
+  });
+
   it('未知 kind は rss に倒す / company 空は undefined', () => {
     const [s] = parseNewsSources([{ id: 'x', kind: 'bogus', urls: ['https://x/1'], company: '   ' }]);
     expect(s!.kind).toBe('rss');

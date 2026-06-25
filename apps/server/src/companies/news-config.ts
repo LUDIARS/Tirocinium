@@ -21,6 +21,12 @@ export type NewsSourceConfig = {
   urls: string[];
   /** rss のとき採用関連だけに絞るか (既定 true)。 job-listing / recruit-page では無視。 */
   hiringOnly: boolean;
+  /**
+   * job-listing / recruit-page で新卒応募可の求人だけに絞るか。
+   * 既定は kind 依存: job-listing(aggregator)=true、 recruit-page(明示登録した特定企業)=false (全求人を拾う)。
+   * JSON で明示すればその値を優先する。
+   */
+  newgradOnly: boolean;
   /** recruit-page のとき募集元の社名 (company_id 解決 + 表示に使う固定値)。 他 kind では無視。 */
   company?: string;
   /** false の source は明示 opt-in (env COMPANY_JOB_NEWS_OPTIN_SOURCES) が無い限り起動しない */
@@ -39,15 +45,21 @@ export function parseNewsSources(parsed: unknown): NewsSourceConfig[] {
   if (!Array.isArray(parsed)) return [];
   return parsed
     .filter((r): r is Record<string, unknown> => typeof r === 'object' && r !== null)
-    .map((r) => ({
-      id: String(r['id'] ?? ''),
-      kind: normalizeKind(r['kind']),
-      urls: Array.isArray(r['urls']) ? (r['urls'] as unknown[]).filter((u): u is string => typeof u === 'string') : [],
-      hiringOnly: r['hiringOnly'] !== false,
-      company: typeof r['company'] === 'string' && r['company'].trim() ? r['company'].trim() : undefined,
-      enabled: r['enabled'] === true,
-      note: typeof r['note'] === 'string' ? r['note'] : undefined,
-    }))
+    .map((r) => {
+      const kind = normalizeKind(r['kind']);
+      // newgradOnly 既定: recruit-page は false (特定企業の全求人)、 他は true。 明示値があれば優先。
+      const newgradOnly = typeof r['newgradOnly'] === 'boolean' ? r['newgradOnly'] : kind !== 'recruit-page';
+      return {
+        id: String(r['id'] ?? ''),
+        kind,
+        urls: Array.isArray(r['urls']) ? (r['urls'] as unknown[]).filter((u): u is string => typeof u === 'string') : [],
+        hiringOnly: r['hiringOnly'] !== false,
+        newgradOnly,
+        company: typeof r['company'] === 'string' && r['company'].trim() ? r['company'].trim() : undefined,
+        enabled: r['enabled'] === true,
+        note: typeof r['note'] === 'string' ? r['note'] : undefined,
+      };
+    })
     .filter((r) => r.id && r.urls.length > 0);
 }
 
