@@ -5,6 +5,7 @@ import {
   type CompanyProfile,
   type ContributeSummary,
   type EnrichQueueStatus,
+  type CrawlQueueStatus,
   type NewgradRoleImage,
 } from '../api/companies.js';
 import { CompanyDetailModal } from './CompanyDetailModal.js';
@@ -39,6 +40,8 @@ export function Companies() {
   const [newgradModal, setNewgradModal] = useState<{ id: string; name: string } | null>(null);
   const [contributeFor, setContributeFor] = useState<{ id: string; name: string } | null>(null);
   const [queue, setQueue] = useState<EnrichQueueStatus | null>(null);
+  const [crawlQueue, setCrawlQueue] = useState<CrawlQueueStatus | null>(null);
+  const [crawlUrls, setCrawlUrls] = useState('');
   const [detailFor, setDetailFor] = useState<Company | null>(null);
 
   const reload = async (query = q) => {
@@ -69,6 +72,15 @@ export function Companies() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 企業クロールキューの状態をポーリング (10 秒ごと、 投入直後の進捗が見えるよう短め)。
+  useEffect(() => {
+    const poll = () => { void api.crawlQueueStatus().then(setCrawlQueue).catch(() => {}); };
+    poll();
+    const id = window.setInterval(poll, 10_000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const wrap = async (key: string, fn: () => Promise<void>) => {
     setBusy(key);
     setError(null);
@@ -81,6 +93,26 @@ export function Companies() {
       setBusy(null);
     }
   };
+
+  // URL を企業クロールキューに投入する (同期実行はしない。 進捗は crawlQueue バナーで見る)。
+  const submitCrawl = () =>
+    wrap('crawl-enqueue', async () => {
+      const urls = crawlUrls
+        .split(/[\s\n]+/)
+        .map((s) => s.trim())
+        .filter((s) => /^https?:\/\//.test(s));
+      if (urls.length === 0) {
+        setError('http(s) で始まる URL を 1 つ以上入力してください');
+        return;
+      }
+      const r = await api.crawl({ source: 'manual', urls });
+      setCrawlUrls('');
+      setNote(
+        `クロールキューに ${r.enqueued} 件投入しました` +
+          (r.deduped > 0 ? `（${r.deduped} 件は処理中のため重複としてまとめました）` : ''),
+      );
+      await api.crawlQueueStatus().then(setCrawlQueue).catch(() => {});
+    });
 
   const enrichAll = () =>
     wrap('enrich-all', async () => {
@@ -223,6 +255,45 @@ export function Companies() {
             <>
               概要なしのゲーム関連企業 <strong>{queue.pending}</strong> 社（自動クロール停止中
               {queue.disabledReason ? `: ${queue.disabledReason}` : ''}）。 各社の「情報クロール依頼 / 情報提供」から個別に追加できます。
+            </>
+          )}
+        </div>
+      )}
+
+      {/* URL を渡して企業をクロールキューに投入する (1 件ずつ直列処理)。 */}
+      <div className="card crawl-enqueue">
+        <h3 style={{ margin: '0 0 6px' }}>URL から企業を追加</h3>
+        <p style={{ fontSize: 13, color: 'var(--c-subtle)', margin: '0 0 8px' }}>
+          企業の公式サイト / 採用ページの URL を貼り付けるとクロールキューに積みます。
+          Web 取得は重複・負荷を避けるため 1 件ずつ順番に処理します。 1 行 1 URL。
+        </p>
+        <textarea
+          value={crawlUrls}
+          onChange={(e) => setCrawlUrls(e.target.value)}
+          placeholder={'https://melpot.com/\nhttps://linkedbrain.jp/'}
+          rows={3}
+          style={{ width: '100%', boxSizing: 'border-box' }}
+        />
+        <div style={{ marginTop: 8 }}>
+          <button onClick={submitCrawl} disabled={busy === 'crawl-enqueue'}>
+            {busy === 'crawl-enqueue' ? '投入中…' : 'キューに追加'}
+          </button>
+        </div>
+      </div>
+
+      {crawlQueue && (crawlQueue.counts.queued > 0 || crawlQueue.counts.running > 0 || crawlQueue.lastDetail) && (
+        <div className="enrich-queue-banner">
+          {crawlQueue.counts.queued + crawlQueue.counts.running > 0 ? (
+            <>
+              <span className="enrich-queue-dot" />
+              企業クロール中 — 待ち <strong>{crawlQueue.counts.queued}</strong> 件 / 処理中{' '}
+              <strong>{crawlQueue.counts.running}</strong> 件を 1 件ずつ取得しています
+              {crawlQueue.lastDetail && <span className="enrich-queue-last">（直近: {crawlQueue.lastDetail}）</span>}
+            </>
+          ) : (
+            <>
+              企業クロールキューは空です（完了 {crawlQueue.counts.done} / 失敗 {crawlQueue.counts.failed}）。
+              {crawlQueue.lastDetail && <span className="enrich-queue-last">直近: {crawlQueue.lastDetail}</span>}
             </>
           )}
         </div>

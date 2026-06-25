@@ -3,7 +3,6 @@ import { cernereAuth } from '../auth/cernere.js';
 import { listSourceIds } from '@tirocinium/companies';
 import { config } from '../config.js';
 import { listCompanies, getCompany, countCompanies } from '../companies/repo.js';
-import { runCrawl } from '../companies/crawler.js';
 import { loadSeedRecords } from '../companies/seeds.js';
 import { runListingCrawl } from '../companies/listing-crawler.js';
 import { runJobNewsCrawl } from '../companies/job-news-crawler.js';
@@ -20,6 +19,8 @@ import { syncObFromSheet } from '../companies/ob-sheet-sync-wire.js';
 import { mergeDuplicateCompanies } from '../companies/company-merge-wire.js';
 import { runContribute } from '../companies/contribute.js';
 import { enrichQueueStatus } from '../companies/enrich-queue.js';
+import { crawlQueueStatus } from '../companies/crawl-queue.js';
+import { enqueueCrawl } from '../companies/crawl-queue-repo.js';
 import { buildMapMarkers } from '../companies/geocode.js';
 
 /**
@@ -203,7 +204,11 @@ companies.get('/:id', async (c) => {
   return company ? c.json({ company }) : c.json({ error: 'not_found' }, 404);
 });
 
-/** POST /api/v1/companies/crawl — クロール起動 { source, urls?, maxPages? } */
+/**
+ * POST /api/v1/companies/crawl — クロールをキューに投入 { source, urls?, maxPages? }。
+ * 同期実行はせず crawl_jobs に積むだけで即座に返す (Web 取得は worker が 1 件ずつ直列処理)。
+ * 同一 URL が既に queued/running なら畳んで再利用する (重複リクエストの無駄処理回避 + 負荷対策)。
+ */
 companies.post('/crawl', cernereAuth, async (c) => {
   const user = c.get('user');
   if (!canCrawl(user.id)) return c.json({ error: 'forbidden' }, 403);
@@ -219,21 +224,36 @@ companies.post('/crawl', cernereAuth, async (c) => {
     return c.json({ error: 'invalid_source', sources: listSourceIds() }, 400);
   }
 
-  const urls = Array.isArray(body?.urls) ? body!.urls.filter((u) => typeof u === 'string') : [];
-  // seed-file ソースはサーバ側 data から読む。
-  const seedRecords = source === 'seed-file' ? await loadSeedRecords() : undefined;
-
-  if (source === 'manual' && urls.length === 0) {
-    return c.json({ error: 'urls_required_for_manual' }, 400);
+  // 投入対象 URL を確定する。 manual はリクエストの urls、 seed-file はサーバ側 data から読む。
+  const items: { url: string; nameHint?: string }[] = [];
+  if (source === 'seed-file') {
+    for (const rec of await loadSeedRecords()) {
+      if (rec.url && /^https?:\/\//i.test(rec.url)) items.push({ url: rec.url, nameHint: rec.name });
+    }
+  } else {
+    const urls = Array.isArray(body?.urls) ? body!.urls.filter((u) => typeof u === 'string') : [];
+    for (const url of urls) if (/^https?:\/\//i.test(url.trim())) items.push({ url: url.trim() });
   }
 
-  try {
-    const summary = await runCrawl({ source, urls, seedRecords, maxPages: body?.maxPages });
-    return c.json({ summary }, 200);
-  } catch (err) {
-    return c.json({ error: 'crawl_failed', detail: (err as Error).message }, 502);
+  if (items.length === 0) {
+    return c.json({ error: 'urls_required', detail: 'http(s) で始まる URL を 1 件以上指定してください' }, 400);
   }
+
+  const maxPages = body?.maxPages;
+  const results = [];
+  for (const it of items) {
+    results.push(await enqueueCrawl({ url: it.url, nameHint: it.nameHint, source, maxPages, requestedBy: user.id }));
+  }
+  const enqueued = results.filter((r) => !r.deduped).length;
+  const deduped = results.length - enqueued;
+  return c.json(
+    { enqueued, deduped, jobs: results.map((r) => ({ id: r.job.id, url: r.job.url, status: r.job.status })) },
+    202,
+  );
 });
+
+/** GET /api/v1/companies/crawl-queue/status — 企業クロールキューの状態 (件数 + 直近ジョブ) */
+companies.get('/crawl-queue/status', async (c) => c.json(await crawlQueueStatus()));
 
 /** POST /api/v1/companies/crawl-listing — 新卒/ゲーム企業を listing から発見してストック { source? } */
 companies.post('/crawl-listing', cernereAuth, async (c) => {

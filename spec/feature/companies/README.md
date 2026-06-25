@@ -68,13 +68,14 @@ upsertCompany (normalized_name で UPSERT、 空値は既存を温存)
 | GET | `/api/v1/companies/listing-sources` | listing ソース一覧 (有効可否つき) |
 | GET | `/api/v1/companies/:id` | 詳細 |
 | GET | `/api/v1/companies/:id/profile` | IR/理念 profile |
-| POST | `/api/v1/companies/crawl` | 単体取得クロール `{source, urls?, maxPages?}` → `CrawlSummary` |
+| POST | `/api/v1/companies/crawl` | URL をクロールキューに投入 (即時 202) `{source, urls?, maxPages?}` → `{enqueued, deduped, jobs[]}`。 [`crawl-queue.md`](./crawl-queue.md) |
+| GET | `/api/v1/companies/crawl-queue/status` | 企業クロールキューの件数 + 直近ジョブ + worker 稼働状態 |
 | POST | `/api/v1/companies/crawl-listing` | listing 発見クロール `{source?}` → `ListingCrawlSummary` |
 | POST | `/api/v1/companies/enrich` | 企業サイト巡回で IR/理念取得 `{company_id?, limit?}` → `EnrichSummary` |
 
 - 認証は Cernere (dev は `TIROCINIUM_DEV_AUTH`)。
 - クロールは `COMPANY_CRAWL_ADMIN_IDS` 設定時はその user のみ (未設定なら全 authed user 可)。
-- v1 は同期実行 + `maxPages` 上限。 大規模化したらバックグラウンドジョブへ (将来)。
+- `/crawl` は同期実行せず `crawl_jobs` に積み、 worker が 1 件ずつ直列処理する (重複リクエストの無駄処理回避 + 負荷対策)。 進捗は `crawl-queue/status`。
 
 ---
 

@@ -70,10 +70,11 @@ export async function runJobNewsCrawl(sourceId?: string): Promise<JobNewsCrawlSu
     // 同一 run 内の重複キーを畳む (同じ求人が複数チャンク / フィードに出るケース)。
     const deduped = dedupeByKey(collected);
     summary.discovered += deduped.length;
-    // job-listing は「現在の掲載」スナップショットで置換 (重複累積を防ぐ)。 rss はニュースログとして追記。
-    const newItems = source.kind === 'job-listing'
-      ? await replaceJobPostings(source.id, deduped)
-      : await insertNewJobPostings(deduped);
+    // job-listing / recruit-page は「現在の掲載」スナップショットで置換 (重複累積を防ぐ)。
+    // rss はニュースログとして追記。
+    const newItems = source.kind === 'rss'
+      ? await insertNewJobPostings(deduped)
+      : await replaceJobPostings(source.id, deduped);
     added.push(...newItems);
   }
   summary.inserted = added.length;
@@ -124,11 +125,15 @@ async function crawlSourceUrl(
     return out;
   }
 
-  // job-listing: LLM 抽出 (利用不可なら error 記録)。
+  // job-listing / recruit-page: LLM 抽出 (利用不可なら error 記録)。
   if (!complete) {
-    summary.errors.push({ url, message: 'job-listing は LLM 抽出が必須 (claude CLI backend か ANTHROPIC_API_KEY)' });
+    summary.errors.push({ url, message: `${source.kind} は LLM 抽出が必須 (claude CLI backend か ANTHROPIC_API_KEY)` });
     return [];
   }
+  // recruit-page は企業の自社採用ページ → 各求人に社名表記が無くても source.company で固定する。
+  const buildOpts = source.kind === 'recruit-page'
+    ? { companyName: source.company, kind: 'recruit-page' as const }
+    : undefined;
   const fullText = htmlToText(res.html, config.companyCrawl.listingMaxChars);
   const chunks = chunkText(fullText, config.companyCrawl.listingChunkChars, config.companyCrawl.listingMaxChunks);
   const out: JobPostingItem[] = [];
@@ -137,7 +142,7 @@ async function crawlSourceUrl(
     for (const entry of entries) {
       // 新卒採用 / 新卒応募可 / 未経験可 の求人だけを残す (ユーザ要望、 Tr は新卒就活向け)。
       if (!isNewgradEligible(entry)) continue;
-      const jp = jobPostingFromListing(source.id, url, entry);
+      const jp = jobPostingFromListing(source.id, url, entry, buildOpts);
       if (jp) out.push(jp);
       if (out.length >= cap) break;
     }
