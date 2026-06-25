@@ -27,9 +27,18 @@
     "id": "melpot-career",
     "kind": "recruit-page",
     "company": "株式会社メルポット",
-    "urls": ["https://melpot.com/career/"],
+    "urls": [
+      "https://melpot.com/career/3d-artist/",
+      "https://melpot.com/career/3d-artist-lead/",
+      "https://melpot.com/career/game-designer/",
+      "https://melpot.com/career/game-engineer/",
+      "https://melpot.com/career/graphics-engineer/",
+      "https://melpot.com/career/technical-artist/",
+      "https://melpot.com/career/ui-ux-designer/",
+      "https://melpot.com/career/lighting-artist/"
+    ],
     "enabled": true,
-    "note": "株式会社メルポット (ブランド表記 MELPOT、川崎・ゲーム/VR/XR/3DCG受託) の自社採用ページ。company は正式名称(メルポット)に合わせる — クロールも公式サイトからこの名で企業生成するため normalized_name が一致し company_id 解決できる(MELPOT 表記だと不一致)。aggregator に出ない規模のため直クロール。robots 許可 (Disallow は /*/_template.html のみ)・証明書有効。⚠ melpot.co.jp は証明書が 2024-08 失効のため使わない (正は melpot.com)。LLM 抽出必須。"
+    "note": "株式会社メルポット (ブランド表記 MELPOT、川崎・ゲーム/VR/XR/3DCG受託) の自社採用ページ。company は正式名称(メルポット)に合わせる — クロールも公式サイトからこの名で企業生成するため normalized_name が一致し company_id 解決できる(MELPOT 表記だと不一致)。/career/ 直下は JS描画SPAで本文が空のため、sitemap の個別職種ページ群を直接指す。⚠ 現状の掲載は新卒/未経験の明示が無く本文も薄いため、recruit-page の新卒フィルタ(isNewgradEligible)で 0 件になる(本番実測: fetched=7, discovered=0)。企業レコードは本番DB登録済み。新卒枠が出れば自動検出され得る。robots 許可 (Disallow は /*/_template.html のみ)・証明書有効。⚠ melpot.co.jp は証明書が 2024-08 失効のため使わない (正は melpot.com)。LLM 抽出必須。"
   },
   {
     "id": "linkedbrain-recruit",
