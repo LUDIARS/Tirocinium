@@ -856,7 +856,10 @@ pre {
   position: relative;
 }
 .company-search input {
-  width: 220px;
+  /* URL から企業を追加のテキストボックスと同じ基底スタイル (border-radius 6px / font 1rem) を踏襲しつつ少し大きめに。 */
+  width: 320px;
+  padding: 11px 14px;
+  font-size: 1.02rem;
 }
 
 .company-suggest {
