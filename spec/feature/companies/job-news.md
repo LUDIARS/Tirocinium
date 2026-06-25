@@ -24,6 +24,11 @@ config 駆動。 サイト追加は JSON 編集のみ。 3 種をサポートす
 募集元が自明なので `company` フィールドで社名を固定し、 自社ページの各求人に社名表記が無くても
 `company_id` を解決できる。 `job-listing` と同じく「現在の掲載」スナップショット置換 (重複累積を防ぐ)。
 
+**新卒フィルタ (`newgradOnly`)**: job-listing / recruit-page で抽出した求人を新卒応募可だけに絞るか。
+既定は kind 依存 — `job-listing`(aggregator)=true、 `recruit-page`(ユーザが明示登録した特定企業)=false。
+recruit-page は「その企業の全求人を追う」目的なので既定で全件拾う (中途のみの掲載でも取りこぼさない)。
+news-sources.json に `newgradOnly` を明示すれば既定を上書きできる。
+
 検証済みソース (robots/RSS を実確認):
 
 - **gamebiz-rss** `https://gamebiz.jp/feed.rss` — ニュース RSS。 robots は `/enterprise/` `/enter-enter/` のみ禁止、 feed は許可。 既定 enabled。
