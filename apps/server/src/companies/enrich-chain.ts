@@ -57,7 +57,8 @@ export async function runCompanyEnrichChain(companyId: string): Promise<EnrichCh
     return r.html;
   };
 
-  const site = await discoverSite(company.url, fetchText, { works: 6, career: 3, about: 2 });
+  // career は個別職種ページ 1 枚 = 1 求人になりやすいので多めに拾う (一覧 SPA は後回し済み)。
+  const site = await discoverSite(company.url, fetchText, { works: 6, career: 6, about: 2 });
   summary.discovered = {
     works: site.worksUrls.length,
     career: site.careerUrls.length,
