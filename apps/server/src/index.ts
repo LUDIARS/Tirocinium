@@ -19,6 +19,7 @@ import { esRequests, esRequestsPage } from './routes/es-requests.js';
 import { attachSessionWs } from './ws/handler.js';
 import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
 import { startEnrichQueue, stopEnrichQueue } from './companies/enrich-queue.js';
+import { startCrawlQueue, stopCrawlQueue } from './companies/crawl-queue.js';
 import { startJobNewsQueue, stopJobNewsQueue } from './companies/job-news-queue.js';
 import { startDiscordBridge } from './discord/bridge.js';
 import { hydrateSecrets } from './secrets/hydrate.js';
@@ -70,6 +71,7 @@ const server = serve(
 attachSessionWs(server as unknown as Parameters<typeof attachSessionWs>[0]);
 startTickScheduler();
 startEnrichQueue();
+startCrawlQueue();
 startJobNewsQueue();
 
 let stopDiscordBridge: (() => void) | null = null;
@@ -82,6 +84,7 @@ const shutdown = () => {
   stopDiscordBridge?.();
   stopTickScheduler();
   stopEnrichQueue();
+  stopCrawlQueue();
   stopJobNewsQueue();
   server.close();
   process.exit(0);

@@ -12,18 +12,25 @@ Web 表示 + Nuntius 通知する機構。 既存の listing クロール (企�
 
 ## ソース (data/companies/news-sources.json)
 
-config 駆動。 サイト追加は JSON 編集のみ。 2 種をサポートする。
+config 駆動。 サイト追加は JSON 編集のみ。 3 種をサポートする。
 
 | kind | 取得 | 抽出 | LLM | 例 |
 |---|---|---|---|---|
 | `rss` | RSS2.0 / RDF(RSS1.0) / Atom フィード | `parseFeed` (依存ゼロ) + `isHiringNews` で採用関連だけ抽出 | 不要 | gamebiz-rss / gamebusiness-rss |
 | `job-listing` | 求人一覧 HTML ページ | `htmlToText`→`chunkText`→`extractJobListing` (LLM) で個別求人を抽出 | 必須 | gamebiz-jobs |
+| `recruit-page` | 企業の自社採用ページ HTML | `job-listing` と同じ LLM 抽出。 社名は `company` で固定 (LLM 抽出より優先) | 必須 | PrivateProject-career / linkedbrain-recruit |
+
+`recruit-page` は **aggregator (RSS / 求人まとめ) に載らない規模の企業**を継続追従するための直クロール。
+募集元が自明なので `company` フィールドで社名を固定し、 自社ページの各求人に社名表記が無くても
+`company_id` を解決できる。 `job-listing` と同じく「現在の掲載」スナップショット置換 (重複累積を防ぐ)。
 
 検証済みソース (robots/RSS を実確認):
 
 - **gamebiz-rss** `https://gamebiz.jp/feed.rss` — ニュース RSS。 robots は `/enterprise/` `/enter-enter/` のみ禁止、 feed は許可。 既定 enabled。
 - **gamebusiness-rss** `https://www.gamebusiness.jp/rss/index.rdf` — RDF。 robots は `/test/` のみ禁止 (ClaudeBot Crawl-delay 5)。 既定 enabled。
 - **gamebiz-jobs** `https://gamebiz.jp/jobs` — 業界求人情報 (企業/職種/勤務地/雇用形態/募集期間)。 LLM 必須のため既定 disabled、 `COMPANY_JOB_NEWS_OPTIN_SOURCES=gamebiz-jobs` で opt-in。
+- **PrivateProject-career** `https://PrivateProject.com/career/` — 株式会社PrivateProject の自社採用ページ。 robots 許可 (Disallow は `/*/_template.html` のみ)・証明書有効。 ⚠ `PrivateProject.co.jp` は証明書が 2024-08 失効のため使わない (正は `PrivateProject.com`)。 既定 enabled。
+- **linkedbrain-recruit** `https://linkedbrain.jp/recruit/student` — 株式会社リンクトブレイン の新卒採用ページ。 robots 全許可。 既定 enabled。
 
 `rss` の `hiringOnly`(既定 true) は HIRING_KEYWORDS (求人/採用/転職/中途/新卒/内定/雇用/採用説明会…) で
 **タイトル + カテゴリ** を判定し、 採用関連ニュースだけを取り込む。 本文(description)は判定に使わない

@@ -137,6 +137,39 @@ export type EnrichQueueStatus = {
   attempted: number;
 };
 
+/** 企業クロールキューに積まれた 1 ジョブ。 */
+export type CrawlJob = {
+  id: string;
+  url: string;
+  name_hint: string;
+  source: string;
+  status: 'queued' | 'running' | 'done' | 'failed';
+  attempts: number;
+  error: string;
+  enqueued_at: string;
+  finished_at: string | null;
+};
+
+export type CrawlQueueStatus = {
+  enabled: boolean;
+  running: boolean;
+  intervalMs: number;
+  disabledReason: string;
+  processed: number;
+  upsertedOk: number;
+  lastUrl: string;
+  lastDetail: string;
+  counts: { queued: number; running: number; done: number; failed: number };
+  recent: CrawlJob[];
+};
+
+/** /crawl の投入結果 (即時 enqueue、 同期実行はしない)。 */
+export type CrawlEnqueueResult = {
+  enqueued: number;
+  deduped: number;
+  jobs: { id: string; url: string; status: string }[];
+};
+
 export type CompanyGame = {
   id: string;
   title: string;
@@ -199,15 +232,17 @@ export function useCompaniesApi() {
     async enrichQueueStatus(): Promise<EnrichQueueStatus> {
       return fetchJson('/api/v1/companies/enrich-queue/status', token);
     },
+    async crawlQueueStatus(): Promise<CrawlQueueStatus> {
+      return fetchJson('/api/v1/companies/crawl-queue/status', token);
+    },
     async mapConfig(): Promise<{ enabled: boolean; apiKey: string }> {
       return fetchJson('/api/v1/companies/map-config', token);
     },
     async mapMarkers(): Promise<{ enabled: boolean; markers: MapMarker[]; pendingLocations: number }> {
       return fetchJson('/api/v1/companies/map-markers', token);
     },
-    async crawl(input: { source: string; urls?: string[]; maxPages?: number }): Promise<{
-      summary: CrawlSummary;
-    }> {
+    async crawl(input: { source: string; urls?: string[]; maxPages?: number }): Promise<CrawlEnqueueResult> {
+      // 同期実行はせず crawl_jobs に積む (202)。 進捗は crawlQueueStatus() で見る。
       return fetchJson('/api/v1/companies/crawl', token, {
         method: 'POST',
         body: JSON.stringify(input),
