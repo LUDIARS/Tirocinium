@@ -29,7 +29,7 @@ config 駆動。 サイト追加は JSON 編集のみ。 3 種をサポートす
 - **gamebiz-rss** `https://gamebiz.jp/feed.rss` — ニュース RSS。 robots は `/enterprise/` `/enter-enter/` のみ禁止、 feed は許可。 既定 enabled。
 - **gamebusiness-rss** `https://www.gamebusiness.jp/rss/index.rdf` — RDF。 robots は `/test/` のみ禁止 (ClaudeBot Crawl-delay 5)。 既定 enabled。
 - **gamebiz-jobs** `https://gamebiz.jp/jobs` — 業界求人情報 (企業/職種/勤務地/雇用形態/募集期間)。 LLM 必須のため既定 disabled、 `COMPANY_JOB_NEWS_OPTIN_SOURCES=gamebiz-jobs` で opt-in。
-- **melpot-career** `https://melpot.com/career/` — 株式会社MELPOT の自社採用ページ。 robots 許可 (Disallow は `/*/_template.html` のみ)・証明書有効。 ⚠ `melpot.co.jp` は証明書が 2024-08 失効のため使わない (正は `melpot.com`)。 既定 enabled。
+- **melpot-career** `https://melpot.com/career/` — 株式会社メルポット (ブランド表記 MELPOT) の自社採用ページ。 `company` は正式名称 (メルポット) に合わせる (クロールも公式サイトからこの名で企業生成するため `company_id` が解決できる)。 robots 許可 (Disallow は `/*/_template.html` のみ)・証明書有効。 ⚠ `melpot.co.jp` は証明書が 2024-08 失効のため使わない (正は `melpot.com`)。 既定 enabled。
 - **linkedbrain-recruit** `https://linkedbrain.jp/recruit/student` — 株式会社リンクトブレイン の新卒採用ページ。 robots 全許可。 既定 enabled。
 
 `rss` の `hiringOnly`(既定 true) は HIRING_KEYWORDS (求人/採用/転職/中途/新卒/内定/雇用/採用説明会…) で
