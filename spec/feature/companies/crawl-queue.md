@@ -57,7 +57,10 @@ Web 本体の LLM backend (api/cli) に依存しない。
   2. **ゲーム紐付け + 企業情報**: `contribute`(works + about、 cli LLM)→ `company_game` 紐付け + 企業概要更新。
   3. **求人**: career URL をアドホック `recruit-page` ソース (`newgradOnly=false`) にして `runJobNewsCrawl(undefined, sources)` で全求人抽出。
 - 子の状態は `crawl_jobs.child_status`(none→spawned→running→done/failed)+ `child_log`(ログパス)+ `child_detail`(1行サマリ)。 ログは `logs/company-enrich/<jobId>.log`。
-- 精度: ゲーム紐付け・企業情報は安定。 求人の自動検出はサイト構造依存の best-effort(curated な `news-sources.json` の recruit-page が精密な経路)。
+- 精度: ゲーム紐付け・企業情報は安定。 求人は career の個別職種ページから抽出する。 既に curated な
+  `news-sources.json` の recruit-page 等が同じ URL を登録済みなら、 グローバル `dedup_key` で重複排除され
+  `inserted=0`(二重登録されないだけで求人は DB に存在)。 curated ソースが無い企業では新規 insert される。
+  career URL の発見精度はサイト構造依存 (一覧 SPA は個別ページ優先で回避)。
 
 ## API
 
