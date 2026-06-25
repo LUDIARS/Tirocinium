@@ -270,7 +270,7 @@ export function Companies() {
         <textarea
           value={crawlUrls}
           onChange={(e) => setCrawlUrls(e.target.value)}
-          placeholder={'https://melpot.com/\nhttps://linkedbrain.jp/'}
+          placeholder={'https://www.jp.square-enix.com/\nhttps://www.capcom.co.jp/'}
           rows={3}
           style={{ width: '100%', boxSizing: 'border-box' }}
         />
