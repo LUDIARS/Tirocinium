@@ -134,14 +134,18 @@ async function crawlSourceUrl(
   const buildOpts = source.kind === 'recruit-page'
     ? { companyName: source.company, kind: 'recruit-page' as const }
     : undefined;
+  // 新卒フィルタ: aggregator (job-listing) は新卒関連だけに絞る。 recruit-page は
+  // ユーザが明示登録した特定企業を追うソースなので既定で全求人を拾う (newgradOnly=false)。
+  // source.newgradOnly で明示上書きできる (news-config が kind 別の既定を決める)。
+  const newgradOnly = source.newgradOnly;
   const fullText = htmlToText(res.html, config.companyCrawl.listingMaxChars);
   const chunks = chunkText(fullText, config.companyCrawl.listingChunkChars, config.companyCrawl.listingMaxChunks);
   const out: JobPostingItem[] = [];
   for (const chunk of chunks) {
     const entries = parseJobListing(await complete(JOB_LISTING_INSTRUCTION, chunk));
     for (const entry of entries) {
-      // 新卒採用 / 新卒応募可 / 未経験可 の求人だけを残す (ユーザ要望、 Tr は新卒就活向け)。
-      if (!isNewgradEligible(entry)) continue;
+      // newgradOnly のソースは新卒採用 / 新卒応募可 / 未経験可 の求人だけを残す (Tr は新卒就活向け)。
+      if (newgradOnly && !isNewgradEligible(entry)) continue;
       const jp = jobPostingFromListing(source.id, url, entry, buildOpts);
       if (jp) out.push(jp);
       if (out.length >= cap) break;
