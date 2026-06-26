@@ -1,13 +1,19 @@
-// Tirocinium dev ランチャー (Windows 向け)
+// Tirocinium dev ランチャー (Windows / macOS / Linux 対応)
 //
 // Quaestor/scripts/dev.mjs と同じ方針:
 //   - 起動前に DEV_PORTS を掃除して EADDRINUSE を防ぐ (stale node の置き去り対策)
 //   - migrate → seed-personas を一度だけ走らせる (SQLite 既定 / Docker 不要)
 //   - server / desktop をサブプロセスとして起動し、[server]/[desktop] プレフィクスで出力
-//   - 親プロセス終了時に taskkill /F /T でプロセスツリーごと kill する
+//   - 親プロセス終了時に子のプロセスツリーごと kill する
 //
 // 旧 start-tirocinium.bat は cmd /k で 2 窓を開きっぱなしにしていたため、
 // ポート掃除も一括終了もできず、再起動のたびに 8084/5178 を掴んだ node が残っていた。
+//
+// プラットフォーム差分:
+//   - ポート掃除  : Windows = netstat + taskkill / それ以外 = lsof + kill
+//   - ツリー kill : Windows = taskkill /F /T   / それ以外 = detached 子のプロセスグループを kill(-pid)
+// Mac から起動するときは `npm run dev`、もしくはルートの start-tirocinium.command を
+// ダブルクリックする。
 
 import { spawn, spawnSync, execFileSync } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
@@ -15,6 +21,8 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
+
+const IS_WIN = process.platform === 'win32';
 
 const SERVER_PORT = 8084;
 const DESKTOP_PORT = 5178;
@@ -31,19 +39,38 @@ FE_ENV.VITE_DEV_AUTH = process.env.VITE_DEV_AUTH ?? '1';
 FE_ENV.VITE_PROXY_TARGET = process.env.VITE_PROXY_TARGET ?? `http://localhost:${SERVER_PORT}`;
 
 // ── ポート掃除 ────────────────────────────────────────
-function killPort(port) {
+function killPidUnix(procId, port) {
   try {
-    const out = execFileSync('netstat', ['-ano'], { encoding: 'utf8' });
-    for (const line of out.split('\n')) {
-      if (!line.includes(`:${port} `) && !line.includes(`:${port}\t`)) continue;
-      const procId = line.trim().split(/\s+/).at(-1);
-      if (!procId || !/^\d+$/.test(procId) || procId === '0') continue;
-      try {
-        execFileSync('taskkill', ['/F', '/T', '/PID', procId], { stdio: 'ignore' });
-        console.log(`[dev] killed stale PID ${procId} on port ${port}`);
-      } catch { /* already gone */ }
+    execFileSync('kill', ['-9', procId], { stdio: 'ignore' });
+    console.log(`[dev] killed stale PID ${procId} on port ${port}`);
+  } catch { /* already gone */ }
+}
+
+function killPort(port) {
+  if (IS_WIN) {
+    try {
+      const out = execFileSync('netstat', ['-ano'], { encoding: 'utf8' });
+      for (const line of out.split('\n')) {
+        if (!line.includes(`:${port} `) && !line.includes(`:${port}\t`)) continue;
+        const procId = line.trim().split(/\s+/).at(-1);
+        if (!procId || !/^\d+$/.test(procId) || procId === '0') continue;
+        try {
+          execFileSync('taskkill', ['/F', '/T', '/PID', procId], { stdio: 'ignore' });
+          console.log(`[dev] killed stale PID ${procId} on port ${port}`);
+        } catch { /* already gone */ }
+      }
+    } catch { /* netstat unavailable */ }
+    return;
+  }
+  // macOS / Linux: LISTEN しているプロセスの PID を lsof で引いて kill する。
+  // (該当なしのとき lsof は exit 1 → catch で握りつぶす)
+  try {
+    const out = execFileSync('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'], { encoding: 'utf8' });
+    for (const procId of out.split('\n').map((s) => s.trim()).filter(Boolean)) {
+      if (!/^\d+$/.test(procId)) continue;
+      killPidUnix(procId, port);
     }
-  } catch { /* netstat unavailable */ }
+  } catch { /* lsof: 該当なし or 未インストール */ }
 }
 
 console.log('[dev] cleaning up stale port bindings...');
@@ -71,8 +98,10 @@ function spawnPrefixed(label, color, cmd, args, env) {
     cwd: ROOT,
     env: env ?? process.env,
     stdio: ['ignore', 'pipe', 'pipe'],
-    shell: true,          // Windows: cmd.exe でラップしないと npm スクリプトが動かない
+    shell: true,            // npm スクリプトはシェル経由でないと解決できない
     windowsHide: true,
+    // 非 Windows: 独立したプロセスグループを作り、終了時に kill(-pid) でツリーごと落とす
+    detached: !IS_WIN,
   });
   child.stdout.on('data', (d) => process.stdout.write(d.toString().replace(/^(?=.)/gm, pre)));
   child.stderr.on('data', (d) => process.stderr.write(d.toString().replace(/^(?=.)/gm, pre)));
@@ -90,17 +119,31 @@ const server = spawnPrefixed('server', 'blue', 'npm', ['run', 'dev:server'], pro
 const desktop = spawnPrefixed('desktop', 'magenta', 'npm', ['run', 'dev:desktop'], FE_ENV);
 
 // ── 終了ハンドラ ─────────────────────────────────────
-function killAll(label) {
-  console.log(`\n[dev] ${label} — killing process trees...`);
-  for (const c of [server, desktop]) {
-    if (c.pid == null) continue;
+function killChild(child) {
+  if (child.pid == null) return;
+  if (IS_WIN) {
     try {
-      execFileSync('taskkill', ['/F', '/T', '/PID', String(c.pid)], { stdio: 'ignore' });
+      execFileSync('taskkill', ['/F', '/T', '/PID', String(child.pid)], { stdio: 'ignore' });
     } catch { /* already dead */ }
+  } else {
+    // detached で起動したので、PID = プロセスグループ ID。負の PID でグループごと kill。
+    try {
+      process.kill(-child.pid, 'SIGKILL');
+    } catch {
+      try { process.kill(child.pid, 'SIGKILL'); } catch { /* already dead */ }
+    }
   }
 }
 
-// Windows では SIGINT が子に自動伝播しないので明示的に処理する
+let killing = false;
+function killAll(label) {
+  if (killing) return;       // exit ハンドラとシグナルの二重発火を防ぐ
+  killing = true;
+  console.log(`\n[dev] ${label} — killing process trees...`);
+  for (const c of [server, desktop]) killChild(c);
+}
+
+// SIGINT は子に自動伝播しない (Windows) / グループを分けた (非 Windows) ので明示処理する
 process.on('SIGINT',  () => { killAll('SIGINT');  process.exit(0); });
 process.on('SIGTERM', () => { killAll('SIGTERM'); process.exit(0); });
 process.on('exit',    ()  => killAll('exit'));
