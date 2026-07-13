@@ -77,6 +77,22 @@ function envSecrets(): ResolvedSecrets {
   return out;
 }
 
+/**
+ * agent から secret を取れなかったときに、 ローカル config / env / デフォルトへ退避してよい理由。
+ * agent が「使えない」ケースはすべて含む — token が無い (単体起動)、 到達不能、 マッピング欠落、
+ * Excubitor 側の identity 未設定、 Infisical fetch 失敗 (project_id 不正 / 権限不足)。
+ *
+ * これらで throw すると、 Excubitor 経由の起動 (agent token が注入される) だけがサーバごと死ぬ。
+ * agent の設定不良でアプリを落とさない。 代わりに理由を warn に出す。
+ */
+const AGENT_FALLBACK_CODES: ReadonlySet<SecretAgentError['code']> = new Set([
+  'no_token',
+  'unreachable',
+  'no_mapping',
+  'no_identity',
+  'fetch_failed',
+]);
+
 /** 起動時に config を注入する。優先順位: secret-agent → ローカル暗号化 config → デフォルト値で起動 */
 export async function hydrateSecrets(): Promise<void> {
   let secrets: ResolvedSecrets;
@@ -86,7 +102,11 @@ export async function hydrateSecrets(): Promise<void> {
     secrets = await resolveSecrets(SERVICE_CODE, { keys: SECRET_KEYS });
     source = 'agent';
   } catch (err) {
-    if (err instanceof SecretAgentError && (err.code === 'unreachable' || err.code === 'no_token')) {
+    if (err instanceof SecretAgentError && AGENT_FALLBACK_CODES.has(err.code)) {
+      if (err.code !== 'no_token') {
+        console.warn(`[secrets] secret-agent から取得できません (${err.code}): ${err.message}`);
+        console.warn('  ローカル config / env にフォールバックします。');
+      }
       const local = readLocalSecrets();
       if (!local) {
         secrets = envSecrets();
