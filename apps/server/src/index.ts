@@ -25,6 +25,7 @@ import { startDiscordBridge } from './discord/bridge.js';
 import { hydrateSecrets } from './secrets/hydrate.js';
 import { initSql } from './db/index.js';
 import { assertSafeAuthConfig } from './auth/cernere.js';
+import { glabIntegration } from './routes/glab-integration.js';
 
 // 起動順: hydrateSecrets → initSql → serve → Discord
 // hydrateSecrets が失敗 (secret-agent 不通) したら起動を止める。
@@ -37,6 +38,7 @@ const app = new Hono();
 app.use('*', cors());
 
 app.route('/health', health);
+app.route('/api/integrations/glab', glabIntegration);
 app.route('/api/v1/reservations', reservations);
 app.route('/api/v1/sessions', sessions);
 app.route('/api/v1/sessions', summary);
