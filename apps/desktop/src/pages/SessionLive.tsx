@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext.js';
 import { SessionWebSocket, type ServerFrame } from '../ws/SessionWebSocket.js';
 import { useSessionApi } from '../api/sessions.js';
 import { MicCapture } from '../audio/mic-capture.js';
+import { SpeakerPlayback } from '../audio/speaker-playback.js';
 import { TurnTimeline } from '../components/session/TurnTimeline.js';
 import { VoicePanel } from '../components/session/VoicePanel.js';
 import { EvalPanel } from '../components/session/EvalPanel.js';
@@ -17,6 +18,7 @@ export function SessionLive() {
   const api = useSessionApi();
   const wsRef = useRef<SessionWebSocket | null>(null);
   const micRef = useRef<MicCapture | null>(null);
+  const speakerRef = useRef<SpeakerPlayback | null>(null);
   const seqRef = useRef(0);
 
   const [connected, setConnected] = useState(false);
@@ -44,6 +46,10 @@ export function SessionLive() {
             }
             return '';
           });
+        } else if (f.kind === 'tts_chunk') {
+          // 面接官音声 (VOICEVOX 等) を逐次再生。TTS 無効なら frame 自体が来ない
+          if (!speakerRef.current) speakerRef.current = new SpeakerPlayback();
+          speakerRef.current.play(f.pcm, f.sample_rate, f.channels);
         } else if (f.kind === 'eval') {
           setLatestEval(f.evaluation as Evaluation);
         }
@@ -51,7 +57,11 @@ export function SessionLive() {
     });
     ws.open();
     wsRef.current = ws;
-    return () => ws.close();
+    return () => {
+      ws.close();
+      speakerRef.current?.stop();
+      speakerRef.current = null;
+    };
   }, [id, token]);
 
   useEffect(() => () => { void micRef.current?.stop(); }, []);
@@ -118,7 +128,12 @@ export function SessionLive() {
           onDraftChange={setDraft}
           onSend={send}
           onToggleMic={toggleMic}
-          onBargeIn={() => wsRef.current?.sendBargeIn()}
+          onBargeIn={() => {
+            wsRef.current?.sendBargeIn();
+            // 再生中の面接官音声も即座に打ち切る (barge-in)
+            speakerRef.current?.stop();
+            speakerRef.current = null;
+          }}
           onEnd={end}
         />
       </div>

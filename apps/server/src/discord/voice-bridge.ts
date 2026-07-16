@@ -5,11 +5,11 @@
  *   SessionRuntime の audio_chunk フレームに流す。
  * - createTtsPlayer: TTS 再生用 AudioPlayer を作成して connection に購読させる。
  * - playTts: ImperativusClient.tts() の PCM を AudioPlayer で再生する
- *   (現在 tts() は stub なので接続のみで音声は出ない)。
+ *   (TIROCINIUM_TTS_BACKEND=voicevox で音が出る。off なら無音のまま接続のみ)。
  *
  * STT フォーマット: 16kHz mono s16le (Iv STT が要求する仕様)。
  * TTS フォーマット: Discord が期待する 48kHz stereo s16le (StreamType.Raw)。
- *   Iv の tts() が固まったら format を揃えて Resource を生成すること。
+ *   playTts が TtsRequest.format で 48kHz stereo を要求する。
  */
 
 import { Readable } from 'node:stream';
@@ -105,11 +105,8 @@ export function createTtsPlayer(connection: VoiceConnection): AudioPlayer {
 /**
  * ImperativusClient.tts() の PCM ストリームを AudioPlayer で Discord VC に流す。
  *
- * ivClient.tts() は現在 stub (何も yield しない) なので実際に音は出ないが、
- * Iv の TTS 経路が実装されたときにそのまま動く構造にしている。
- *
+ * TTS provider (voicevox 等) が未設定なら tts() は何も yield せず無音のまま。
  * 期待する PCM フォーマット: 48kHz stereo s16le (Discord StreamType.Raw)。
- * Iv の出力が 16kHz mono の場合は FFmpeg によるリサンプリングが必要 (TODO)。
  */
 export async function playTts(
   text: string,
@@ -118,7 +115,12 @@ export async function playTts(
 ): Promise<void> {
   const chunks: Uint8Array[] = [];
   try {
-    for await (const chunk of ivClient.tts({ text })) {
+    // Discord StreamType.Raw が期待する 48kHz stereo s16le を TTS 側に要求する
+    // (VOICEVOX は audio_query の outputSamplingRate/outputStereo で対応。FFmpeg 不要)
+    for await (const chunk of ivClient.tts({
+      text,
+      format: { sampleRate: 48000, channels: 2, bitDepth: 16, encoding: 'pcm-s16le' },
+    })) {
       chunks.push(chunk);
     }
   } catch (err) {

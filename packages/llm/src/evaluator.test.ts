@@ -55,7 +55,8 @@ describe('parseEvaluation', () => {
   });
 
   it('throws on missing axes field', () => {
-    expect(() => parseEvaluation('{"comment":"ok","hints":[]}')).toThrow(/missing axes/);
+    // coerceAxes が構造違反として throw する (spec/feature/inference/interviewer-reproduction.md §3)
+    expect(() => parseEvaluation('{"comment":"ok","hints":[]}')).toThrow(/axes/);
   });
 
   it('clamps out-of-range axes and fills missing keys with 0', () => {

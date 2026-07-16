@@ -193,6 +193,8 @@ export async function startDiscordBridge(): Promise<() => void> {
       socket as unknown as ConstructorParameters<typeof SessionRuntime>[0],
       decision.sessionId,
       config.devUserId,
+      // Discord は playTts (48kHz stereo) で自前再生するため WS 向け tts_chunk は流さない
+      { ttsOverWs: false },
     );
     activeSessions.set(channelId, { mode, sessionId: decision.sessionId, runtime, socket });
 

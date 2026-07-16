@@ -44,3 +44,30 @@ export {
   CRITIC_INSTRUCTION,
 } from './prompts.js';
 export { assessAnswer, parseAnswerSignals, type AnswerSignals, type AssessInput } from './judge.js';
+export { mulberry32, newSessionSeed, shuffled, type Rng } from './rng.js';
+export { coerceSignals, coerceAxes, coerceFocus, CoerceError } from './coerce.js';
+export {
+  compileQuestionPlan,
+  nextSlot,
+  assertPlanCountsWithinSpecs,
+  PLAN_SLOT_COUNTS,
+  type QuestionSlot,
+  type QuestionCandidate,
+  type QuestionOrigin,
+  type PlanBrief,
+  type AxisKey,
+} from './question-plan.js';
+export { canonicalRole, expandTerms, splitKeywords, type CanonicalRole } from './role-aliases.js';
+export {
+  LlmBrain,
+  StubBrain,
+  createBrain,
+  renderSlotBlock,
+  type InterviewerBrain,
+  type BrainKind,
+  type LlmBrainOptions,
+  type UtteranceContext,
+  type AssessContext,
+  type RefineContext,
+  type EvalContext,
+} from './brain.js';

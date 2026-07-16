@@ -1,30 +1,76 @@
-﻿import type { WebSocket } from 'ws';
+// 面接セッションのランタイム (1 WS = 1 セッション)。
+// spec/feature/inference/interviewer-engine.md (turn パイプライン) +
+// interviewer-reproduction.md (Brain 境界 / 決定的質問プラン / 面接ブリーフ)。
+//
+// 責務分担 (spec §2):
+//   進行 (フェーズ機 / 質問プラン / turn 予算 / EMA) = 決定的コア (このファイル + packages/llm の純関数)
+//   発話・判定・評価 = InterviewerBrain 越しのみ (SDK / CLI / API キーの都合は Brain に閉じる)
+//   材料 = 面接ブリーフ (セッション前にコンパイル、セッション中は不変)
+
+import type { WebSocket } from 'ws';
 import {
   buildSystemPrompt,
-  createAnthropicClient,
-  createOpenAIClient,
-  evaluate,
-  refine,
-  streamResponse,
-  streamResponseCli,
+  buildInterviewerPromptBlock,
+  createBrain,
+  compileQuestionPlan,
+  nextSlot,
+  mulberry32,
+  newSessionSeed,
   initialPhaseState,
   nextPhase,
-  assessAnswer,
+  AXIS_KEYS,
   DEFAULT_SIGNALS,
+  type AxisKey,
+  type InterviewerBrain,
   type PhaseState,
   type PhaseSignals,
+  type QuestionSlot,
   type Turn,
   type InterviewerPersonaInput,
 } from '@tirocinium/llm';
 import { createMemoriaClient, renderRagBlock, type TrainingDocKind } from '@tirocinium/training';
-import { AsyncQueue, createIvClient, type ImperativusClient } from '@tirocinium/voice';
+import { AsyncQueue, createIvClient, type AudioFormat, type ImperativusClient } from '@tirocinium/voice';
 import { config } from '../config.js';
 import { sql } from '../db/index.js';
 import { getInterviewer } from '../persona/repo.js';
 import { applyEvaluation } from '../feedback/weakness-updater.js';
+import { buildInterviewBrief, planBriefFromSourceMeta } from '../brief/brief-builder.js';
+import { getBrief, saveBriefIfAbsent } from '../brief/repo.js';
 import type { ClientFrame, ServerFrame } from './frames.js';
 
 const EVAL_EVERY_N_TURNS = 5;
+
+/** WS 向け TTS の PCM フォーマット (VOICEVOX ネイティブ 24kHz mono、リサンプル不要)。 */
+const WS_TTS_FORMAT: AudioFormat = {
+  sampleRate: 24000,
+  channels: 1,
+  bitDepth: 16,
+  encoding: 'pcm-s16le',
+};
+
+export type SessionRuntimeOptions = {
+  /** LLM 境界。省略時は env TIROCINIUM_BRAIN に従い生成 (llm | stub)。 */
+  brain?: InterviewerBrain;
+  /** TTS を WS の tts_chunk で流すか。Discord bridge は自前で再生するため false を渡す。 */
+  ttsOverWs?: boolean;
+};
+
+/** JSONB (PG) / TEXT (SQLite) 両対応の object 読出し。 */
+function asObject(v: unknown): Record<string, unknown> {
+  const obj = typeof v === 'string' ? (JSON.parse(v) as unknown) : v;
+  return obj && typeof obj === 'object' && !Array.isArray(obj)
+    ? (obj as Record<string, unknown>)
+    : {};
+}
+
+/** 句点区切りの文分割 (TTS の先頭レイテンシ削減。voicevox-tts.md §5)。 */
+function splitSentences(text: string): string[] {
+  const parts = text
+    .split(/(?<=[。！？!?\n])/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  return parts.length > 0 ? parts : [text.trim()];
+}
 
 export class SessionRuntime {
   private turns: Turn[] = [];
@@ -37,32 +83,37 @@ export class SessionRuntime {
   private phaseState: PhaseState | null = null;
   private latestSignals: PhaseSignals = DEFAULT_SIGNALS;
   private closed = false;
-  private llmEnabled: boolean;
-  private evalEnabled: boolean;
-  private judgeEnabled: boolean;
-  private refineEnabled: boolean;
+  private readonly brain: InterviewerBrain;
+  private readonly ttsOverWs: boolean;
+  /** 決定的質問プラン (P2)。flag off / ブリーフ未構築時は null (従来のプロンプト駆動)。 */
+  private readonly planEnabled: boolean;
+  private plan: QuestionSlot[] | null = null;
+  /** phase → 消化済みスロット数 */
+  private planCursor: Record<string, number> = {};
+  private briefMd = '';
   private ivClient: ImperativusClient | null = null;
   private audioQueue: AsyncQueue<Uint8Array> | null = null;
   private sttPipeRunning = false;
+  private ttsAbort: AbortController | null = null;
 
   constructor(
     private readonly ws: WebSocket,
     private readonly sessionId: string,
     private readonly userId: string,
+    opts: SessionRuntimeOptions = {},
   ) {
-    // cli 繝舌ャ繧ｯ繧ｨ繝ｳ繝峨・ API 繧ｭ繝ｼ荳崎ｦ√Ｂpi 繝舌ャ繧ｯ繧ｨ繝ｳ繝峨・ ANTHROPIC_API_KEY 縺瑚ｦ√ｋ縲・
-    this.llmEnabled = config.llmBackend === 'cli' || Boolean(process.env['ANTHROPIC_API_KEY']);
-    // 隧穂ｾ｡ (Opus) / judge (Haiku) 縺ｯ ANTHROPIC_API_KEY 蜑肴署縲る嵯縺檎┌縺代ｌ縺ｰ髱吶°縺ｫ skip縲・
-    this.evalEnabled = Boolean(process.env['ANTHROPIC_API_KEY']);
-    this.judgeEnabled = Boolean(process.env['ANTHROPIC_API_KEY']);
-    this.refineEnabled = Boolean(process.env['OPENAI_API_KEY']);
+    // LLM の有効/無効 (cli バックエンドは API キー不要、api は ANTHROPIC_API_KEY 前提、
+    // refine は OPENAI_API_KEY 前提) は Brain の can* に閉じている。
+    this.brain = opts.brain ?? createBrain({ llmBackend: config.llmBackend });
+    this.ttsOverWs = opts.ttsOverWs ?? true;
+    this.planEnabled = process.env['TIROCINIUM_QUESTION_PLAN'] === '1';
     this.ivClient = createIvClient();
   }
 
   async init(): Promise<void> {
-    // session 繝｡繧ｿ + persona id 繧貞叙蠕・
+    // session メタ + persona id を取得
     const sessionRows = await sql<{
-      metadata: { interviewer_id?: string };
+      metadata: unknown;
       llm_profile: Record<string, unknown>;
       target_company: string | null;
       target_role: string | null;
@@ -76,8 +127,9 @@ export class SessionRuntime {
       this.ws.close();
       return;
     }
+    const metadata = asObject(sess.metadata);
 
-    const interviewerId = sess.metadata?.interviewer_id;
+    const interviewerId = typeof metadata['interviewer_id'] === 'string' ? metadata['interviewer_id'] : undefined;
     if (interviewerId) {
       const p = await getInterviewer(interviewerId);
       if (p) {
@@ -94,7 +146,7 @@ export class SessionRuntime {
       }
     }
 
-    // 譌｢蟄・turn 繧定ｪｭ縺ｿ霎ｼ縺ｿ
+    // 既存 turn を読み込み (再接続復元)
     const turnRows = await sql<{ turn_no: number; role: 'interviewer' | 'user'; stt_text: string | null; text_uri: string }[]>`
       SELECT turn_no, role, stt_text, text_uri FROM session_turns
       WHERE session_id = ${this.sessionId} ORDER BY turn_no ASC
@@ -106,13 +158,13 @@ export class SessionRuntime {
     }));
     this.currentTurnNo = this.turns.length;
 
-    // 蠑ｱ轤ｹ繝励Ο繝輔ぃ繧､繝ｫ top3
+    // 弱点プロファイル top3
     const weakRows = await sql<{ weak_top3: string[] }[]>`
       SELECT weak_top3 FROM weakness_profiles WHERE user_id = ${this.userId}
     `;
     this.weakTop3 = weakRows[0]?.weak_top3 ?? [];
 
-    // Memoria RAG fetch (MEMORIA_URL 譛ｪ險ｭ螳壹↑繧・skip)
+    // Memoria RAG fetch (MEMORIA_URL 未設定なら skip)
     const memoria = createMemoriaClient();
     if (memoria) {
       try {
@@ -133,20 +185,84 @@ export class SessionRuntime {
         });
         this.ragBlock = renderRagBlock(result);
       } catch (err) {
-        // Memoria 荳埼＃譎ゅ・ RAG 繝悶Ο繝・け辟｡縺励〒邯咏ｶ壹☆繧・best-effort 邵ｮ騾 (髱｢謗･縺ｯ豁｢繧√↑縺・縲・
-        // 譛ｬ莠ｺ迚ｹ蛹悶・蠑ｱ縺ｾ繧九′ session 騾ｲ陦後ｒ蜆ｪ蜈・(RULE_CODE ﾂｧ7)縲・
+        // Memoria 不達時は RAG ブロック無しで継続する (面接進行を優先。
+        // 本人特化は弱まるが session は止めない — RULE_CODE §7 の縮退)。
         console.warn('[ws] memoria rag failed', (err as Error).message);
       }
     }
 
-    // 繝輔ぉ繝ｼ繧ｺ迥ｶ諷区ｩ溘ｒ蛻晄悄蛹・(髱｢謗･螳倥・繝ｫ繧ｽ繝翫・蝨ｧ縺ｧ pressure phase 縺ｮ譛臥┌縺梧ｱｺ縺ｾ繧・
+    // フェーズ状態機を初期化 (面接官ペルソナの圧で pressure phase の有無が決まる)
     this.phaseState = initialPhaseState(this.interviewer?.pressure ?? 3);
+
+    // 決定的質問プラン (P2、TIROCINIUM_QUESTION_PLAN=1 のときのみ)。
+    // ブリーフはセッション前 (init) にコンパイルし、以降は不変 (spec §5)。
+    if (this.planEnabled && this.interviewer) {
+      try {
+        await this.compilePlan(metadata, sess.target_company, sess.target_role);
+      } catch (err) {
+        // プラン構築失敗はプロンプト駆動へ「明示的に」縮退する (ログ + system frame)。
+        console.error('[ws] question plan compile failed', err);
+        this.send({
+          kind: 'system',
+          code: 'error',
+          message: `question plan unavailable: ${(err as Error).message}`,
+        });
+      }
+    }
 
     this.send({
       kind: 'session_ready',
       session_id: this.sessionId,
       turn_no: this.currentTurnNo,
     });
+  }
+
+  /** session_seed を確定し (無ければ採番して永続化)、ブリーフを構築/復元してプランを組む。 */
+  private async compilePlan(
+    metadata: Record<string, unknown>,
+    targetCompany: string | null,
+    targetRole: string | null,
+  ): Promise<void> {
+    if (!this.interviewer) return;
+
+    // seed: metadata に無い旧セッションはここで採番して永続化 (再接続で不変)
+    let seed: number;
+    const rawSeed = Number(metadata['session_seed']);
+    if (Number.isFinite(rawSeed) && rawSeed > 0) {
+      seed = rawSeed >>> 0;
+    } else {
+      seed = newSessionSeed();
+      await sql`
+        UPDATE sessions SET metadata = ${sql.json({ ...metadata, session_seed: seed } as never)}
+        WHERE id = ${this.sessionId}
+      `;
+    }
+
+    // ブリーフ: 既存 (再接続) があればそれを使い、無ければコンパイルして保存
+    let stored = await getBrief(this.sessionId);
+    if (!stored) {
+      const built = await buildInterviewBrief({
+        stage: this.interviewer.stage,
+        targetCompany,
+        targetRole,
+        personaBlock: buildInterviewerPromptBlock(this.interviewer),
+        weakTop3: this.weakTop3,
+        ragBlock: this.ragBlock,
+        seed,
+      });
+      stored = await saveBriefIfAbsent(this.sessionId, built.bodyMd, built.sourceMeta, seed);
+    }
+    this.briefMd = stored.body_md;
+
+    const planBrief = planBriefFromSourceMeta(stored.source_meta);
+    if (!planBrief) {
+      throw new Error('stored brief に候補 snapshot が無い (source_meta.candidates)');
+    }
+    const weakAxes = this.weakTop3.filter((a): a is AxisKey => (AXIS_KEYS as string[]).includes(a));
+    this.plan = compileQuestionPlan(planBrief, weakAxes, mulberry32(stored.seed));
+
+    // 再接続時: 既に消化した interviewer turn 数ぶんカーソルを進める…は phase 履歴が
+    // 要るため、簡便に「現 phase の消化数 = 0」から再開する (プラン自体は同一)。
   }
 
   async onMessage(raw: string): Promise<void> {
@@ -183,7 +299,7 @@ export class SessionRuntime {
   }
 
   private async handleUserTurn(text: string): Promise<void> {
-    // 縺薙・蝗樒ｭ斐′蠢懊§縺ｦ縺・ｋ逶ｴ蜑阪・髱｢謗･螳倩ｳｪ蝠・(judge 逕ｨ)縲Ｑush 縺吶ｋ蜑阪↓蜿門ｾ励・
+    // この回答が応じている直前の面接官質問 (judge 用)。push する前に取得。
     const lastQuestion = [...this.turns].reverse().find((t) => t.role === 'interviewer')?.text ?? '';
 
     this.currentTurnNo += 1;
@@ -196,14 +312,14 @@ export class SessionRuntime {
 
     const response = await this.generateInterviewerTurn();
     if (!response) return;
-    const { turnNo: interviewerTurnNo, text: acc } = response;
+    const { turnNo: interviewerTurnNo } = response;
 
-    // 髱槫酔譛・judge: 逶ｴ蜑阪・蜿鈴ｨ楢・屓遲斐ｒ霆ｽ驥上Δ繝・Ν縺ｧ隧穂ｾ｡縺・phase 菫｡蜿ｷ繧呈峩譁ｰ縺吶ｋ縲・
-    // 髱｢謗･螳伜ｿ懃ｭ斐・譌｢縺ｫ騾∽ｿ｡貂医∩縺ｪ縺ｮ縺ｧ遏･隕壹Ξ繧､繝・Φ繧ｷ縺ｯ蠅励∴縺ｪ縺・(spec ﾂｧ4.2 (c))縲・
-    // 骰ｵ縺檎┌縺・dev 縺ｧ縺ｯ skip 竊・DEFAULT_SIGNALS (time-box 鬧・虚) 縺ｮ縺ｾ縺ｾ縲・
-    if (this.judgeEnabled && acc.trim().length > 0) {
+    // 非同期 judge: 直前の受験者回答を軽量モデルで評価し phase 信号を更新する。
+    // 面接官応答は既に送信済みなので知覚レイテンシは増えない (engine spec §4.2 (c))。
+    // 鍵が無い dev では Brain が can 判定で skip → DEFAULT_SIGNALS (time-box 駆動) のまま。
+    if (this.brain.canAssess() && response.text.trim().length > 0) {
       try {
-        const signals = await assessAnswer(createAnthropicClient(), {
+        const signals = await this.brain.assessAnswer({
           question: lastQuestion,
           answer: text,
           recent: this.turns.slice(-4),
@@ -212,11 +328,11 @@ export class SessionRuntime {
           synthesisReached: signals.synthesisReached,
           contradictionOpen: signals.contradictionOpen,
         };
-        // followup hint 縺後≠繧後・縲梧ｬ｡縺ｫ豺ｱ謗倥ｋ縺ｹ縺崎ｫ也せ縲阪せ繝ｭ繝・ヨ縺ｫ蜿肴丐 (reactive 豺ｱ謗倥ｊ)
+        // followup hint があれば「次に深掘るべき論点」スロットに反映 (reactive 深掘り)
         if (signals.followupHint) this.refineBlock = signals.followupHint;
       } catch (err) {
-        // judge 螟ｱ謨玲凾縺ｯ latestSignals 繧呈峩譁ｰ縺帙★蜑阪ち繝ｼ繝ｳ縺ｮ菫｡蜿ｷ繧堤ｶｭ謖√☆繧・best-effort 邵ｮ騾縲・
-        // phase 驕ｷ遘ｻ縺ｯ time-box (DEFAULT_SIGNALS) 縺ｧ fallback 縺吶ｋ (RULE_CODE ﾂｧ7)縲・
+        // judge 失敗時は latestSignals を更新せず前ターンの信号を維持する縮退。
+        // phase 遷移は time-box (DEFAULT_SIGNALS) で fallback する (RULE_CODE §7)。
         console.warn('[ws] judge failed', (err as Error).message);
       }
     }
@@ -231,7 +347,7 @@ export class SessionRuntime {
   }
 
   private async generateInterviewerTurn(): Promise<{ turnNo: number; text: string } | null> {
-    if (!this.llmEnabled) {
+    if (!this.brain.canCompose()) {
       this.send({ kind: 'system', code: 'error', message: 'llm not configured' });
       return null;
     }
@@ -245,27 +361,27 @@ export class SessionRuntime {
     const aborter = new AbortController();
     this.currentAbort = aborter;
 
+    // プラン駆動: 現 phase の未消化スロットを取り、Brain が persona 口調へ整形する
+    const slot =
+      this.plan && this.phaseState
+        ? nextSlot(this.plan, this.phaseState.phase, this.planCursor)
+        : null;
+
     const systemPrompt = buildSystemPrompt({
       interviewer: this.interviewer,
       weakTop3: this.weakTop3,
       ragBlock: this.ragBlock || undefined,
       refineBlock: this.refineBlock || undefined,
       phase: this.phaseState?.phase,
+      briefMd: this.briefMd || undefined,
     });
 
-    const tokenStream =
-      config.llmBackend === 'cli'
-        ? streamResponseCli({
-            systemPrompt,
-            turns: this.turns,
-            signal: aborter.signal,
-            model: 'sonnet',
-          })
-        : streamResponse(createAnthropicClient(), {
-            systemPrompt,
-            turns: this.turns,
-            signal: aborter.signal,
-          });
+    const tokenStream = this.brain.composeUtterance({
+      systemPrompt,
+      turns: this.turns,
+      slot,
+      signal: aborter.signal,
+    });
 
     let acc = '';
     try {
@@ -294,6 +410,12 @@ export class SessionRuntime {
       return null;
     }
 
+    // スロットを消化 (発話が成立した時だけ進める)
+    if (slot && this.phaseState) {
+      const phase = this.phaseState.phase;
+      this.planCursor[phase] = (this.planCursor[phase] ?? 0) + 1;
+    }
+
     const turn: Turn = { turn_no: interviewerTurnNo, role: 'interviewer', text: acc };
     this.turns.push(turn);
     await this.persistTurn(interviewerTurnNo, 'interviewer', acc);
@@ -302,6 +424,10 @@ export class SessionRuntime {
       turn_no: interviewerTurnNo,
       text_uri: `local:turn:${interviewerTurnNo}`,
     });
+
+    // TTS は付加経路 — 背景で流し、失敗しても面接 (テキスト) は止めない
+    void this.runTtsBackground(interviewerTurnNo, acc);
+
     return { turnNo: interviewerTurnNo, text: acc };
   }
 
@@ -309,36 +435,73 @@ export class SessionRuntime {
     if (this.phaseState) {
       const prevPhase = this.phaseState.phase;
       this.phaseState = nextPhase(this.phaseState, this.latestSignals);
-      if (this.refineEnabled && this.phaseState.phase !== prevPhase) {
+      if (this.brain.canRefine() && this.phaseState.phase !== prevPhase) {
         void this.runRefineBackground();
       }
     }
 
-    if (this.evalEnabled && interviewerTurnNo > 0 && interviewerTurnNo % EVAL_EVERY_N_TURNS === 0) {
+    if (this.brain.canEvaluate() && interviewerTurnNo > 0 && interviewerTurnNo % EVAL_EVERY_N_TURNS === 0) {
       void this.runEvaluationBackground(interviewerTurnNo);
     }
   }
 
   private async runRefineBackground(): Promise<void> {
     try {
-      const oai = createOpenAIClient();
-      const block = await refine(oai, { turns: this.turns });
-      if (block) this.refineBlock = block;
+      const focus = await this.brain.refineFocus({ turns: this.turns });
+      if (!focus) return;
+      if (this.plan && this.phaseState && this.phaseState.phase !== 'ended') {
+        // プラン駆動: 逸脱も origin 付きでプランに追記して記録する (spec §4)。
+        // refineBlock には入れない (スロット経由で発話されるため二重注入を避ける)。
+        this.insertDeviationSlot(focus);
+      } else {
+        this.refineBlock = focus;
+      }
     } catch (err) {
       console.error('[ws] refine error', err);
     }
+  }
+
+  /** refineFocus の逸脱スロットを現 phase の次消化位置に追記する。 */
+  private insertDeviationSlot(focus: string): void {
+    if (!this.plan || !this.phaseState) return;
+    const phase = this.phaseState.phase;
+    if (phase === 'ended') return;
+    const slot: QuestionSlot = {
+      theme: '深掘り論点 (逸脱)',
+      question: focus,
+      followups: [],
+      axes: [],
+      origin: 'refine',
+      phase,
+    };
+    // 現 phase の「次に消化されるスロット」の直前 (グローバル index) に挿入する
+    const consumed = this.planCursor[phase] ?? 0;
+    let seen = 0;
+    let insertAt = this.plan.length;
+    for (let i = 0; i < this.plan.length; i++) {
+      if (this.plan[i]!.phase !== phase) continue;
+      if (seen === consumed) {
+        insertAt = i;
+        break;
+      }
+      seen += 1;
+    }
+    this.plan.splice(insertAt, 0, slot);
   }
 
   private handleBargeIn(): void {
     if (this.currentAbort) {
       this.currentAbort.abort();
     }
+    if (this.ttsAbort) {
+      this.ttsAbort.abort();
+    }
   }
 
   private handleAudioChunk(pcm: number[]): void {
-    // Iv 縺檎┌縺・ｴ蜷・竊・ack 縺ｮ縺ｿ (繧ｯ繝ｩ繧､繧｢繝ｳ繝医・ stt_final 繧貞挨騾秘√ｋ蜑肴署)
+    // Iv が無い場合 → ack のみ (クライアントは stt_final を別送する前提)
     if (!this.ivClient) return;
-    // 蛻晏屓 chunk 縺ｧ STT pipe 繧定ｵｷ蜍・
+    // 初回 chunk で STT pipe を起動
     if (!this.audioQueue) {
       this.audioQueue = new AsyncQueue<Uint8Array>();
       void this.runSttPipe();
@@ -347,7 +510,7 @@ export class SessionRuntime {
     this.audioQueue.push(buf);
   }
 
-  /** Iv 縺ｮ STT stream 繧貞女縺代※ partial/final 繧・WS 縺ｫ豬√☆縲・close 縺輔ｌ繧九∪縺ｧ邯咏ｶ・*/
+  /** Iv の STT stream を受けて partial/final を WS に流す。close されるまで継続 */
   private async runSttPipe(): Promise<void> {
     if (!this.ivClient || !this.audioQueue || this.sttPipeRunning) return;
     this.sttPipeRunning = true;
@@ -357,7 +520,7 @@ export class SessionRuntime {
         if (evt.kind === 'partial') {
           this.send({ kind: 'stt_partial', text: evt.text });
         } else if (evt.kind === 'final') {
-          // final 縺ｯ handleUserTurn 縺ｫ貂｡縺励・Sonnet 蠢懃ｭ斐∪縺ｧ襍ｷ蜍輔☆繧・
+          // final は handleUserTurn に渡し、面接官応答まで起動する
           await this.handleUserTurn(evt.text);
         }
       }
@@ -365,6 +528,47 @@ export class SessionRuntime {
       console.warn('[ws] stt pipe error', (err as Error).message);
     } finally {
       this.sttPipeRunning = false;
+    }
+  }
+
+  /** 面接官発話を文単位で TTS し tts_chunk / tts_end を送る (voicevox-tts.md §5/§6)。
+   *  失敗は明示エラー (system frame + ログ) — 無音のまま成功を装わない。 */
+  private async runTtsBackground(turnNo: number, text: string): Promise<void> {
+    if (!this.ttsOverWs || !this.ivClient?.hasTts()) return;
+    // 直前 turn の合成が残っていれば破棄 (最新発話を優先)
+    if (this.ttsAbort) this.ttsAbort.abort();
+    const aborter = new AbortController();
+    this.ttsAbort = aborter;
+    try {
+      for (const sentence of splitSentences(text)) {
+        if (aborter.signal.aborted || this.closed) return;
+        for await (const chunk of this.ivClient.tts(
+          { text: sentence, format: WS_TTS_FORMAT },
+          aborter.signal,
+        )) {
+          if (aborter.signal.aborted || this.closed) return;
+          this.send({
+            kind: 'tts_chunk',
+            turn_no: turnNo,
+            pcm: Array.from(chunk),
+            sample_rate: WS_TTS_FORMAT.sampleRate,
+            channels: WS_TTS_FORMAT.channels,
+          });
+        }
+      }
+      if (!aborter.signal.aborted) {
+        this.send({ kind: 'tts_end', turn_no: turnNo });
+      }
+    } catch (err) {
+      if ((err as { name?: string }).name === 'AbortError') return;
+      console.warn('[ws] tts failed', (err as Error).message);
+      this.send({
+        kind: 'system',
+        code: 'error',
+        message: `tts failed: ${(err as Error).message}`,
+      });
+    } finally {
+      if (this.ttsAbort === aborter) this.ttsAbort = null;
     }
   }
 
@@ -380,37 +584,37 @@ export class SessionRuntime {
 
   private async runEvaluationBackground(upToTurnNo: number): Promise<void> {
     try {
-      const client = createAnthropicClient();
       const window = Math.max(0, upToTurnNo - EVAL_EVERY_N_TURNS);
       const slice = this.turns.filter((t) => t.turn_no > window && t.turn_no <= upToTurnNo);
-      const ev = await evaluate(client, {
+      const ev = await this.brain.evaluate({
         turns: slice,
         turnRange: [window + 1, upToTurnNo],
       });
       await sql`
-        INSERT INTO evaluations (session_id, turn_range, axes, comment, hints, model)
+        INSERT INTO evaluations (session_id, turn_range, axes, comment, hints, model, method)
         VALUES (
           ${this.sessionId},
           ${`[${window + 1},${upToTurnNo}]`},
           ${sql.json(ev.axes as never)},
           ${ev.comment},
           ${sql.json(ev.hints as never)},
-          ${ev.model}
+          ${ev.model},
+          ${this.brain.kind}
         )
       `;
       this.send({ kind: 'eval', evaluation: ev });
 
-      // 蠑ｱ轤ｹ繝励Ο繝輔ぃ繧､繝ｫ繧・EMA 縺ｧ譖ｴ譁ｰ (task C)
+      // 弱点プロファイルを EMA で更新
       try {
         const updated = await applyEvaluation(this.userId, ev.axes, ev.hints);
-        // 蜷・session 縺ｮ system prompt 縺ｫ縺ｯ蜿肴丐縺励↑縺・(DESIGN ﾂｧ3.2.2)縲・
-        // 谺｡蝗・session 縺ｧ (2) 繧ｹ繝ｭ繝・ヨ縺ｫ蜿肴丐縺輔ｌ繧九・蜷・session 蜀・・陦ｨ遉ｺ譖ｴ譁ｰ縺縺・
+        // 同 session の system prompt には反映しない (DESIGN §3.2.2)。
+        // 次回 session でスロット選択に反映される。同 session 内は表示更新だけ。
         this.weakTop3 = updated.weak_top3;
       } catch (err) {
         console.error('[ws] weakness profile update error', err);
       }
     } catch (err) {
-      // 隧穂ｾ｡螟ｱ謨励・ session 繧呈ｭ｢繧√↑縺・(繝ｭ繧ｰ縺ｮ縺ｿ)
+      // 評価失敗は session を止めない (ログのみ)
       console.error('[ws] evaluation error', err);
     }
   }
@@ -436,6 +640,7 @@ export class SessionRuntime {
   async close(): Promise<void> {
     this.closed = true;
     if (this.currentAbort) this.currentAbort.abort();
+    if (this.ttsAbort) this.ttsAbort.abort();
     if (this.audioQueue) {
       this.audioQueue.close();
       this.audioQueue = null;

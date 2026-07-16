@@ -6,6 +6,8 @@ export type ServerFrame =
   | { kind: 'stt_final'; text: string; turn_no: number }
   | { kind: 'response_token'; token: string; turn_no: number }
   | { kind: 'response_end'; turn_no: number; text_uri: string }
+  | { kind: 'tts_chunk'; turn_no: number; pcm: number[]; sample_rate: number; channels: number }
+  | { kind: 'tts_end'; turn_no: number }
   | { kind: 'eval'; evaluation: unknown }
   | { kind: 'system'; code: string; message?: string };
 

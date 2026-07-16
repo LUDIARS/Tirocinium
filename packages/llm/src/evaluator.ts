@@ -1,16 +1,10 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { extractText, MODEL } from './anthropic.js';
 import { EVAL_INSTRUCTION } from './prompts.js';
-import type { Axes, Evaluation, Turn } from './types.js';
+import { coerceAxes } from './coerce.js';
+import { AXIS_KEYS, type Axes, type Evaluation, type Turn } from './types.js';
 
-export const AXIS_KEYS: (keyof Axes)[] = [
-  'consistency',
-  'clarity',
-  'demeanor',
-  'self_understanding',
-  'target_fit',
-  'depth_resilience',
-];
+export { AXIS_KEYS };
 
 export function serializeHistory(turns: Turn[]): string {
   return turns
@@ -106,14 +100,12 @@ export function parseEvaluation(text: string): {
 } {
   const json = extractJsonBlock(text);
   const obj = JSON.parse(json) as { axes?: unknown; comment?: unknown; hints?: unknown };
-  if (obj.axes == null) {
-    throw new Error('evaluator output missing axes');
-  }
   const hints = Array.isArray(obj.hints)
     ? obj.hints.filter((h): h is string => typeof h === 'string' && h.trim().length > 0).slice(0, 3)
     : [];
   return {
-    axes: clampAxes(obj.axes),
+    // axes 欠損・非 object は coerce が throw (構造違反)。値は 0-5 clamp。
+    axes: coerceAxes(obj.axes),
     comment: typeof obj.comment === 'string' ? obj.comment : '',
     hints,
   };

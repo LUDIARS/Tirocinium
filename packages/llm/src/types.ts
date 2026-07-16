@@ -16,6 +16,15 @@ export type Axes = {
   depth_resilience: number;
 };
 
+export const AXIS_KEYS: (keyof Axes)[] = [
+  'consistency',
+  'clarity',
+  'demeanor',
+  'self_understanding',
+  'target_fit',
+  'depth_resilience',
+];
+
 export type Evaluation = {
   turn_range: [number, number];
   axes: Partial<Axes>;
