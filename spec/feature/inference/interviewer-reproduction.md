@@ -7,6 +7,12 @@
 2. **再現性 (reproducibility)** — 同じ入力 (seed + トランスクリプト + 学習データ snapshot) から
    同じ面接進行が**決定的に**再生できる。テスト・監査・回帰検証が可能。
 
+> **実装状況 (2026-07-17)**: P1 (Brain 境界 / StubBrain / coerce / session_seed / 注入 rng) と
+> P2 (質問プラン / interview_briefs = migration 024 / 充足ゲート / role-aliases / 供給源配線) は
+> 実装済み。プラン駆動は `TIROCINIUM_QUESTION_PLAN=1` の feature flag で並走中 (§8)。
+> P3 (OB 抽出バッチ / judge blackbox / リプレイ CLI) は未着手。
+> タスク分解: `spec/plan/interview-engine-voicevox-tasks.md`。
+
 既存ランタイム ([`interviewer-engine.md`](./interviewer-engine.md)) と弁証法理論
 ([`dialectic-engine.md`](./dialectic-engine.md)) の**上に載せる**設計であり、置き換えではない。
 参考実装: Pagus (`Brain` DI / 注入 rng / coerce 検証 / stub テスト)、

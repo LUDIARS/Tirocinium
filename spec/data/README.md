@@ -371,6 +371,42 @@ CREATE TABLE company_recommendations (
 
 ---
 
+## interview_briefs / company_interview_questions / ob_question_patterns (migration 024)
+
+面接官再現エンジン P2 (`spec/feature/inference/interviewer-reproduction.md` §5/§6)。
+
+```sql
+-- 面接ブリーフ: セッション前にコンパイル、セッション中は不変 (md 正本 + snapshot)
+CREATE TABLE interview_briefs (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id  UUID NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
+  body_md     TEXT NOT NULL,
+  source_meta JSONB NOT NULL DEFAULT '{}',  -- 使用データ id / 充足判定 / 候補 snapshot (再現用)
+  seed        BIGINT NOT NULL,              -- sessions.metadata.session_seed の写し
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 企業別質問プール (質問プランの最優先供給源)
+CREATE TABLE company_interview_questions (
+  id, company_id → companies, stage, role, theme, question,
+  followups JSONB, axes JSONB, source_url, created_at
+);
+
+-- OB 質問パターン (質問の型のみ、回答本文は持たない。抽出バッチは P3)
+CREATE TABLE ob_question_patterns (
+  id, company_id → companies, stage, role, theme, question_pattern,
+  followup_patterns JSONB, axes JSONB, source_refs JSONB, contributor_alias, created_at
+);
+
+-- evaluations に method (llm/stub) を追加 (評価の監査可能性)
+ALTER TABLE evaluations ADD COLUMN method TEXT NOT NULL DEFAULT 'llm';
+```
+
+`sessions.metadata.session_seed` (JSONB 内) はセッション作成時に採番される
+32bit seed。同 seed + 同ブリーフ → 同一質問プラン (再現性)。
+
+---
+
 ## ローカルモード差分
 
 ローカル SQLite は以下のみ:

@@ -1,3 +1,4 @@
+import { newSessionSeed } from '@tirocinium/llm';
 import { sql } from '../db/index.js';
 import { config } from '../config.js';
 import { currentSlotStart, nextSlotStart } from './slot.js';
@@ -73,9 +74,12 @@ export async function tryStart(userId: string): Promise<StartDecision> {
   });
 
   if (taken) {
+    // session_seed はここで 1 回だけ採番して永続化する (再現性の入力。
+    // spec/feature/inference/interviewer-reproduction.md §4 — 同 seed 同プラン)。
     const session = await sql<{ id: string }[]>`
-      INSERT INTO sessions (user_id, mode, status, llm_profile)
-      VALUES (${userId}, 'server', 'active', '{}'::jsonb)
+      INSERT INTO sessions (user_id, mode, status, llm_profile, metadata)
+      VALUES (${userId}, 'server', 'active', '{}'::jsonb,
+              ${sql.json({ session_seed: newSessionSeed() } as never)})
       RETURNING id
     `;
     return { kind: 'start', sessionId: session[0]!.id };

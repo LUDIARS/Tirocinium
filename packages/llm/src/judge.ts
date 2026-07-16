@@ -5,6 +5,7 @@
 
 import type Anthropic from '@anthropic-ai/sdk';
 import { extractText, MODEL } from './anthropic.js';
+import { coerceSignals } from './coerce.js';
 import { extractJsonBlock, serializeHistory } from './evaluator.js';
 import type { Turn } from './types.js';
 
@@ -33,19 +34,8 @@ const JUDGE_INSTRUCTION = `
 `.trim();
 
 export function parseAnswerSignals(text: string): AnswerSignals {
-  const obj = JSON.parse(extractJsonBlock(text)) as {
-    specificity?: unknown;
-    synthesis_reached?: unknown;
-    contradiction_open?: unknown;
-    followup_hint?: unknown;
-  };
-  const hint = typeof obj.followup_hint === 'string' ? obj.followup_hint.trim() : '';
-  return {
-    specificity: typeof obj.specificity === 'number' ? obj.specificity : 0,
-    synthesisReached: Boolean(obj.synthesis_reached),
-    contradictionOpen: Boolean(obj.contradiction_open),
-    followupHint: hint.length > 0 ? hint : undefined,
-  };
+  // 構造違反 (非 object) は coerce が throw、フィールド単位は clamp (spec §3)。
+  return coerceSignals(JSON.parse(extractJsonBlock(text)));
 }
 
 export type AssessInput = {
