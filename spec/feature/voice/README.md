@@ -59,8 +59,20 @@ Sonnet がトークンを吐く速度と TTS の合成速度は揃わない。
 
 ---
 
+## TTS provider (実装状況)
+
+Iv の TTS 経路が未確定の間は、STT と同じ **provider 注入パターン**で TTS を
+差し替え可能にしている (`packages/voice/src/tts-provider.ts`)。最初のバックエンドは
+**VOICEVOX** (`TIROCINIUM_TTS_BACKEND=voicevox`、既定 off)。
+設計の正本は [`voicevox-tts.md`](./voicevox-tts.md)、セットアップは
+`spec/setup/voice-tts.md`。面接官発話は WS の `tts_chunk` / `tts_end` frame で
+desktop へ、Discord へは `playTts` (48kHz stereo) で流れる。
+
+---
+
 ## ローカルモード
 
 - Iv が利用不可なら **whisper.cpp** (STT) + **piper** (TTS) を embedded で使う
+  (piper は TTS provider の追加バックエンドとして実装する想定)
 - 品質は劣るが反復練習目的には足る
 - 切り替えは起動時の Iv ヘルスチェックで自動 + 設定 override

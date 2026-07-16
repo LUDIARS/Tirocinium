@@ -56,9 +56,22 @@ export function buildSystemPrompt(opts: {
   refineBlock?: string;
   /** 面接内の進行フェーズ。指定すると phase ガイダンス + 弁証法サイクルを注入する */
   phase?: Phase;
+  /** 面接ブリーフ md (interviewer-reproduction.md §5)。指定時は素材系
+   *  (ペルソナ/弱点/RAG) をブリーフに一本化し、system の不変部を最大化する。
+   *  揮発するのは refineBlock と会話履歴のみ。 */
+  briefMd?: string;
 }): string {
   // probe / pressure では弁証法サイクル (Micro 深掘り) を有効化
   const dialectic = opts.phase === 'probe' || opts.phase === 'pressure';
+  if (opts.briefMd) {
+    return [
+      STATIC_ROOT,
+      opts.phase ? '\n## 進行フェーズ\n' + PHASE_GUIDANCE[opts.phase] : '',
+      dialectic ? '\n## 深掘りの型\n' + DIALECTIC_PROBE : '',
+      '\n## 面接ブリーフ\n' + opts.briefMd,
+      opts.refineBlock ? '\n## 次に深掘るべき論点\n' + opts.refineBlock : '',
+    ].filter(Boolean).join('\n');
+  }
   return [
     STATIC_ROOT,
     opts.phase ? '\n## 進行フェーズ\n' + PHASE_GUIDANCE[opts.phase] : '',

@@ -1,5 +1,6 @@
 import type { SttEvent, TtsRequest } from './types.js';
 import { type SttProvider, createSttProvider } from './stt-provider.js';
+import { type TtsProvider, createTtsProvider } from './tts-provider.js';
 
 export type IvClientConfig = {
   /** 例: http://localhost:5963 (WebRTC/HTTP 経路。未設定可) */
@@ -8,10 +9,13 @@ export type IvClientConfig = {
   token?: string;
   /** STT 処理の実装 (gRPC 直結 / API など)。あれば stt() がこれに委譲する。 */
   sttProvider?: SttProvider | null;
+  /** TTS 処理の実装 (voicevox 等)。あれば tts() がこれに委譲する。 */
+  ttsProvider?: TtsProvider | null;
 };
 
 /** Imperativus (Iv) の STT/TTS client。
- *  STT は sttProvider (gRPC 直結 / API 等) へ委譲。TTS / WebRTC 経路は未結線 (TODO)。 */
+ *  STT は sttProvider (gRPC 直結 / API 等)、TTS は ttsProvider (voicevox 等) へ委譲。
+ *  Iv 本体の WebRTC/HTTP 経路は未結線 (TODO)。 */
 export class ImperativusClient {
   constructor(private readonly cfg: IvClientConfig) {}
 
@@ -28,10 +32,21 @@ export class ImperativusClient {
     return;
   }
 
-  /** テキストを TTS して PCM (16-bit LE) chunk を返す。 */
+  /** TTS provider が設定されているか (呼び出し側の経路判定用)。 */
+  hasTts(): boolean {
+    return Boolean(this.cfg.ttsProvider);
+  }
+
+  /** テキストを TTS して PCM (16-bit LE) chunk を返す。
+   *  ttsProvider が設定されていれば委譲、無ければ何も yield しない。 */
   async *tts(
-    _req: TtsRequest,
+    req: TtsRequest,
+    signal?: AbortSignal,
   ): AsyncGenerator<Uint8Array, void, unknown> {
+    if (this.cfg.ttsProvider) {
+      yield* this.cfg.ttsProvider.tts(req, signal);
+      return;
+    }
     // TODO(impl): Iv の TTS 経路 (WebRTC/HTTP) が固まったら結線
     return;
   }
@@ -50,14 +65,16 @@ export class ImperativusClient {
   }
 }
 
-/** IV_URL か STT provider のどちらかが有効なら client を返す。 */
+/** IV_URL / STT provider / TTS provider のいずれかが有効なら client を返す。 */
 export function createIvClient(env: NodeJS.ProcessEnv = process.env): ImperativusClient | null {
   const url = env['IV_URL'];
   const sttProvider = createSttProvider(env);
-  if (!url && !sttProvider) return null;
+  const ttsProvider = createTtsProvider(env);
+  if (!url && !sttProvider && !ttsProvider) return null;
   return new ImperativusClient({
     baseUrl: url ? url.replace(/\/$/, '') : undefined,
     token: env['CERNERE_PROJECT_TOKEN'],
     sttProvider,
+    ttsProvider,
   });
 }
