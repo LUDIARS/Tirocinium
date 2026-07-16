@@ -7,7 +7,7 @@ import { normalizeName } from '@tirocinium/companies';
 import { AXIS_KEYS, type AxisKey, type QuestionCandidate } from '@tirocinium/llm';
 import { sql } from '../db/index.js';
 
-export type CompanyRef = { id: string; name: string };
+export type CompanyRef = { id: string; name: string; url: string };
 
 /** JSONB (PG) / TEXT (SQLite) 両対応の配列読出し。 */
 function asStringArray(v: unknown): string[] {
@@ -25,7 +25,7 @@ export async function resolveCompany(targetCompany: string | null): Promise<Comp
   if (!targetCompany || !targetCompany.trim()) return null;
   const normalized = normalizeName(targetCompany);
   const rows = await sql<CompanyRef[]>`
-    SELECT id, name FROM companies
+    SELECT id, name, url FROM companies
     WHERE normalized_name = ${normalized} OR name = ${targetCompany.trim()}
     LIMIT 1
   `;
@@ -59,7 +59,11 @@ export async function getNewgradImage(
   return null;
 }
 
-export type SourcedCandidate = QuestionCandidate & { sourceId: string };
+export type SourcedCandidate = QuestionCandidate & {
+  sourceId: string;
+  /** OB 由来のみ: 仮名化済み投稿者 (OB#xxxx)。生 ID はここに来ない */
+  contributorAlias?: string;
+};
 
 /** 企業別質問プール (最優先供給源)。stage/role は '' / 'general' を共通枠として含める。 */
 export async function getCompanyQuestions(
@@ -93,9 +97,10 @@ export async function getObPatterns(
   role: string,
 ): Promise<SourcedCandidate[]> {
   const rows = await sql<
-    { id: string; theme: string; question_pattern: string; followup_patterns: unknown; axes: unknown }[]
+    { id: string; theme: string; question_pattern: string; followup_patterns: unknown; axes: unknown; contributor_alias: string }[]
   >`
-    SELECT id, theme, question_pattern, followup_patterns, axes FROM ob_question_patterns
+    SELECT id, theme, question_pattern, followup_patterns, axes, contributor_alias
+    FROM ob_question_patterns
     WHERE company_id = ${companyId}
       AND stage IN (${stage}, '')
       AND role IN (${role}, 'general')
@@ -108,6 +113,7 @@ export async function getObPatterns(
     followups: asStringArray(r.followup_patterns),
     axes: asAxes(r.axes),
     origin: 'ob' as const,
+    contributorAlias: r.contributor_alias || undefined,
   }));
 }
 

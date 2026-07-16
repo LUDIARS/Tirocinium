@@ -36,6 +36,13 @@ import { getInterviewer } from '../persona/repo.js';
 import { applyEvaluation } from '../feedback/weakness-updater.js';
 import { buildInterviewBrief, planBriefFromSourceMeta } from '../brief/brief-builder.js';
 import { getBrief, saveBriefIfAbsent } from '../brief/repo.js';
+import { enqueueCrawl } from '../companies/crawl-queue-repo.js';
+import {
+  decideJudgeSignals,
+  getJudgeBlackbox,
+  judgeBlackboxEnabled,
+} from '../judge-blackbox/index.js';
+import type { BlackBox } from '@ludiars/blackbox';
 import type { ClientFrame, ServerFrame } from './frames.js';
 
 const EVAL_EVERY_N_TURNS = 5;
@@ -95,6 +102,8 @@ export class SessionRuntime {
   private audioQueue: AsyncQueue<Uint8Array> | null = null;
   private sttPipeRunning = false;
   private ttsAbort: AbortController | null = null;
+  /** judge の卒業 (P3、TIROCINIUM_JUDGE_BLACKBOX=1)。null = 従来の LLM 直行 */
+  private readonly judgeBlackbox: BlackBox | null;
 
   constructor(
     private readonly ws: WebSocket,
@@ -107,6 +116,7 @@ export class SessionRuntime {
     this.brain = opts.brain ?? createBrain({ llmBackend: config.llmBackend });
     this.ttsOverWs = opts.ttsOverWs ?? true;
     this.planEnabled = process.env['TIROCINIUM_QUESTION_PLAN'] === '1';
+    this.judgeBlackbox = judgeBlackboxEnabled() ? getJudgeBlackbox() : null;
     this.ivClient = createIvClient();
   }
 
@@ -251,6 +261,21 @@ export class SessionRuntime {
         seed,
       });
       stored = await saveBriefIfAbsent(this.sessionId, built.bodyMd, built.sourceMeta, seed);
+
+      // 自動学習ループ (spec §6.4 P3): 企業データが薄ければ crawl を非同期投入する。
+      // 面接開始は待たせない。重複投入は crawl_jobs 側の active-URL dedup に任せる。
+      const companyUrl =
+        typeof built.sourceMeta['company_url'] === 'string' ? built.sourceMeta['company_url'] : '';
+      if (built.sufficiency.level !== 'rich' && companyUrl) {
+        void enqueueCrawl({
+          url: companyUrl,
+          nameHint: built.planBrief.companyName ?? '',
+          source: 'interview-brief',
+          requestedBy: 'brief-gate',
+        }).catch((err) =>
+          console.warn('[ws] brief crawl enqueue failed', (err as Error).message),
+        );
+      }
     }
     this.briefMd = stored.body_md;
 
@@ -258,7 +283,12 @@ export class SessionRuntime {
     if (!planBrief) {
       throw new Error('stored brief に候補 snapshot が無い (source_meta.candidates)');
     }
-    const weakAxes = this.weakTop3.filter((a): a is AxisKey => (AXIS_KEYS as string[]).includes(a));
+    // プラン入力の弱点軸はブリーフ snapshot を優先する (面接中の EMA 更新で
+    // weak_top3 が動いても、再接続時に同じプランへ復元するため)
+    const storedWeak = Array.isArray(stored.source_meta['weak_top3'])
+      ? (stored.source_meta['weak_top3'] as unknown[]).filter((a): a is string => typeof a === 'string')
+      : this.weakTop3;
+    const weakAxes = storedWeak.filter((a): a is AxisKey => (AXIS_KEYS as string[]).includes(a));
     this.plan = compileQuestionPlan(planBrief, weakAxes, mulberry32(stored.seed));
 
     // 再接続時: 既に消化した interviewer turn 数ぶんカーソルを進める…は phase 履歴が
@@ -319,11 +349,22 @@ export class SessionRuntime {
     // 鍵が無い dev では Brain が can 判定で skip → DEFAULT_SIGNALS (time-box 駆動) のまま。
     if (this.brain.canAssess() && response.text.trim().length > 0) {
       try {
-        const signals = await this.brain.assessAnswer({
-          question: lastQuestion,
-          answer: text,
-          recent: this.turns.slice(-4),
-        });
+        // blackbox 有効時: 卒業済みルールが hit すれば LLM をショートサーキット (spec §7.1)
+        const signals = this.judgeBlackbox
+          ? (
+              await decideJudgeSignals(this.judgeBlackbox, lastQuestion, text, () =>
+                this.brain.assessAnswer({
+                  question: lastQuestion,
+                  answer: text,
+                  recent: this.turns.slice(-4),
+                }),
+              )
+            ).signals
+          : await this.brain.assessAnswer({
+              question: lastQuestion,
+              answer: text,
+              recent: this.turns.slice(-4),
+            });
         this.latestSignals = {
           synthesisReached: signals.synthesisReached,
           contradictionOpen: signals.contradictionOpen,

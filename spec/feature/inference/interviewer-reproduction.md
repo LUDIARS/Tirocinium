@@ -10,8 +10,12 @@
 > **実装状況 (2026-07-17)**: P1 (Brain 境界 / StubBrain / coerce / session_seed / 注入 rng) と
 > P2 (質問プラン / interview_briefs = migration 024 / 充足ゲート / role-aliases / 供給源配線) は
 > 実装済み。プラン駆動は `TIROCINIUM_QUESTION_PLAN=1` の feature flag で並走中 (§8)。
-> P3 (OB 抽出バッチ / judge blackbox / リプレイ CLI) は未着手。
-> タスク分解: `spec/plan/interview-engine-voicevox-tasks.md`。
+> P3 も実装済み: OB 抽出バッチ (`scripts/ob-patterns`) + 仮名化 serializer /
+> judge blackbox (`TIROCINIUM_JUDGE_BLACKBOX=1`、レビューは `scripts/judge-blackbox`) /
+> リプレイ CLI (`scripts/replay`) / sparse→crawl 自動投入 (§6.4)。LLM 充足ゲートのみ未着手
+> (決定的カウント版で当面十分)。運用手順: `spec/setup/interview-engine-p3-ops.md`。
+> タスク分解: `spec/plan/interview-engine-voicevox-tasks.md` (P1/P2) /
+> `spec/plan/interview-engine-p3-tasks.md` (P3)。
 
 既存ランタイム ([`interviewer-engine.md`](./interviewer-engine.md)) と弁証法理論
 ([`dialectic-engine.md`](./dialectic-engine.md)) の**上に載せる**設計であり、置き換えではない。

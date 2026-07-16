@@ -40,9 +40,15 @@ function section(title: string, body: string): string {
   return `# ${title}\n\n${body.trim() || '(情報なし)'}\n`;
 }
 
-function renderQuestionLines(candidates: QuestionCandidate[]): string {
+function renderQuestionLines(
+  candidates: (QuestionCandidate & { contributorAlias?: string })[],
+): string {
   return candidates
-    .map((c) => `- [${c.origin}] ${c.theme}: ${c.question}`)
+    .map((c) => {
+      // OB 由来は仮名 (OB#xxxx) で出所を透明に (spec §6.2 — 個人は仮名)
+      const alias = c.contributorAlias ? ` (${c.contributorAlias})` : '';
+      return `- [${c.origin}]${alias} ${c.theme}: ${c.question}`;
+    })
     .join('\n');
 }
 
@@ -106,6 +112,8 @@ export async function buildInterviewBrief(input: BriefBuildInput): Promise<Built
 
   const sourceMeta = {
     company_id: company?.id ?? null,
+    // sparse/moderate 時の自動学習ループ (crawl enqueue) 用。ブリーフ本文には出さない
+    company_url: company?.url || null,
     newgrad_role: newgrad?.role ?? null,
     company_question_ids: companyQs.map((c) => c.sourceId),
     ob_pattern_ids: obPs.map((c) => c.sourceId),
@@ -113,7 +121,9 @@ export async function buildInterviewBrief(input: BriefBuildInput): Promise<Built
     sufficiency: sufficiency.level,
     sufficiency_reason: sufficiency.reason,
     snapshot_at: new Date().toISOString(),
-    // 再接続時の決定的プラン再コンパイル用 snapshot (同 seed + 同候補 = 同プラン)
+    // 再接続時の決定的プラン再コンパイル用 snapshot (同 seed + 同候補 + 同弱点 = 同プラン)。
+    // weak_top3 は面接中に EMA 更新で変わり得るため、プラン入力はここで固定する
+    weak_top3: input.weakTop3,
     candidates,
     plan: { stage: input.stage, role, company_name: planBrief.companyName },
   };
