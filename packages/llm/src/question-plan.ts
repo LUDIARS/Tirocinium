@@ -42,13 +42,18 @@ const ORIGIN_PRIORITY: Record<QuestionOrigin, number> = {
   refine: 4, // コンパイル時には現れない (実行時逸脱の追記のみ)
 };
 
-/** phase ごとの計画スロット数 (PHASE_SPECS の min/max の間で固定)。
- *  合計 11 < DEFAULT_TURN_BUDGET(20) — 逸脱追記 (refineFocus 採用) の余白を残す。 */
+/** phase ごとの計画スロット数。
+ *  nextPhase() (phase.ts) は signals が無い間 (time-box 駆動) 各 phase を
+ *  PHASE_SPECS.maxTurns まで消費してから次 phase へ進む。以前は probe=6/pressure=3 と
+ *  maxTurns (10/4) を下回っており、maxTurns 近くまで長引いた phase の終盤で候補が尽きて
+ *  slot=null (プロンプト駆動へ無言縮退) になり、決定的プランの保証が崩れていた。
+ *  各 phase の maxTurns と一致させ、実消費数を必ずカバーする
+ *  (合計 18 < DEFAULT_TURN_BUDGET(20) — 逸脱追記 (refineFocus 採用) の余白は残る)。 */
 export const PLAN_SLOT_COUNTS: Record<Exclude<Phase, 'ended'>, number> = {
-  opening: 1,
-  probe: 6,
-  pressure: 3,
-  closing: 1,
+  opening: PHASE_SPECS.opening.maxTurns,
+  probe: PHASE_SPECS.probe.maxTurns,
+  pressure: PHASE_SPECS.pressure.maxTurns,
+  closing: PHASE_SPECS.closing.maxTurns,
 };
 
 /** opening / closing は供給源に依らない定型スロット (再現性のため固定文言)。 */

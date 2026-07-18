@@ -9,6 +9,7 @@ import {
 import { createIvClient } from '@tirocinium/voice';
 import { config } from '../config.js';
 import { sql } from '../db/index.js';
+import { patchSessionMetadata } from '../db/session-metadata.js';
 import { listInterviewers } from '../persona/repo.js';
 import { tryStart } from '../reservation/coordinator.js';
 import { SessionRuntime } from '../ws/session-runtime.js';
@@ -169,11 +170,14 @@ export async function startDiscordBridge(): Promise<() => void> {
 
     const interviewers = await listInterviewers();
     const interviewerId = interviewers[0]?.id;
-    if (interviewerId || target) {
+    // metadata は JSON.parse/stringify を介して安全にマージする (routes/sessions.ts と同じ理由 —
+    // `metadata || sql.json(...)` は SQLite の TEXT 列では文字列連結になり不正 JSON を生む)。
+    if (interviewerId) {
+      await patchSessionMetadata(decision.sessionId, { interviewer_id: interviewerId });
+    }
+    if (target) {
       await sql`
-        UPDATE sessions SET
-          metadata = metadata || ${sql.json({ interviewer_id: interviewerId ?? null })},
-          target_role = COALESCE(${target || null}, target_role)
+        UPDATE sessions SET target_role = COALESCE(${target || null}, target_role)
         WHERE id = ${decision.sessionId}
       `;
     }

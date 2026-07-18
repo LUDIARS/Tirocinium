@@ -73,4 +73,53 @@ describe('upsertObPattern', () => {
     });
     expect(await countObPatterns(companyId)).toBe(2);
   });
+
+  it('同一パターンへの複数 OB 由来 alias は contributor_aliases に蓄積される (単一alias で上書きされない)', async () => {
+    const base = {
+      companyId,
+      stage: '',
+      role: 'general',
+      theme: 'チーム開発2',
+      questionPattern: '衝突解決の役割分担',
+      followupPatterns: [],
+      axes: [] as string[],
+    };
+    const first = await upsertObPattern({ ...base, sourceRefs: [], contributorAlias: 'OB#111111111111' });
+    await upsertObPattern({ ...base, sourceRefs: [], contributorAlias: 'OB#222222222222' });
+
+    const rows = await sql<{ contributor_aliases: unknown }[]>`
+      SELECT contributor_aliases FROM ob_question_patterns WHERE id = ${first.id}
+    `;
+    const aliases = typeof rows[0]!.contributor_aliases === 'string'
+      ? (JSON.parse(rows[0]!.contributor_aliases as string) as string[])
+      : (rows[0]!.contributor_aliases as string[]);
+    expect(aliases.sort()).toEqual(['OB#111111111111', 'OB#222222222222']);
+  });
+
+  it('DB 側の一意制約 (migration 025 uq_obqp_dedup) が同一パターンの重複行を拒否する', async () => {
+    // upsertObPattern の原子的 upsert (INSERT → unique violation なら UPDATE へ合流) は
+    // この一意制約が最終防波堤になっている前提 — 制約自体が効いていることを直接確認する
+    // (node:sqlite は単一コネクションのため、アプリ層の並行呼び出しでは真の競合を再現できない)。
+    const theme = '一意制約テスト';
+    const questionPattern = '一意性の確認';
+    await upsertObPattern({
+      companyId,
+      stage: '',
+      role: 'general',
+      theme,
+      questionPattern,
+      followupPatterns: [],
+      axes: [],
+      sourceRefs: [],
+      contributorAlias: 'OB#cccccccccccc',
+    });
+
+    await expect(
+      sql`
+        INSERT INTO ob_question_patterns
+          (company_id, stage, role, theme, question_pattern, followup_patterns, axes, source_refs, contributor_aliases)
+        VALUES (${companyId}, '', 'general', ${theme}, ${questionPattern}, '[]', '[]', '[]', '[]')
+      `,
+    ).rejects.toThrow();
+  });
 });

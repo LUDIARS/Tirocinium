@@ -393,9 +393,12 @@ CREATE TABLE company_interview_questions (
 );
 
 -- OB 質問パターン (質問の型のみ、回答本文は持たない。抽出バッチは P3)
+-- contributor_aliases は JSONB array (migration 025) — 複数 OB が同一パターンに
+-- 寄与しても別名を失わないよう、単一 TEXT 列 (contributor_alias, 024) から切替え済み。
 CREATE TABLE ob_question_patterns (
   id, company_id → companies, stage, role, theme, question_pattern,
-  followup_patterns JSONB, axes JSONB, source_refs JSONB, contributor_alias, created_at
+  followup_patterns JSONB, axes JSONB, source_refs JSONB, contributor_aliases JSONB, created_at,
+  UNIQUE (company_id, theme, question_pattern)
 );
 
 -- evaluations に method (llm/stub) を追加 (評価の監査可能性)
