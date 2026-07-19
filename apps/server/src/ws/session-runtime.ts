@@ -22,6 +22,7 @@ import {
   DEFAULT_SIGNALS,
   type AxisKey,
   type InterviewerBrain,
+  type Phase,
   type PhaseState,
   type PhaseSignals,
   type QuestionSlot,
@@ -34,9 +35,10 @@ import { config } from '../config.js';
 import { sql } from '../db/index.js';
 import { getInterviewer } from '../persona/repo.js';
 import { applyEvaluation } from '../feedback/weakness-updater.js';
-import { buildInterviewBrief, planBriefFromSourceMeta } from '../brief/brief-builder.js';
+import { buildInterviewBrief, planBriefFromSourceMeta, RAG_SECTION_TITLE } from '../brief/brief-builder.js';
 import { getBrief, saveBriefIfAbsent } from '../brief/repo.js';
 import { enqueueCrawl } from '../companies/crawl-queue-repo.js';
+import { patchSessionMetadata } from '../db/session-metadata.js';
 import {
   decideJudgeSignals,
   getJudgeBlackbox,
@@ -68,6 +70,47 @@ function asObject(v: unknown): Record<string, unknown> {
   return obj && typeof obj === 'object' && !Array.isArray(obj)
     ? (obj as Record<string, unknown>)
     : {};
+}
+
+/** sessions.metadata.phase_progress の snapshot 形状 (再接続時の phase/planCursor 復元用)。 */
+export type PhaseProgress = {
+  phase: Phase;
+  phaseTurnNo: number;
+  turnBudget: number;
+  planCursor: Record<string, number>;
+};
+
+/** metadata['phase_progress'] を型検証しつつ読む。壊れている/無ければ null (縮退)。
+ *  export はテスト (session-runtime-helpers.test.ts) 用。 */
+export function asPhaseProgress(v: unknown): PhaseProgress | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const o = v as Record<string, unknown>;
+  const phase = o['phase'];
+  const phaseTurnNo = o['phaseTurnNo'];
+  const turnBudget = o['turnBudget'];
+  const planCursor = o['planCursor'];
+  if (typeof phase !== 'string' || typeof phaseTurnNo !== 'number' || typeof turnBudget !== 'number') {
+    return null;
+  }
+  const cursor: Record<string, number> = {};
+  if (planCursor && typeof planCursor === 'object' && !Array.isArray(planCursor)) {
+    for (const [k, val] of Object.entries(planCursor as Record<string, unknown>)) {
+      if (typeof val === 'number') cursor[k] = val;
+    }
+  }
+  return { phase: phase as Phase, phaseTurnNo, turnBudget, planCursor: cursor };
+}
+
+/** metadata.session_seed の解決。 欠損判定は null/undefined のみ — 0 は mulberry32 の
+ *  有効な seed 値なので「無ければ採番」に巻き込んで再採番してしまわないよう区別する
+ *  (数値化できない壊れた値は欠損と同様に扱う)。 export はテスト用。 */
+export function resolveSessionSeed(rawSeed: unknown): { seed: number; isNew: boolean } {
+  const hasRawSeed = rawSeed !== null && rawSeed !== undefined;
+  const numericSeed = hasRawSeed ? Number(rawSeed) : NaN;
+  if (hasRawSeed && Number.isFinite(numericSeed)) {
+    return { seed: numericSeed >>> 0, isNew: false };
+  }
+  return { seed: newSessionSeed(), isNew: true };
 }
 
 /** 句点区切りの文分割 (TTS の先頭レイテンシ削減。voicevox-tts.md §5)。 */
@@ -204,6 +247,20 @@ export class SessionRuntime {
     // フェーズ状態機を初期化 (面接官ペルソナの圧で pressure phase の有無が決まる)
     this.phaseState = initialPhaseState(this.interviewer?.pressure ?? 3);
 
+    // 再接続復元: 既に進行した phase/planCursor があれば、opening からの再出題を防ぐため
+    // ここで上書きする (TIROCINIUM_QUESTION_PLAN=1 有無に関わらず — phase ガイダンスの
+    // プロンプト注入も同様にズレるため)。無ければ (初回接続) 何もしない。
+    const progress = asPhaseProgress(metadata['phase_progress']);
+    if (progress) {
+      this.phaseState = {
+        ...this.phaseState,
+        phase: progress.phase,
+        phaseTurnNo: progress.phaseTurnNo,
+        turnBudget: progress.turnBudget,
+      };
+      this.planCursor = progress.planCursor;
+    }
+
     // 決定的質問プラン (P2、TIROCINIUM_QUESTION_PLAN=1 のときのみ)。
     // ブリーフはセッション前 (init) にコンパイルし、以降は不変 (spec §5)。
     if (this.planEnabled && this.interviewer) {
@@ -235,13 +292,10 @@ export class SessionRuntime {
   ): Promise<void> {
     if (!this.interviewer) return;
 
-    // seed: metadata に無い旧セッションはここで採番して永続化 (再接続で不変)
-    let seed: number;
-    const rawSeed = Number(metadata['session_seed']);
-    if (Number.isFinite(rawSeed) && rawSeed > 0) {
-      seed = rawSeed >>> 0;
-    } else {
-      seed = newSessionSeed();
+    // seed: metadata に無い旧セッションはここで採番して永続化 (再接続で不変)。
+    // resolveSessionSeed は 0 を有効な seed として扱う (session-runtime-helpers.test.ts 参照)。
+    const { seed, isNew } = resolveSessionSeed(metadata['session_seed']);
+    if (isNew) {
       await sql`
         UPDATE sessions SET metadata = ${sql.json({ ...metadata, session_seed: seed } as never)}
         WHERE id = ${this.sessionId}
@@ -257,7 +311,6 @@ export class SessionRuntime {
         targetRole,
         personaBlock: buildInterviewerPromptBlock(this.interviewer),
         weakTop3: this.weakTop3,
-        ragBlock: this.ragBlock,
         seed,
       });
       stored = await saveBriefIfAbsent(this.sessionId, built.bodyMd, built.sourceMeta, seed);
@@ -267,17 +320,28 @@ export class SessionRuntime {
       const companyUrl =
         typeof built.sourceMeta['company_url'] === 'string' ? built.sourceMeta['company_url'] : '';
       if (built.sufficiency.level !== 'rich' && companyUrl) {
+        // source は crawl-queue worker が runCrawl() に渡す「登録済み crawl adapter id」
+        // (companies パッケージの getSource() で解決される) と同じ値でなければならない —
+        // 'interview-brief' はどの adapter にも登録されておらず、worker 側で
+        // 「unknown crawl source」として必ず失敗していた (未登録 source バグ)。
+        // 起票元の属性は requestedBy 側で表す (adapter 選択とは別の関心事)。
         void enqueueCrawl({
           url: companyUrl,
           nameHint: built.planBrief.companyName ?? '',
-          source: 'interview-brief',
+          source: 'manual',
           requestedBy: 'brief-gate',
         }).catch((err) =>
           console.warn('[ws] brief crawl enqueue failed', (err as Error).message),
         );
       }
     }
-    this.briefMd = stored.body_md;
+    // 個人データ境界: 永続化済み brief (stored.body_md) には Memoria RAG 抜粋
+    // (受験者本人の ES / 過去回答本文) を焼き込んでいない (brief-builder.ts 参照)。
+    // 実際の注入はここで、この接続で取得済みの this.ragBlock を in-memory のみで
+    // 追記する — DB へは書き戻さない (再接続のたびに Memoria から取り直す)。
+    this.briefMd = this.ragBlock
+      ? `${stored.body_md}\n# ${RAG_SECTION_TITLE} (session 限定・非永続)\n\n${this.ragBlock}\n`
+      : stored.body_md;
 
     const planBrief = planBriefFromSourceMeta(stored.source_meta);
     if (!planBrief) {
@@ -291,8 +355,8 @@ export class SessionRuntime {
     const weakAxes = storedWeak.filter((a): a is AxisKey => (AXIS_KEYS as string[]).includes(a));
     this.plan = compileQuestionPlan(planBrief, weakAxes, mulberry32(stored.seed));
 
-    // 再接続時: 既に消化した interviewer turn 数ぶんカーソルを進める…は phase 履歴が
-    // 要るため、簡便に「現 phase の消化数 = 0」から再開する (プラン自体は同一)。
+    // 再接続時の planCursor / phaseState 復元は init() が metadata.phase_progress から
+    // 行う (このプラン自体は同 seed + 同ブリーフで決定的に再構築されるだけで良い)。
   }
 
   async onMessage(raw: string): Promise<void> {
@@ -346,19 +410,27 @@ export class SessionRuntime {
 
     // 非同期 judge: 直前の受験者回答を軽量モデルで評価し phase 信号を更新する。
     // 面接官応答は既に送信済みなので知覚レイテンシは増えない (engine spec §4.2 (c))。
-    // 鍵が無い dev では Brain が can 判定で skip → DEFAULT_SIGNALS (time-box 駆動) のまま。
-    if (this.brain.canAssess() && response.text.trim().length > 0) {
+    // blackbox 卒業ルールは ANTHROPIC_API_KEY 無しでも発火できる (LLM を経由しない自動判定が
+    // 本来の目的、spec §7.1) ため、canAssess() だけでゲートしない — blackbox が有効なら
+    // ルール不一致時のみ LLM フォールバックを試み、鍵が無ければ「明示的な」エラーで縮退する。
+    const canJudge = this.judgeBlackbox != null || this.brain.canAssess();
+    if (canJudge && response.text.trim().length > 0) {
       try {
         // blackbox 有効時: 卒業済みルールが hit すれば LLM をショートサーキット (spec §7.1)
         const signals = this.judgeBlackbox
           ? (
-              await decideJudgeSignals(this.judgeBlackbox, lastQuestion, text, () =>
-                this.brain.assessAnswer({
+              await decideJudgeSignals(this.judgeBlackbox, lastQuestion, text, () => {
+                if (!this.brain.canAssess()) {
+                  throw new Error(
+                    'judge blackbox: rule 不一致で LLM フォールバックが必要だが ANTHROPIC_API_KEY 未設定',
+                  );
+                }
+                return this.brain.assessAnswer({
                   question: lastQuestion,
                   answer: text,
                   recent: this.turns.slice(-4),
-                }),
-              )
+                });
+              })
             ).signals
           : await this.brain.assessAnswer({
               question: lastQuestion,
@@ -466,8 +538,12 @@ export class SessionRuntime {
       text_uri: `local:turn:${interviewerTurnNo}`,
     });
 
-    // TTS は付加経路 — 背景で流し、失敗しても面接 (テキスト) は止めない
-    void this.runTtsBackground(interviewerTurnNo, acc);
+    // TTS は付加経路 — 背景で流し、失敗しても面接 (テキスト) は止めない。
+    // ただし barge-in / session close でこの turn 自体が中断済みなら、
+    // 生成済みの部分応答を後から読み上げてしまわないよう再生自体をキャンセルする。
+    if (!aborter.signal.aborted) {
+      void this.runTtsBackground(interviewerTurnNo, acc);
+    }
 
     return { turnNo: interviewerTurnNo, text: acc };
   }
@@ -479,10 +555,31 @@ export class SessionRuntime {
       if (this.brain.canRefine() && this.phaseState.phase !== prevPhase) {
         void this.runRefineBackground();
       }
+      // 再接続時に opening から再出題しないよう、進行状況を都度 sessions.metadata へ
+      // snapshot する (init() の asPhaseProgress で復元)。
+      void this.persistPhaseProgress();
     }
 
     if (this.brain.canEvaluate() && interviewerTurnNo > 0 && interviewerTurnNo % EVAL_EVERY_N_TURNS === 0) {
       void this.runEvaluationBackground(interviewerTurnNo);
+    }
+  }
+
+  /** phaseState + planCursor の進行状況を sessions.metadata.phase_progress へ保存する。 */
+  private async persistPhaseProgress(): Promise<void> {
+    if (!this.phaseState) return;
+    try {
+      await patchSessionMetadata(this.sessionId, {
+        phase_progress: {
+          phase: this.phaseState.phase,
+          phaseTurnNo: this.phaseState.phaseTurnNo,
+          turnBudget: this.phaseState.turnBudget,
+          planCursor: this.planCursor,
+        },
+      });
+    } catch (err) {
+      // 保存失敗は進行そのものを止めない (次回復元がやや不正確になるだけの縮退)。
+      console.warn('[ws] phase progress persist failed', (err as Error).message);
     }
   }
 

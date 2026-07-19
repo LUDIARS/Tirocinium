@@ -34,6 +34,10 @@ const STT_RATE = 16000;
 const STT_CHANNELS = 1;
 const STT_FRAME_SIZE = 320; // 20ms @ 16kHz
 
+/** VOICEVOX 合成 (audio_query→synthesis) が詰まった場合のタイムアウト。
+ *  無ければ engine 側のハング/無応答で playTts が永久に await し続けうる。 */
+const TTS_FETCH_TIMEOUT_MS = 15_000;
+
 type OpusDecoderCtor = {
   new (opts: { rate: number; channels: number; frameSize: number }): import('node:stream').Transform;
 };
@@ -114,13 +118,20 @@ export async function playTts(
   ivClient: ImperativusClient,
 ): Promise<void> {
   const chunks: Uint8Array[] = [];
+  // engine (VOICEVOX 等) が無応答でも playTts が永久に詰まらないよう、
+  // fetch に AbortSignal.timeout を必ず付ける (session-runtime の runTtsBackground は
+  // barge-in の AbortController を持つが、こちらの Discord 経路には元々何も無かった)。
+  const timeoutSignal = AbortSignal.timeout(TTS_FETCH_TIMEOUT_MS);
   try {
     // Discord StreamType.Raw が期待する 48kHz stereo s16le を TTS 側に要求する
     // (VOICEVOX は audio_query の outputSamplingRate/outputStereo で対応。FFmpeg 不要)
-    for await (const chunk of ivClient.tts({
-      text,
-      format: { sampleRate: 48000, channels: 2, bitDepth: 16, encoding: 'pcm-s16le' },
-    })) {
+    for await (const chunk of ivClient.tts(
+      {
+        text,
+        format: { sampleRate: 48000, channels: 2, bitDepth: 16, encoding: 'pcm-s16le' },
+      },
+      timeoutSignal,
+    )) {
       chunks.push(chunk);
     }
   } catch (err) {

@@ -59,7 +59,11 @@ export async function loadQaSeed(stage: string, role: string): Promise<QaSeedRes
   let files: string[];
   try {
     files = (await readdir(stageDir)).filter((f) => f.endsWith('.json')).sort();
-  } catch {
+  } catch (err) {
+    // stage ディレクトリが無い (ENOENT) は「一般解シードなし」として静かに縮退する想定内。
+    // 権限エラー等の他 I/O 障害まで握り潰すと、設定不備 (マウント/権限) が
+    // 「シードが単に無い」ように見えてしまうため、ENOENT 以外は明示的にエラーとして扱う。
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
     return { items: [], fallbackRole: null };
   }
   if (files.length === 0) return { items: [], fallbackRole: null };
