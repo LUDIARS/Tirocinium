@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cernereAuth } from '../auth/cernere.js';
 import { tryStart } from '../reservation/coordinator.js';
 import { sql } from '../db/index.js';
+import { patchSessionMetadata } from '../db/session-metadata.js';
 import { config } from '../config.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 
@@ -33,11 +34,16 @@ sessions.post('/', sessionCreateLimiter, async (c) => {
 
   const decision = await tryStart(user.id);
   if (decision.kind === 'start') {
-    // 選択された面接官 / 志望情報を session に反映 (session-runtime が persona を読む)
+    // 選択された面接官 / 志望情報を session に反映 (session-runtime が persona を読む)。
+    // metadata は JSON.parse/stringify を介して安全にマージする — `metadata || sql.json(...)`
+    // は PG の jsonb 連結演算子であり、SQLite (metadata が TEXT 列) では文字列連結になって
+    // 不正 JSON ("{...}{...}") を生み、次回 init 時の JSON.parse でクラッシュしうるため。
     if (body.interviewer_id || body.target_company || body.target_role) {
+      if (body.interviewer_id) {
+        await patchSessionMetadata(decision.sessionId, { interviewer_id: body.interviewer_id });
+      }
       await sql`
         UPDATE sessions SET
-          metadata = metadata || ${sql.json({ interviewer_id: body.interviewer_id ?? null })},
           target_company = COALESCE(${body.target_company ?? null}, target_company),
           target_role = COALESCE(${body.target_role ?? null}, target_role)
         WHERE id = ${decision.sessionId}

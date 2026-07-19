@@ -146,6 +146,25 @@ async function main(): Promise<void> {
       lines.push(`| Q turn | A turn | ${brains.map(([n]) => `${n}: syn/contra/spec`).join(' | ')} | answer_len |`);
       lines.push(`|--------|--------|${brains.map(() => '---').join('|')}|---|`);
 
+      // 面接官 turn の本文は session_turns に生保存しない設計 (text_uri は
+      // 'local:turn:N' の placeholder であり質問本文ではない — 個人データ境界のため)。
+      // judge は「何を聞かれてどう答えたか」を評価する処理なので、text_uri をそのまま
+      // 渡すと評価不能な文字列を食わせることになる。決定的に再構築した plan は
+      // 実セッションと同じ順序で発話されている前提のため、interviewer turn の出現順
+      // (n 番目) を plan の n 番目のスロット本文に対応させて質問本文の近似値とする
+      // (Brain による persona 口調への整形や refineFocus 逸脱挿入までは再現しない、
+      // という限界はある — それでも local URI で評価するよりは遥かに意味がある)。
+      const interviewerQuestions = new Map<number, string>();
+      {
+        let slotIdx = 0;
+        for (const t of turns) {
+          if (t.role !== 'interviewer') continue;
+          const slot = plan[slotIdx];
+          if (slot) interviewerQuestions.set(t.turn_no, slot.question);
+          slotIdx++;
+        }
+      }
+
       const asTurn = (t: (typeof turns)[number]): Turn => ({
         turn_no: t.turn_no,
         role: t.role,
@@ -155,7 +174,7 @@ async function main(): Promise<void> {
         const q = turns[i]!;
         const a = turns[i + 1]!;
         if (q.role !== 'interviewer' || a.role !== 'user') continue;
-        const question = q.stt_text ?? q.text_uri;
+        const question = interviewerQuestions.get(q.turn_no) ?? q.stt_text ?? q.text_uri;
         const answer = a.stt_text ?? a.text_uri;
         const cells: string[] = [];
         for (const [, brain] of brains) {

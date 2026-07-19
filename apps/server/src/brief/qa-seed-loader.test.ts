@@ -27,6 +27,12 @@ describe('loadQaSeed', () => {
     expect(r.fallbackRole).toBeNull();
   });
 
+  it('ENOENT 以外の I/O 障害 (例: stage がディレクトリでない) は握り潰さず throw する', async () => {
+    // 'final/programmer.json' はファイルであり readdir 対象のディレクトリではないため、
+    // ENOTDIR (ENOENT ではない) で失敗する — 設定不備を「シードなし」に見せかけない。
+    await expect(loadQaSeed('final/programmer.json', 'programmer')).rejects.toThrow();
+  });
+
   it('axes は既知の 6 軸のみに濾過される', async () => {
     const r = await loadQaSeed('final', 'programmer');
     for (const item of r.items) {

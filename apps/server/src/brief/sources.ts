@@ -97,9 +97,9 @@ export async function getObPatterns(
   role: string,
 ): Promise<SourcedCandidate[]> {
   const rows = await sql<
-    { id: string; theme: string; question_pattern: string; followup_patterns: unknown; axes: unknown; contributor_alias: string }[]
+    { id: string; theme: string; question_pattern: string; followup_patterns: unknown; axes: unknown; contributor_aliases: unknown }[]
   >`
-    SELECT id, theme, question_pattern, followup_patterns, axes, contributor_alias
+    SELECT id, theme, question_pattern, followup_patterns, axes, contributor_aliases
     FROM ob_question_patterns
     WHERE company_id = ${companyId}
       AND stage IN (${stage}, '')
@@ -113,7 +113,8 @@ export async function getObPatterns(
     followups: asStringArray(r.followup_patterns),
     axes: asAxes(r.axes),
     origin: 'ob' as const,
-    contributorAlias: r.contributor_alias || undefined,
+    // 複数 OB が同一パターンに寄与し得るため、表示は "OB#aaa, OB#bbb" と連結する。
+    contributorAlias: asStringArray(r.contributor_aliases).join(', ') || undefined,
   }));
 }
 

@@ -2,6 +2,7 @@
 // claim → runCrawl で企業を upsert する常駐処理。 Web 取得を直列にすることで重複リクエストの
 // 無駄処理を避け、 対象サイトへの負荷も抑える。 spec/feature/companies/crawl-queue.md。
 
+import { getSource } from '@tirocinium/companies';
 import { config } from '../config.js';
 import { runCrawl } from './crawler.js';
 import { spawnChildEnrich } from './child-enrich-spawn.js';
@@ -41,9 +42,20 @@ async function tick(): Promise<void> {
     state.processed++;
     state.lastUrl = job.url;
     try {
-      // manual ソースは渡された URL をそのまま seed にする (sources.ts の manualSource)。
+      // job.source は本来「起票元の属性ラベル」(例: 'interview-brief') であり得るが、
+      // runCrawl() が要求するのは @tirocinium/companies に登録済みの crawl adapter id
+      // (manual/seed-file) のみ — 未登録の値を渡すと "unknown crawl source" で必ず失敗し、
+      // maxAttempts 尽きて永久に failed のまま残ってしまう。crawl_jobs は常に単一 URL を
+      // 直接処理する前提なので、未登録なら manual (渡された URL をそのまま seed にする、
+      // sources.ts の manualSource) にフォールバックするガードを入れる。
+      const adapterId = getSource(job.source) ? job.source : 'manual';
+      if (adapterId !== job.source) {
+        console.warn(
+          `[crawl-queue] source "${job.source}" は未登録の crawl adapter — manual にフォールバック`,
+        );
+      }
       const summary = await runCrawl({
-        source: job.source,
+        source: adapterId,
         urls: [job.url],
         maxPages: job.max_pages ?? undefined,
       });

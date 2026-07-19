@@ -3,6 +3,12 @@
 // セッション前にコンパイルし、セッション中は不変。md 見出しは固定。
 // 質問候補 (candidates) は source_meta に snapshot し、再接続時に
 // 「同じ seed + 同じ候補 = 同じプラン」で決定的に再コンパイルできるようにする。
+//
+// 個人データ境界 (CLAUDE.md): 履歴書 / ES / 面接ログの生保存は本サービスの責務外。
+// input.ragBlock (Memoria RAG 抜粋 = 受験者本人の ES・過去回答本文) はこの理由で
+// bodyMd/sourceMeta に焼き込まない — DB へ永続化される interview_briefs には
+// プレースホルダのみ残し、実際の RAG 注入は呼び出し側 (session-runtime) が
+// 接続ごとに Memoria から取得した内容を in-memory でのみ合成する (RAG_SECTION_TITLE 参照)。
 
 import type { PlanBrief, QuestionCandidate } from '@tirocinium/llm';
 import { canonicalRole } from '@tirocinium/llm';
@@ -23,8 +29,6 @@ export type BriefBuildInput = {
   /** 面接官ペルソナの md ブロック (buildInterviewerPromptBlock の出力) */
   personaBlock: string;
   weakTop3: string[];
-  /** Memoria RAG 抜粋 (renderRagBlock の出力。無ければ '') */
-  ragBlock: string;
   seed: number;
 };
 
@@ -35,6 +39,9 @@ export type BuiltBrief = {
   planBrief: PlanBrief;
   sufficiency: SufficiencyResult;
 };
+
+/** RAG 素材セクションの見出し。session-runtime が接続ごとに追記する際の目印として export する。 */
+export const RAG_SECTION_TITLE = '受験者の素材';
 
 function section(title: string, body: string): string {
   return `# ${title}\n\n${body.trim() || '(情報なし)'}\n`;
@@ -105,7 +112,12 @@ export async function buildInterviewBrief(input: BriefBuildInput): Promise<Built
       renderQuestionLines([...companyQs, ...obPs]) ||
         `(企業固有の質問プールなし — 一般解シード${qaSeed.fallbackRole ? ` [${qaSeed.fallbackRole} へ退避]` : ''} で実施)`,
     ),
-    section('受験者の素材', input.ragBlock),
+    section(
+      RAG_SECTION_TITLE,
+      '(Memoria RAG 抜粋 — 受験者本人の ES / 過去回答本文 — は個人データ境界のため ' +
+        'session DB へ生保存しない。接続ごとに Memoria から再取得し、in-memory でのみ ' +
+        'system prompt に追加注入する)',
+    ),
     section('面接官ペルソナ', input.personaBlock),
     section('今回の重点', input.weakTop3.length ? `弱点軸: ${input.weakTop3.join(', ')}` : '(弱点プロファイルなし)'),
   ].join('\n');
