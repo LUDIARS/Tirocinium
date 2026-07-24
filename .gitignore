@@ -50,6 +50,7 @@ tirocinium.config.json
 
 # 企業DBパイプライン生成物 (data/ 直下のみ; data/companies/ 等サブディレクトリは追跡)
 data/*.json
+data.zip
 
 # companies-viewer 用の生成データ
 companies-viewer/data.js
