@@ -1,0 +1,29 @@
+{
+  "name": "service-runtime",
+  "description": "Tirocinium を Excubitor 管理下のサービスとして起動・観測するための契約。catalog 断片が宣言する起動定義 (cwd / command / port / depends_on / health) と、プロセスが名乗る版・死活の返し方を扱う。面接・企業DB などの業務ロジック、および認証・DB 接続そのものはこのドメインに含めない。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    { "pathPattern": "^package\\.json$" },
+    { "pathPattern": "(^|/)apps/server/src/index\\.ts$" },
+    { "pathPattern": "(^|/)excubitor\\.catalog\\.yaml$" },
+    { "pathPattern": "(^|/)apps/server/src/version(\\.test)?\\.ts$" },
+    { "pathPattern": "(^|/)apps/server/src/routes/health(\\.test)?\\.ts$" },
+    { "pathPattern": "(^|/)apps/desktop/vite\\.config\\.ts$" },
+    { "pathPattern": "(^|/)spec/setup/service-runtime\\.md$" }
+  ],
+  "cardTemplate": "Summarise the \"service-runtime\" domain: Excubitor catalog による起動定義と、プロセスが名乗る版・死活エンドポイントの契約。",
+  "source": "spec",
+  "mechanics": [
+    "excubitor-catalog-declaration",
+    "runtime-version-reporting",
+    "health-readiness-split"
+  ],
+  "specRefs": [
+    "spec/setup/service-runtime.md#excubitor-catalog-断片",
+    "spec/setup/service-runtime.md#版と死活の契約"
+  ],
+  "rationale": "起動定義と「名乗る版」は一つの契約として動く。Excubitor は catalog の cwd にある package.json の version を EXCUBITOR_SERVICE_VERSION として注入し、health がそれを名乗り返すことで「注入した版」と「ディスクにある版」を突き合わせられる。片方だけ変えると health 200 のまま中身が古い事故を検出できなくなるため、同じ境界に置く。DB の生死は重い判定なので readiness 側へ分け、health は同期のまま返す。",
+  "lockedFields": ["*"],
+  "updatedAt": "2026-08-19T00:00:00.000Z"
+}

@@ -1,7 +1,7 @@
 {
   "name": "tirocinium",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "面接練習アプリ (ES/portfolio学習AI + 音声対話 + 複合LLM評価)",
   "workspaces": [
     "apps/*",

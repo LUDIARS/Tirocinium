@@ -1,16 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// このファイルをコピーして vite.config.ts を作成してください。
-// cp vite.config.example.ts vite.config.ts
-//
-// 外部ホスト (Cloudflare Tunnel / Tailscale 等) からアクセスする場合は
-// apps/desktop/.env.local に VITE_ALLOWED_HOSTS を設定してください:
-//
-//   VITE_ALLOWED_HOSTS=tirocinium.example.com
-//
-// vite.config.ts はドメイン情報を含むため gitignore 対象です。
-
 // API / WS は同一オリジン (このフロント) で受けて proxy で server(:8084) に流す。
 // これで (1) ブラウザのクロスオリジン CORS が不要になり、
 //      (2) Cloudflare Tunnel 等の外部ホスト経由でも localhost:8084 直叩き不要になる。

@@ -1,0 +1,47 @@
+# Excubitor catalog 断片 — このリポジトリが所有するサービス定義。
+# Excubitor が ${ARS_ROOT} 配下を走査して集積する (Excubitor/catalog/FRAGMENTS.md)。
+# top-level は services: のみ (project_versions 等の全体設定は持てない)。
+services:
+  - code: tirocinium
+    name: Tirocinium (面接練習エンジン)
+    tier: saas
+    project_code: tirocinium
+    component: backend
+    port: 8084
+    repo: LUDIARS/Tirocinium
+    runtime: node
+    cwd: ${ARS_ROOT}/Tirocinium
+    command: npm run dev:server
+    autostart: false
+    allow_hot_reload: true
+    health:
+      type: http
+      url: http://localhost:8084/api/health
+      interval_sec: 30
+    provides:
+      TIROCINIUM_URL: http://${host}:${port}
+
+  - code: tirocinium-desktop
+    name: Tirocinium Desktop (面接練習フロント)
+    tier: saas
+    project_code: tirocinium
+    component: frontend
+    port: 5178
+    depends_on:
+      - tirocinium
+    repo: LUDIARS/Tirocinium
+    runtime: node
+    cwd: ${ARS_ROOT}/Tirocinium
+    command: npm run dev:desktop
+    autostart: false
+    allow_hot_reload: true
+    # API/WS は同一オリジン (Vite proxy → server) で受ける。絶対 URL を入れると CORS で弾かれる
+    # ため VITE_SERVER_URL / VITE_WS_URL は設定せず、proxy の転送先だけ渡す (scripts/dev.mjs と同じ)。
+    env:
+      VITE_PROXY_TARGET: http://localhost:8084
+    health:
+      type: http
+      url: http://localhost:5178/
+      interval_sec: 30
+    provides:
+      TIROCINIUM_DESKTOP_URL: http://${host}:${port}

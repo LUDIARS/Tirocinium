@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { config } from './config.js';
-import { health } from './routes/health.js';
+import { health, readiness } from './routes/health.js';
 import { reservations } from './routes/reservations.js';
 import { sessions } from './routes/sessions.js';
 import { personas } from './routes/personas.js';
@@ -36,7 +36,10 @@ const app = new Hono();
 
 app.use('*', cors());
 
+app.route('/api/health', health);
+// 移行期の alias (旧パスの監視・スクリプトが残っているため当面残す)。
 app.route('/health', health);
+app.route('/api/readiness', readiness);
 app.route('/api/v1/reservations', reservations);
 app.route('/api/v1/sessions', sessions);
 app.route('/api/v1/sessions', summary);
