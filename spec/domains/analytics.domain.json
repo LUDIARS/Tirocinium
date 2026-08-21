@@ -1,0 +1,20 @@
+{
+  "name": "analytics",
+  "description": "利用状況の分析。 イベント集計と可視化のためのデータ整形。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)apps/server/src/analytics/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)packages/analytics/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)analytics-viewer/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/desktop/src/analytics/(?:.*/)?[^/]+$"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "realtime-channel",
+  "description": "常時接続の経路。 WebSocket と通知、 Discord への配信。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)apps/server/src/ws/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/server/src/notifications/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/server/src/discord/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/desktop/src/ws/(?:.*/)?[^/]+$"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "service-runtime",
+  "description": "プロセスとしての Tirocinium。 起動、 設定、 版数、 運用スクリプト。 catalog 断片が宣言する起動定義 (cwd / command / port / depends_on / health) と、 プロセスが名乗る版・死活の返し方を扱う。 面接・企業DB などの業務ロジック、 および認証・DB 接続そのものは、 より特定的な各ドメインが所有する。",
+  "presetRules": [],
+  "templateRules": [],
+  "specRefs": [
+    "spec/setup/service-runtime.md#excubitor-catalog-断片",
+    "spec/setup/service-runtime.md#版と死活の契約"
+  ],
+  "rationale": "起動定義と「名乗る版」は一つの契約として動く。Excubitor は catalog の cwd にある package.json の version を EXCUBITOR_SERVICE_VERSION として注入し、health がそれを名乗り返すことで「注入した版」と「ディスクにある版」を突き合わせられる。片方だけ変えると health 200 のまま中身が古い事故を検出できなくなるため、同じ境界に置く。DB の生死は重い判定なので readiness 側へ分け、health は同期のまま返す。末尾の apps/ · packages/ · docs/ の広域パターンは、 より特定的なドメインに一致しなかったファイルだけを受ける受け皿として置く。",
+  "membership": [
+    {
+      "pathPattern": "(^|/)apps/server/src/[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)scripts/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)packages/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)docs/(?:.*/)?[^/]+$"
+    }
+  ]
+}

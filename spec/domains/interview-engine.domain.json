@@ -1,0 +1,35 @@
+{
+  "name": "interview-engine",
+  "description": "面接エンジン。 面接官ペルソナ、 質問の選択と進行、 判定 (judge) と要約、 訓練ループ。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)apps/server/src/persona/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/server/src/judge-blackbox/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/server/src/summary/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/server/src/training/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/server/src/ft_loop/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)packages/training/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/server/src/brief/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/server/src/feedback/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/server/src/recommend/(?:.*/)?[^/]+$"
+    }
+  ]
+}

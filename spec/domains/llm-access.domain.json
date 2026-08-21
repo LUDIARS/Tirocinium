@@ -1,0 +1,11 @@
+{
+  "name": "llm-access",
+  "description": "LLM 呼び出しの共通境界。 モデル選択とプロンプト送出をここに閉じる。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)packages/llm/(?:.*/)?[^/]+$"
+    }
+  ]
+}

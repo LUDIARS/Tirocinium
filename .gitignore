@@ -54,3 +54,6 @@ companies-viewer/data.js
 # レビュー出力 (Castra 管理: E:/Document/Ars/Review/<repo>/<date>/)
 review/
 review.localbak/
+
+# Anatomia のローカル状態 (ドメイン定義の正本は spec/domains/)
+.anatomia/

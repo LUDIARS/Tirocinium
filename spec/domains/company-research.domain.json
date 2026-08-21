@@ -1,0 +1,32 @@
+{
+  "name": "company-research",
+  "description": "企業と求人の調査。 クロールと抽出、 企業データの正規化と保管、 OB パターンの整理。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)apps/server/src/companies/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)packages/companies/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/server/src/ob-patterns/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)companies-viewer/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)ob-jobs-viewer/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)newgrad-viewer/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)es-requests-viewer/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)backdoor-viewer/(?:.*/)?[^/]+$"
+    }
+  ]
+}

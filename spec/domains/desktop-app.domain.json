@@ -1,0 +1,11 @@
+{
+  "name": "desktop-app",
+  "description": "デスクトップアプリの画面。 面接の実施画面と各種ビュー。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)apps/desktop/(?:.*/)?[^/]+$"
+    }
+  ]
+}

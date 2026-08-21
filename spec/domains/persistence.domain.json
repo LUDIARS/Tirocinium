@@ -1,0 +1,11 @@
+{
+  "name": "persistence",
+  "description": "永続化。 スキーマとリポジトリ。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)apps/server/src/db/(?:.*/)?[^/]+$"
+    }
+  ]
+}

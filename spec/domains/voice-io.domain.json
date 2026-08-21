@@ -1,0 +1,14 @@
+{
+  "name": "voice-io",
+  "description": "音声の入出力。 発話合成と音声認識の境界。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)packages/voice/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/desktop/src/audio/(?:.*/)?[^/]+$"
+    }
+  ]
+}

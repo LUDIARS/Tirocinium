@@ -1,0 +1,20 @@
+{
+  "name": "identity-access",
+  "description": "認証と秘匿値。 利用者の識別と、 資格情報の保持。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)apps/server/src/auth/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/server/src/secrets/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)packages/secrets/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)apps/desktop/src/auth/(?:.*/)?[^/]+$"
+    }
+  ]
+}

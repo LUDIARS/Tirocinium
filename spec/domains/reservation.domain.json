@@ -1,0 +1,11 @@
+{
+  "name": "reservation",
+  "description": "面接枠の予約。 空き時間の提示と確定。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)apps/server/src/reservation/(?:.*/)?[^/]+$"
+    }
+  ]
+}
