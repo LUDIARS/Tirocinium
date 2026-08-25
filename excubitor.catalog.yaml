@@ -11,9 +11,11 @@ services:
     repo: LUDIARS/Tirocinium
     runtime: node
     cwd: ${ARS_ROOT}/Tirocinium
-    command: npm run dev:server
+    build_command: npm run build:server
+    command: npm --workspace apps/server start
     autostart: false
-    allow_hot_reload: true
+    restart_policy: on-failure
+    max_restart: 5
     health:
       type: http
       url: http://localhost:8084/api/health
@@ -32,9 +34,11 @@ services:
     repo: LUDIARS/Tirocinium
     runtime: node
     cwd: ${ARS_ROOT}/Tirocinium
-    command: npm run dev:desktop
+    build_command: npm --workspace apps/desktop run build
+    command: npm --workspace apps/desktop run preview -- --host 0.0.0.0 --port 5178 --strictPort
     autostart: false
-    allow_hot_reload: true
+    restart_policy: on-failure
+    max_restart: 5
     # API/WS は同一オリジン (Vite proxy → server) で受ける。絶対 URL を入れると CORS で弾かれる
     # ため VITE_SERVER_URL / VITE_WS_URL は設定せず、proxy の転送先だけ渡す (scripts/dev.mjs と同じ)。
     env:
