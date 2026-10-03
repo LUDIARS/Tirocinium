@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ludiars/one-shot": "file:../../lib/lapilli/packages/one-shot",
     "@anthropic-ai/sdk": "^0.30.0",
     "openai": "^4.68.0"
   },

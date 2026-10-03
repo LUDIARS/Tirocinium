@@ -7,7 +7,7 @@
 // 注意: Windows では claude CLI が CLAUDE_CODE_GIT_BASH_PATH を要求するため、
 //       server プロセスの env に設定しておくこと (spec/setup/windows-local-dev.md)。
 
-import { spawn } from 'node:child_process';
+import { spawnOneShot as spawn } from '@ludiars/one-shot';
 import type { Turn } from './types.js';
 
 export type ClaudeCliModel = 'sonnet' | 'haiku' | 'opus';
@@ -15,7 +15,7 @@ export type ClaudeCliModel = 'sonnet' | 'haiku' | 'opus';
 /**
  * claude CLI を print mode で 1 回呼び、応答テキスト全体を返す。
  * - プロンプトは stdin 経由 (Windows の引数長制限 ENAMETOOLONG 回避)。
- * - env はそのまま継承する。
+ * - モデル解決と購読認証用の環境分離は Lapilli が所有する。
  */
 export function runClaudeCli(prompt: string, model?: ClaudeCliModel): Promise<string> {
   return new Promise<string>((resolve, reject) => {
@@ -23,7 +23,7 @@ export function runClaudeCli(prompt: string, model?: ClaudeCliModel): Promise<st
     if (model) args.push('--model', model);
 
     const child = spawn('claude', args, {
-      shell: true,
+      cwd: process.cwd(),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
@@ -87,7 +87,7 @@ export async function* streamResponseCli(
   if (input.model) args.push('--model', input.model);
 
   const child = spawn('claude', args, {
-    shell: true,
+    cwd: process.cwd(),
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   child.stdout.setEncoding('utf8');
