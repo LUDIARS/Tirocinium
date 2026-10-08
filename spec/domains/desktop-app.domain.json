@@ -3,6 +3,7 @@
   "description": "デスクトップアプリの画面。 面接の実施画面と各種ビュー。",
   "presetRules": [],
   "templateRules": [],
+  "specRefs": ["spec/feature/inference/specialist-interviews.md"],
   "membership": [
     {
       "pathPattern": "(^|/)apps/desktop/(?:.*/)?[^/]+$"

@@ -1,6 +1,8 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { extractText, MODEL } from './anthropic.js';
 import { EVAL_INSTRUCTION } from './prompts.js';
+import type { SpecialistProfile } from './specialist-profile.js';
+import { specialistEvaluationPrompt } from './specialist-prompts.js';
 import { coerceAxes } from './coerce.js';
 import { AXIS_KEYS, type Axes, type Evaluation, type Turn } from './types.js';
 
@@ -24,6 +26,7 @@ export function clampAxes(raw: unknown): Axes {
 }
 
 export type EvaluateInput = {
+  specialist?: SpecialistProfile;
   turns: Turn[];
   turnRange: [number, number];
 };
@@ -40,7 +43,7 @@ async function evaluateOnce(
   const res = await client.messages.create({
     model: MODEL.EVALUATOR,
     max_tokens: 1024,
-    system: EVAL_INSTRUCTION,
+    system: EVAL_INSTRUCTION + specialistEvaluationPrompt(input.specialist),
     messages: [{ role: 'user', content: serializeHistory(input.turns) }],
   });
   return parseEvaluation(extractText(res.content));

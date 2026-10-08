@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { parseSpecialistProfile, type SpecialistProfile } from '@tirocinium/llm';
 import { cernereAuth } from '../auth/cernere.js';
 import { tryStart } from '../reservation/coordinator.js';
 import { sql } from '../db/index.js';
@@ -20,11 +21,29 @@ const sessionCreateLimiter = rateLimit({
 /** POST /api/v1/sessions — 即時開始 or 予約 offer */
 sessions.post('/', sessionCreateLimiter, async (c) => {
   const user = c.get('user');
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const raw: unknown = await c.req.json().catch(() => null);
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return c.json({ error: 'invalid_session_request' }, 400);
+  }
+  const body = raw as {
     interviewer_id?: string;
     target_company?: string;
     target_role?: string;
+    specialist_interview?: unknown;
   };
+
+  for (const value of [body.interviewer_id, body.target_company, body.target_role]) {
+    if (value !== undefined && typeof value !== 'string') return c.json({ error: 'invalid_session_request' }, 400);
+  }
+  let specialist: SpecialistProfile | undefined;
+  try {
+    specialist = parseSpecialistProfile(body.specialist_interview);
+  } catch {
+    return c.json({ error: 'invalid_specialist_interview' }, 400);
+  }
+  if (specialist && (body.interviewer_id || body.target_role !== specialist.role)) {
+    return c.json({ error: 'specialist_role_or_interviewer_conflict' }, 400);
+  }
 
   // users 行を遅延作成 (Cernere user_id mirror)
   await sql`
@@ -39,8 +58,10 @@ sessions.post('/', sessionCreateLimiter, async (c) => {
     // は PG の jsonb 連結演算子であり、SQLite (metadata が TEXT 列) では文字列連結になって
     // 不正 JSON ("{...}{...}") を生み、次回 init 時の JSON.parse でクラッシュしうるため。
     if (body.interviewer_id || body.target_company || body.target_role) {
-      if (body.interviewer_id) {
-        await patchSessionMetadata(decision.sessionId, { interviewer_id: body.interviewer_id });
+      if (body.interviewer_id || specialist) {
+        await patchSessionMetadata(decision.sessionId, specialist
+          ? { specialist_interview: specialist }
+          : { interviewer_id: body.interviewer_id });
       }
       await sql`
         UPDATE sessions SET

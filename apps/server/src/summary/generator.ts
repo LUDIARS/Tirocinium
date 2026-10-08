@@ -1,4 +1,4 @@
-import { createAnthropicClient, summarize, type Evaluation, type Turn } from '@tirocinium/llm';
+import { createAnthropicClient, summarize, specialistFromMetadata, type Evaluation, type Turn } from '@tirocinium/llm';
 import { sql } from '../db/index.js';
 import { upsertSummary } from './repo.js';
 
@@ -39,7 +39,12 @@ export async function generateSummaryForSession(sessionId: string): Promise<{ ok
   }));
 
   const client = createAnthropicClient();
-  const doc = await summarize(client, { turns, evaluations });
+  const sessions = await sql<{ metadata: unknown }[]>`
+    SELECT metadata FROM sessions WHERE id = ${sessionId}
+  `;
+  if (!sessions[0]) return { ok: false, reason: 'session_not_found' };
+  const specialist = specialistFromMetadata(sessions[0].metadata);
+  const doc = await summarize(client, { turns, evaluations, specialist });
 
   await upsertSummary({
     session_id: sessionId,

@@ -3,7 +3,7 @@
   "description": "LLM 呼び出しの共通境界。 モデル選択とプロンプト送出をここに閉じる。",
   "presetRules": [],
   "templateRules": [],
-  "specRefs": ["spec/feature/inference/model-profiles.md", "spec/feature/inference/shared-one-shot.md"],
+  "specRefs": ["spec/feature/inference/model-profiles.md", "spec/feature/inference/shared-one-shot.md", "spec/feature/inference/specialist-interviews.md"],
   "membership": [
     {
       "pathPattern": "(^|/)packages/llm/(?:.*/)?[^/]+$"

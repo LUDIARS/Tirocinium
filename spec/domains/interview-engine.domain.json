@@ -3,6 +3,7 @@
   "description": "面接エンジン。 面接官ペルソナ、 質問の選択と進行、 判定 (judge) と要約、 訓練ループ。",
   "presetRules": [],
   "templateRules": [],
+  "specRefs": ["spec/feature/inference/specialist-interviews.md"],
   "membership": [
     {
       "pathPattern": "(^|/)apps/server/src/persona/(?:.*/)?[^/]+$"

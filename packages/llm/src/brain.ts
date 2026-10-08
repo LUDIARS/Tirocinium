@@ -13,6 +13,7 @@ import { evaluate } from './evaluator.js';
 import { coerceFocus } from './coerce.js';
 import type { Evaluation, Turn } from './types.js';
 import type { QuestionSlot } from './question-plan.js';
+import type { SpecialistProfile } from './specialist-profile.js';
 
 export type UtteranceContext = {
   /** ブリーフ込みの積層 system prompt (組立は呼び出し側 = 決定的コアの責務)。 */
@@ -32,6 +33,7 @@ export type AssessContext = {
 export type RefineContext = { turns: Turn[] };
 
 export type EvalContext = {
+  specialist?: SpecialistProfile;
   turns: Turn[];
   turnRange: [number, number];
 };

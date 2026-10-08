@@ -10,6 +10,9 @@
 import type { WebSocket } from 'ws';
 import {
   buildSystemPrompt,
+  specialistFromMetadata,
+  specialistPersona,
+  type SpecialistProfile,
   buildInterviewerPromptBlock,
   createBrain,
   compileQuestionPlan,
@@ -127,6 +130,7 @@ export class SessionRuntime {
   private currentTurnNo = 0;
   private currentAbort: AbortController | null = null;
   private interviewer: InterviewerPersonaInput | null = null;
+  private specialist: SpecialistProfile | undefined;
   private weakTop3: string[] = [];
   private ragBlock = '';
   private refineBlock = '';
@@ -181,9 +185,12 @@ export class SessionRuntime {
       return;
     }
     const metadata = asObject(sess.metadata);
+    this.specialist = specialistFromMetadata(metadata);
 
     const interviewerId = typeof metadata['interviewer_id'] === 'string' ? metadata['interviewer_id'] : undefined;
-    if (interviewerId) {
+    if (this.specialist) {
+      this.interviewer = specialistPersona(this.specialist);
+    } else if (interviewerId) {
       const p = await getInterviewer(interviewerId);
       if (p) {
         this.interviewer = {
@@ -481,6 +488,7 @@ export class SessionRuntime {
         : null;
 
     const systemPrompt = buildSystemPrompt({
+      specialist: this.specialist,
       interviewer: this.interviewer,
       weakTop3: this.weakTop3,
       ragBlock: this.ragBlock || undefined,
@@ -725,6 +733,7 @@ export class SessionRuntime {
       const window = Math.max(0, upToTurnNo - EVAL_EVERY_N_TURNS);
       const slice = this.turns.filter((t) => t.turn_no > window && t.turn_no <= upToTurnNo);
       const ev = await this.brain.evaluate({
+        specialist: this.specialist,
         turns: slice,
         turnRange: [window + 1, upToTurnNo],
       });

@@ -10,6 +10,8 @@ export function SessionStart() {
   const [selected, setSelected] = useState<string>('');
   const [company, setCompany] = useState('');
   const [role, setRole] = useState('programmer');
+  const [specialist, setSpecialist] = useState(false);
+  const [level, setLevel] = useState<'entry' | 'experienced'>('entry');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -20,7 +22,8 @@ export function SessionStart() {
       const r = await api.start({
         target_company: company || undefined,
         target_role: role,
-        interviewer_id: selected || undefined,
+        interviewer_id: specialist ? undefined : selected || undefined,
+        specialist_interview: specialist ? { role, level } : undefined,
       });
       if ('session_id' in r) {
         navigate(`/session/${r.session_id}`);
@@ -55,14 +58,30 @@ export function SessionStart() {
         <label>
           志望職種:
           <select value={role} onChange={(e) => setRole(e.target.value)} style={{ marginLeft: 8 }}>
-            <option value="planner">planner</option>
-            <option value="programmer">programmer</option>
-            <option value="designer">designer</option>
-            <option value="sound">sound</option>
+            <option value="planner">プランナー</option>
+            <option value="programmer">プログラマー</option>
+            <option value="designer">デザイナー</option>
+            <option value="sound">サウンド</option>
           </select>
         </label>
       </div>
       <div className="card">
+        <label>
+          <input type="checkbox" checked={specialist} onChange={(e) => setSpecialist(e.target.checked)} />
+          専門面接（技術・制作・設計）を練習する
+        </label>
+        {specialist && <>
+          <p>選んだ職種の仮想面接官が、基礎から具体的な課題、検証方法まで掘り下げます。</p>
+          <label>経験レベル:
+            <select value={level} onChange={(e) => setLevel(e.target.value as 'entry' | 'experienced')} style={{ marginLeft: 8 }}>
+              <option value="entry">学生・未経験</option>
+              <option value="experienced">実務経験者</option>
+            </select>
+          </label>
+          <p>終了後のサマリーで専門分野の講評を確認できます。コードや作品の実行・検証は行いません。</p>
+        </>}
+      </div>
+      {!specialist && <div className="card">
         <h3 style={{ marginTop: 0 }}>面接官ペルソナ</h3>
         {loading && <p>読み込み中…</p>}
         {error && <p style={{ color: '#c62828' }}>取得失敗: {error.message}</p>}
@@ -87,9 +106,9 @@ export function SessionStart() {
             ))}
           </ul>
         )}
-      </div>
+      </div>}
       <div className="card">
-        <button onClick={onStart} disabled={submitting}>
+        <button onClick={onStart} disabled={submitting || (!specialist && !selected)}>
           {submitting ? '開始中…' : '面接を始める'}
         </button>
         {submitError && <p style={{ color: '#c62828' }}>{submitError}</p>}

@@ -14,6 +14,7 @@ export function useSessionApi() {
       target_company?: string;
       target_role?: string;
       interviewer_id?: string;
+      specialist_interview?: { role: string; level: 'entry' | 'experienced' };
     }): Promise<SessionStartResult> {
       return fetchJson<SessionStartResult>('/api/v1/sessions', token, {
         method: 'POST',

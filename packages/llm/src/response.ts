@@ -3,6 +3,8 @@ import { MODEL } from './anthropic.js';
 import type { ExamineePersonaInput, InterviewerPersonaInput, Turn } from './types.js';
 import type { Phase } from './phase.js';
 import { PHASE_GUIDANCE, DIALECTIC_PROBE } from './prompts.js';
+import type { SpecialistProfile } from './specialist-profile.js';
+import { specialistQuestionPrompt } from './specialist-prompts.js';
 
 const STAGE_LABEL: Record<string, string> = {
   hr: '人事 (1次)',
@@ -51,6 +53,7 @@ export function buildWeaknessBlock(weakTop3: string[]): string {
 
 export function buildSystemPrompt(opts: {
   interviewer: InterviewerPersonaInput;
+  specialist?: SpecialistProfile;
   weakTop3?: string[];
   ragBlock?: string;
   refineBlock?: string;
@@ -69,6 +72,7 @@ export function buildSystemPrompt(opts: {
       opts.phase ? '\n## 進行フェーズ\n' + PHASE_GUIDANCE[opts.phase] : '',
       dialectic ? '\n## 深掘りの型\n' + DIALECTIC_PROBE : '',
       '\n## 面接ブリーフ\n' + opts.briefMd,
+      specialistQuestionPrompt(opts.specialist),
       opts.refineBlock ? '\n## 次に深掘るべき論点\n' + opts.refineBlock : '',
     ].filter(Boolean).join('\n');
   }
@@ -78,6 +82,7 @@ export function buildSystemPrompt(opts: {
     dialectic ? '\n## 深掘りの型\n' + DIALECTIC_PROBE : '',
     '',
     buildInterviewerPromptBlock(opts.interviewer),
+    specialistQuestionPrompt(opts.specialist),
     opts.weakTop3 && opts.weakTop3.length ? '\n' + buildWeaknessBlock(opts.weakTop3) : '',
     opts.ragBlock ? '\n## 参考素材\n' + opts.ragBlock : '',
     opts.refineBlock ? '\n## 次に深掘るべき論点\n' + opts.refineBlock : '',
