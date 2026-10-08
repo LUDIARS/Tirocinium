@@ -12,6 +12,7 @@ export function SessionStart() {
   const [role, setRole] = useState('programmer');
   const [specialist, setSpecialist] = useState(false);
   const [level, setLevel] = useState<'entry' | 'experienced'>('entry');
+  const [specialistInterviewer, setSpecialistInterviewer] = useState<'field' | 'senior'>('field');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -23,7 +24,7 @@ export function SessionStart() {
         target_company: company || undefined,
         target_role: role,
         interviewer_id: specialist ? undefined : selected || undefined,
-        specialist_interview: specialist ? { role, level } : undefined,
+        specialist_interview: specialist ? { role, level, interviewer: specialistInterviewer } : undefined,
       });
       if ('session_id' in r) {
         navigate(`/session/${r.session_id}`);
@@ -78,6 +79,13 @@ export function SessionStart() {
               <option value="experienced">実務経験者</option>
             </select>
           </label>
+          <label style={{ display: 'block', marginTop: 8 }}>面接官:
+            <select value={specialistInterviewer} onChange={(e) => setSpecialistInterviewer(e.target.value as 'field' | 'senior')} style={{ marginLeft: 8 }}>
+              <option value="field">現場エンジニア（1次技術面接）</option>
+              <option value="senior">シニア・テックリード（2次技術面接）</option>
+            </select>
+          </label>
+          <p>面接官は ES と志望企業が求める新卒像から聞きたい要点を用意して質問します。逆質問への答えは練習用の架空の内容です。</p>
           <p>終了後のサマリーで専門分野の講評を確認できます。コードや作品の実行・検証は行いません。</p>
         </>}
       </div>

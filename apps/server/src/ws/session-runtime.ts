@@ -42,6 +42,7 @@ import { buildInterviewBrief, planBriefFromSourceMeta, RAG_SECTION_TITLE } from 
 import { getBrief, saveBriefIfAbsent } from '../brief/repo.js';
 import { enqueueCrawl } from '../companies/crawl-queue-repo.js';
 import { patchSessionMetadata } from '../db/session-metadata.js';
+import { prepareSpecialistFocus } from './specialist-focus-loader.js';
 import {
   decideJudgeSignals,
   getJudgeBlackbox,
@@ -145,6 +146,8 @@ export class SessionRuntime {
   /** phase → 消化済みスロット数 */
   private planCursor: Record<string, number> = {};
   private briefMd = '';
+  /** 専門面接の「聞きたい要点」。ES 由来のため in-memory のみ (接続ごとに作り直す)。 */
+  private focusBlock = '';
   private ivClient: ImperativusClient | null = null;
   private audioQueue: AsyncQueue<Uint8Array> | null = null;
   private sttPipeRunning = false;
@@ -249,6 +252,19 @@ export class SessionRuntime {
         // 本人特化は弱まるが session は止めない — RULE_CODE §7 の縮退)。
         console.warn('[ws] memoria rag failed', (err as Error).message);
       }
+    }
+
+    // 専門面接の要点は裏で用意する (最初の自己紹介の質問は要点を使わないため待たない)
+    if (this.specialist) {
+      void prepareSpecialistFocus({
+        brain: this.brain,
+        profile: this.specialist,
+        targetCompany: sess.target_company,
+        materials: this.ragBlock,
+        onReady: (block) => {
+          if (!this.closed) this.focusBlock = block;
+        },
+      });
     }
 
     // フェーズ状態機を初期化 (面接官ペルソナの圧で pressure phase の有無が決まる)
@@ -495,6 +511,7 @@ export class SessionRuntime {
       refineBlock: this.refineBlock || undefined,
       phase: this.phaseState?.phase,
       briefMd: this.briefMd || undefined,
+      focusBlock: this.focusBlock || undefined,
     });
 
     const tokenStream = this.brain.composeUtterance({

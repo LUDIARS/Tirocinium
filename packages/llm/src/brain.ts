@@ -6,7 +6,7 @@
 import { createAnthropicClient } from './anthropic.js';
 import { createOpenAIClient } from './openai.js';
 import { streamResponse } from './response.js';
-import { streamResponseCli } from './cli.js';
+import { runClaudeCli, streamResponseCli } from './cli.js';
 import { assessAnswer, type AnswerSignals } from './judge.js';
 import { refine } from './refine.js';
 import { evaluate } from './evaluator.js';
@@ -14,6 +14,7 @@ import { coerceFocus } from './coerce.js';
 import type { Evaluation, Turn } from './types.js';
 import type { QuestionSlot } from './question-plan.js';
 import type { SpecialistProfile } from './specialist-profile.js';
+import { focusPointsPrompt, parseFocusPoints, type FocusPoints, type FocusPromptInput } from './specialist-focus.js';
 
 export type UtteranceContext = {
   /** ブリーフ込みの積層 system prompt (組立は呼び出し側 = 決定的コアの責務)。 */
@@ -49,6 +50,8 @@ export interface InterviewerBrain {
   refineFocus(ctx: RefineContext): Promise<string | null>;
   /** 6 軸評価 (現 evaluator 相当)。 */
   evaluate(ctx: EvalContext): Promise<Evaluation>;
+  /** 専門面接の「聞きたい要点」(シニア / 現場)。生成できなければ null (呼び出し側が既定の要点を使う)。 */
+  listFocusPoints(ctx: FocusPromptInput): Promise<FocusPoints | null>;
   /** 鍵の有無による機能単位の有効/無効は Brain 内に閉じる。 */
   canCompose(): boolean;
   canAssess(): boolean;
@@ -148,6 +151,20 @@ export class LlmBrain implements InterviewerBrain {
       evaluate(createAnthropicClient({ apiKey: this.env['ANTHROPIC_API_KEY'] }), ctx),
     );
   }
+
+  /** 面接官発話と同じ経路 (CLI / API) で 1 回だけ生成する。 */
+  async listFocusPoints(ctx: FocusPromptInput): Promise<FocusPoints | null> {
+    if (!this.canCompose()) return null;
+    const prompt = focusPointsPrompt(ctx);
+    if (this.llmBackend === 'cli') return parseFocusPoints(await runClaudeCli(prompt, 'sonnet'));
+    let text = '';
+    const stream = streamResponse(createAnthropicClient({ apiKey: this.env['ANTHROPIC_API_KEY'] }), {
+      systemPrompt: prompt,
+      turns: [{ turn_no: 1, role: 'user', text: '要点を JSON で出力してください。' }],
+    });
+    for await (const chunk of stream) text += chunk;
+    return parseFocusPoints(text);
+  }
 }
 
 /** 決定的テンプレート Brain (テスト / golden transcript 用)。LLM を一切呼ばない。 */
@@ -193,6 +210,10 @@ export class StubBrain implements InterviewerBrain {
   }
 
   async refineFocus(_ctx: RefineContext): Promise<string | null> {
+    return null;
+  }
+
+  async listFocusPoints(_ctx: FocusPromptInput): Promise<FocusPoints | null> {
     return null;
   }
 

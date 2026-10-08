@@ -1,5 +1,6 @@
 export * from './types.js';
 export * from './specialist-profile.js';
+export * from './specialist-focus.js';
 export { createAnthropicClient, extractText, MODEL, resolveModels, type ModelRole } from './anthropic.js';
 export {
   evaluate,

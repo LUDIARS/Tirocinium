@@ -3,7 +3,14 @@ import type { CanonicalRole } from './role-aliases.js';
 import type { InterviewerPersonaInput } from './types.js';
 
 export type SpecialistRole = Exclude<CanonicalRole, 'general'>;
-export type SpecialistProfile = { role: SpecialistRole; level: 'entry' | 'experienced' };
+export type SpecialistLevel = 'entry' | 'experienced';
+/** field = 現場のエンジニア (1次技術面接)、senior = シニア / テックリード (2次技術面接)。 */
+export type SpecialistInterviewer = 'field' | 'senior';
+export type SpecialistProfile = {
+  role: SpecialistRole;
+  level: SpecialistLevel;
+  interviewer: SpecialistInterviewer;
+};
 
 export const SPECIALIST_ROLES: Record<SpecialistRole, { label: string; topics: string; criteria: string }> = {
   planner: {
@@ -28,6 +35,16 @@ export const SPECIALIST_ROLES: Record<SpecialistRole, { label: string; topics: s
   },
 };
 
+export const SPECIALIST_INTERVIEWERS: Record<SpecialistInterviewer, { label: string; stage: InterviewerPersonaInput['stage'] }> = {
+  field: { label: '現場エンジニア', stage: 'peer-tech' },
+  senior: { label: 'シニア (テックリード)', stage: 'lead-tech' },
+};
+
+/** 面接官の指定が無い旧セッションは、経験レベルから従来どおりの面接官を補う。 */
+function defaultInterviewer(level: SpecialistLevel): SpecialistInterviewer {
+  return level === 'entry' ? 'field' : 'senior';
+}
+
 /** 未指定は通常面接。不正な明示設定は通常面接へ黙って戻さない。 */
 export function parseSpecialistProfile(value: unknown): SpecialistProfile | undefined {
   if (value === undefined) return undefined;
@@ -35,7 +52,12 @@ export function parseSpecialistProfile(value: unknown): SpecialistProfile | unde
   const v = value as Record<string, unknown>;
   if (typeof v.role !== 'string' || !Object.hasOwn(SPECIALIST_ROLES, v.role)
     || (v.level !== 'entry' && v.level !== 'experienced')) throw new Error('invalid_specialist_interview');
-  return { role: v.role as SpecialistRole, level: v.level };
+  if (v.interviewer !== undefined && v.interviewer !== 'field' && v.interviewer !== 'senior') {
+    throw new Error('invalid_specialist_interview');
+  }
+  const level = v.level;
+  const interviewer = (v.interviewer as SpecialistInterviewer | undefined) ?? defaultInterviewer(level);
+  return { role: v.role as SpecialistRole, level, interviewer };
 }
 
 /** PG JSONB / SQLite TEXT の双方から、保存時と同じ検証で復元する。 */
@@ -45,13 +67,16 @@ export function specialistFromMetadata(metadata: unknown): SpecialistProfile | u
   return parseSpecialistProfile((value as Record<string, unknown>).specialist_interview);
 }
 
-/** 専門モードは固定の現場面接官を使い、人事ペルソナ等との矛盾を防ぐ。 */
+/** 専門モードは固定の技術面接官を使い、人事ペルソナ等との矛盾を防ぐ。 */
 export function specialistPersona(profile: SpecialistProfile): InterviewerPersonaInput {
+  const who = SPECIALIST_INTERVIEWERS[profile.interviewer];
   return {
-    display_name: `${SPECIALIST_ROLES[profile.role].label}専門面接官`,
-    stage: profile.level === 'entry' ? 'peer-tech' : 'lead-tech',
+    display_name: `${SPECIALIST_ROLES[profile.role].label}の${who.label}面接官`,
+    stage: who.stage,
     role_lens: profile.role,
-    temperament: '穏やかで具体的。根拠と検証方法を確認する',
+    temperament: profile.interviewer === 'senior'
+      ? '落ち着いて全体を見る。判断の根拠、成長の仕方、チームへの効き方を確認する'
+      : '穏やかで具体的。手を動かした範囲、詰まった所、検証方法を確認する',
     pressure: 3,
     tics: [],
     bio: '専門職の模擬面接を担当する仮想面接官。実在企業の採用担当者ではない。',

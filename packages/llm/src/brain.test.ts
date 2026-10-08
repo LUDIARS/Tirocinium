@@ -31,6 +31,11 @@ describe('StubBrain', () => {
     expect(text).toBe(SLOT.question);
   });
 
+  it('listFocusPoints は生成しない (runtime が既定の要点を使い続ける)', async () => {
+    const profile = { role: 'programmer', level: 'entry', interviewer: 'senior' } as const;
+    expect(await new StubBrain().listFocusPoints({ profile, newgrad: null, materials: '' })).toBeNull();
+  });
+
   it('スロット無しはターン数による定型文', async () => {
     const brain = new StubBrain();
     const text = await collect(brain.composeUtterance({ systemPrompt: '', turns: [] }));

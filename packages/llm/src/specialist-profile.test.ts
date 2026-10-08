@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SPECIALIST_ROLES, parseSpecialistProfile, specialistFromMetadata, specialistPersona } from './specialist-profile.js';
-import { specialistEvaluationPrompt, specialistQuestionPrompt } from './specialist-prompts.js';
+import { REVERSE_QUESTION_RULE, specialistEvaluationPrompt, specialistQuestionPrompt } from './specialist-prompts.js';
 import { buildSystemPrompt } from './response.js';
 
 describe('specialist interview contract', () => {
@@ -18,11 +18,25 @@ describe('specialist interview contract', () => {
           expect(buildSystemPrompt({ interviewer: persona, specialist: profile, briefMd }))
             .toContain(specialistQuestionPrompt(profile));
         }
+        expect(specialistQuestionPrompt(profile)).toContain(REVERSE_QUESTION_RULE);
         expect(specialistEvaluationPrompt(profile)).toContain('comment');
         expect(specialistEvaluationPrompt(profile, true)).toContain('interviewer_note');
       });
     }
   }
+
+  it('lets the field or senior interviewer be chosen independently of experience', () => {
+    for (const level of ['entry', 'experienced'] as const) {
+      for (const [interviewer, stage] of [['field', 'peer-tech'], ['senior', 'lead-tech']] as const) {
+        const profile = parseSpecialistProfile({ role: 'programmer', level, interviewer })!;
+        expect(profile.interviewer).toBe(interviewer);
+        expect(specialistPersona(profile).stage).toBe(stage);
+        expect(specialistFromMetadata(JSON.stringify({ specialist_interview: profile }))).toEqual(profile);
+      }
+    }
+    expect(() => parseSpecialistProfile({ role: 'programmer', level: 'entry', interviewer: 'hr' }))
+      .toThrow('invalid_specialist_interview');
+  });
 
   it('preserves legacy sessions and fails closed on explicit invalid profiles', () => {
     expect(specialistFromMetadata('{}')).toBeUndefined();

@@ -63,6 +63,8 @@ export function buildSystemPrompt(opts: {
    *  (ペルソナ/弱点/RAG) をブリーフに一本化し、system の不変部を最大化する。
    *  揮発するのは refineBlock と会話履歴のみ。 */
   briefMd?: string;
+  /** 専門面接の「聞きたい要点」(renderFocusBlock の出力)。ES 由来のため呼び出し側で非永続。 */
+  focusBlock?: string;
 }): string {
   // probe / pressure では弁証法サイクル (Micro 深掘り) を有効化
   const dialectic = opts.phase === 'probe' || opts.phase === 'pressure';
@@ -73,6 +75,7 @@ export function buildSystemPrompt(opts: {
       dialectic ? '\n## 深掘りの型\n' + DIALECTIC_PROBE : '',
       '\n## 面接ブリーフ\n' + opts.briefMd,
       specialistQuestionPrompt(opts.specialist),
+      opts.focusBlock ? '\n' + opts.focusBlock : '',
       opts.refineBlock ? '\n## 次に深掘るべき論点\n' + opts.refineBlock : '',
     ].filter(Boolean).join('\n');
   }
@@ -83,6 +86,7 @@ export function buildSystemPrompt(opts: {
     '',
     buildInterviewerPromptBlock(opts.interviewer),
     specialistQuestionPrompt(opts.specialist),
+    opts.focusBlock ? '\n' + opts.focusBlock : '',
     opts.weakTop3 && opts.weakTop3.length ? '\n' + buildWeaknessBlock(opts.weakTop3) : '',
     opts.ragBlock ? '\n## 参考素材\n' + opts.ragBlock : '',
     opts.refineBlock ? '\n## 次に深掘るべき論点\n' + opts.refineBlock : '',
