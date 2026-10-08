@@ -2,7 +2,17 @@
 // llm パッケージの index は claude CLI ヘルパー (@ludiars/one-shot) を巻き込むため、個別モジュールから読む
 import type { ExamineePersonaInput } from '../../packages/llm/src/types.js';
 import type { NewgradFocusInput } from '../../packages/llm/src/specialist-focus.js';
-import type { SpecialistProfile } from '../../packages/llm/src/specialist-profile.js';
+import type { SpecialistInterviewer, SpecialistProfile } from '../../packages/llm/src/specialist-profile.js';
+
+/** パネル面接の面接官 (架空)。interviewer が null の人は聞き役で話さない。 */
+export type PanelInterviewer = { id: string; name: string; title: string; interviewer: SpecialistInterviewer | null };
+
+/** 画面の左から順。senior が議長 (あいさつと締め)。 */
+export const PANEL: PanelInterviewer[] = [
+  { id: 'field', name: '岩田', title: '現場エンジニア (40代)', interviewer: 'field' },
+  { id: 'senior', name: '大森', title: 'テックリード (50代)', interviewer: 'senior' },
+  { id: 'observer', name: '長谷川', title: 'プロデューサー (聞き役)', interviewer: null },
+];
 
 export type SimScenario = {
   id: string;
@@ -15,6 +25,7 @@ export type SimScenario = {
   examinee: ExamineePersonaInput;
   /** 逆質問で聞くこと。面接官の手元の資料に無い社内事情を混ぜる。 */
   reverseQuestions: string[];
+  panel: PanelInterviewer[];
 };
 
 const COMPANY = '株式会社ルミナスゲームズ (架空)';
@@ -47,6 +58,7 @@ export const SCENARIOS: Record<string, SimScenario> = {
       intentional_flaws: ['数字を聞かれると少し曖昧になる', '性能面の制約は詳しくない'],
       bio: '自己紹介: 佐倉ひよりです。キャラクターと UI のデザインを学んでいて、チーム制作では主人公と HUD を担当しました。遊ぶ人が迷わない画面を作ることを大切にしています。',
     },
+    panel: PANEL,
     reverseQuestions: [
       '入社後、新人のデザイナーはどんな研修やレビューを受けて現場に入るのでしょうか。',
       'デザイナーとエンジニアは普段どのくらいの人数のチームで、どう連携していますか。',
@@ -74,6 +86,7 @@ export const SCENARIOS: Record<string, SimScenario> = {
       intentional_flaws: ['技術の話は詳しいが、なぜこの会社かの説明が弱い', 'チームでの摩擦の話は少し避けがち'],
       bio: '自己紹介: 高峰そうたです。C++ で 2D の物理エンジンを自作して、チームの横スクロールアクションで使いました。遅い所は計測してから直すのが信条です。',
     },
+    panel: PANEL,
     reverseQuestions: [
       '御社のタイトルでは、エンジンは内製と市販のどちらを使っていて、新人はどこから触ることが多いですか。',
       'テックリードの方から見て、1 年目で伸びる人と伸び悩む人の違いは何でしょうか。',
