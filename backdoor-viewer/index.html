@@ -302,14 +302,13 @@
     var el = $('es-requests');
     if (!requests.length) { el.innerHTML = '<p class="hint">届いているリクエストはありません。</p>'; return; }
     el.innerHTML = requests.map(function (r) {
-      var discord = r.student_discord_handle ? '<div class="es-discord">Discord: ' + escapeHtml(r.student_discord_handle) + '</div>' : '';
-      var note = r.request_note ? '<div class="es-note">' + escapeHtml(r.request_note) + '</div>' : '';
       return [
         '<div class="es-req">',
-        '<span class="es-student">' + escapeHtml(r.student_display_name || '在校生') + '</span>',
+        '<span class="es-student">在校生からの添削相談</span>',
         ' — ' + escapeHtml(r.target_company_name),
-        discord, note,
-        '<div class="job-actions"><button class="small" data-es-accept="' + escapeHtml(r.id) + '">引き受ける</button></div>',
+        r.status === 'matched'
+          ? '<div class="job-actions"><button data-review-connect="' + escapeHtml(r.id) + '">Botに接続</button><button data-review-close="' + escapeHtml(r.id) + '">相談を終了</button></div>'
+          : '<div class="job-actions"><button class="small" data-es-accept="' + escapeHtml(r.id) + '">引き受ける</button></div>',
         '</div>',
       ].join('');
     }).join('');
@@ -401,8 +400,7 @@
       fetch('/api/v1/backdoor/es-requests/' + esId + '/accept', { method: 'POST', headers: authHeaders() })
         .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
         .then(function (d) {
-          var h = d.request && d.request.student_discord_handle;
-          alert('引き受けました。' + (h ? '\n学生の Discord ハンドル: ' + h : '') + '\nDMしてESを受け取ってください。');
+            alert('引き受けました。「Botに接続」からTirocinium Botとの個別DMを接続してください。氏名・連絡先を含めずに返信してください。');
           loadEsRequests();
         })
         .catch(function () { alert('引き受けに失敗しました。すでに引き受け済みかもしれません。'); });
@@ -444,5 +442,6 @@
   else needLogin();
 })();
 </script>
+<script src="/api/v1/es-review/client.js"></script>
 </body>
 </html>

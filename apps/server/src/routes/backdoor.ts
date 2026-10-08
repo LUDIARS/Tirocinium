@@ -27,6 +27,7 @@ import {
   acceptEsRequest,
 } from '../companies/ob-es-requests-repo.js';
 import { pushNotification } from '../notifications/nuntius.js';
+import { reviewView } from '../es-review/view.js';
 
 const VIEWER_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../../backdoor-viewer');
 const OB_JOBS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../../ob-jobs-viewer');
@@ -156,32 +157,29 @@ backdoor.get('/es-requests', cernereAuth, async (c) => {
   const requests = await listPendingEsRequestsForOb(
     entry?.current_company_id ?? null,
     entry?.current_company ?? '',
+    user.id,
   );
-  return c.json({ requests });
+  return c.json({ requests: requests.map(reviewView) });
 });
 
 // リクエストを引き受ける (Web UI 経由)
 backdoor.post('/es-requests/:id/accept', cernereAuth, async (c) => {
   const user = c.get('user');
   const id = c.req.param('id');
-  const me = await getEntry(user.id);
-  const request = await acceptEsRequest(id, user.id, me?.display_name ?? '');
+  const request = await acceptEsRequest(id, user.id, 'OB');
   if (!request) return c.json({ error: 'not_found_or_already_matched' }, 404);
 
   // 学生本人へ Nuntius で「引き受けられた」通知 (Cernere user id 宛、 fire-and-forget)。
-  const discordHint = request.student_discord_handle
-    ? `\n相手の連絡先 (Discord): ${request.student_discord_handle}`
-    : '';
   void pushNotification({
     user_id: request.student_cernere_user_id,
     title: 'ES 添削相談が引き受けられました',
     body:
-      `${request.target_company_name} の OB (${request.matched_ob_display_name || '卒業生'}) が` +
-      `あなたの ES 添削相談を引き受けました。${discordHint}`,
+      `${request.target_company_name} の OB が ES 添削相談を引き受けました。` +
+      'Tirocinium の相談画面から Bot に接続してください。相手への直接連絡は不要です。',
     data: { kind: 'es_request_matched', request_id: request.id },
   });
 
-  return c.json({ request });
+  return c.json({ request: reviewView(request) });
 });
 
 // 裏口 view (静的 HTML)。 認証なしで開けるが、 操作には Cernere ログイン (Bearer) が要る。

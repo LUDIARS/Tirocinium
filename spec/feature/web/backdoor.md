@@ -1,5 +1,7 @@
 # 裏口 (卒業生の自己投稿面) — backdoor
 
+ES 添削は [Discord 仲介](es-discord-mediation.md) へ変更する。相手の名前・連絡先を返さず、Bot の個別 DM でテキストを中継する。在籍企業は本人の自己申告であり、雇用の実証ではない。
+
 Tirocinium を 3 つの「面」で運用する。 認証は 3 面とも Cernere に統一する。
 
 | 面 | 構成 | 認証 | Discord |
@@ -60,7 +62,8 @@ Tirocinium を 3 つの「面」で運用する。 認証は 3 面とも Cernere
 OB への到達通知は Discord DM ではなく **Nuntius** で行う (Cernere user id 宛)。
 
 - 学生が ES 相談を申し込む → 対象企業の OB 全員へ Nuntius push。
-- OB が引き受ける → 学生本人へ Nuntius push (引き受けた OB 名 + 任意の連絡先)。
+- OB が引き受ける → 学生本人へ Nuntius push (企業名と Tirocinium の相談画面への案内のみ)。
+- 双方が相談画面から一回限りのコードを取得し Bot の個別 DM に接続する。ES・質問・添削・再提出は相談番号付きで Bot が中継する。相手のアカウントや連絡先は返さない。
 
 ## 本体への接続
 

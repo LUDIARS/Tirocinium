@@ -55,7 +55,7 @@ function mapRequest(row: RequestRow): ObEsRequest {
   };
 }
 
-async function resolveCompanyId(companyName: string): Promise<string | null> {
+export async function resolveCompanyId(companyName: string): Promise<string | null> {
   const key = normalizeName(companyName);
   if (!key) return null;
   const rows = await sql<{ id: string }[]>`
@@ -93,39 +93,24 @@ export async function insertEsRequest(
 
 /**
  * OB が自分の会社宛てのリクエスト一覧を取得する。
- * company_id が解決できていれば id 照合、未解決なら normalized_name で名前照合。
+ * 企業IDで照合する。受諾済みの自分の相談は転職・登録削除後も終了操作のため返す。
  */
 export async function listPendingEsRequestsForOb(
   obCompanyId: string | null,
-  obCompanyName: string,
+  _obCompanyName: string,
+  obUserId = '',
 ): Promise<ObEsRequest[]> {
-  const normalizedObName = normalizeName(obCompanyName);
-  let rows: RequestRow[];
-
-  if (obCompanyId) {
-    rows = await sql<RequestRow[]>`
+  const rows = await sql<RequestRow[]>`
       SELECT id, student_cernere_user_id, student_display_name, student_discord_handle,
              target_company_name, target_company_id, status,
              matched_ob_cernere_user_id, matched_ob_display_name,
              request_note, created_at, updated_at
       FROM ob_es_requests
-      WHERE status = ${'pending'} AND target_company_id = ${obCompanyId}
+      WHERE (status = ${'pending'} AND target_company_id = ${obCompanyId}
+        AND student_cernere_user_id <> ${obUserId})
+        OR (status = 'matched' AND matched_ob_cernere_user_id = ${obUserId})
       ORDER BY created_at ASC
     `;
-  } else if (normalizedObName) {
-    const allPending = await sql<RequestRow[]>`
-      SELECT id, student_cernere_user_id, student_display_name, student_discord_handle,
-             target_company_name, target_company_id, status,
-             matched_ob_cernere_user_id, matched_ob_display_name,
-             request_note, created_at, updated_at
-      FROM ob_es_requests
-      WHERE status = ${'pending'}
-      ORDER BY created_at ASC
-    `;
-    rows = allPending.filter((r) => normalizeName(r.target_company_name) === normalizedObName);
-  } else {
-    rows = [];
-  }
 
   return rows.map(mapRequest);
 }
@@ -139,23 +124,18 @@ export async function acceptEsRequest(
   obCernereUserId: string,
   obDisplayName: string,
 ): Promise<ObEsRequest | null> {
-  const rows = await sql<RequestRow[]>`
-    SELECT id, student_cernere_user_id, student_display_name, student_discord_handle,
-           target_company_name, target_company_id, status,
-           matched_ob_cernere_user_id, matched_ob_display_name,
-           request_note, created_at, updated_at
-    FROM ob_es_requests
-    WHERE id = ${id} AND status = ${'pending'}
-  `;
-  if (!rows[0]) return null;
-
   const updated = await sql<RequestRow[]>`
     UPDATE ob_es_requests SET
       status = ${'matched'},
       matched_ob_cernere_user_id = ${obCernereUserId},
       matched_ob_display_name = ${obDisplayName},
       updated_at = ${new Date()}
-    WHERE id = ${id}
+    WHERE id = ${id} AND status = 'pending'
+      AND student_cernere_user_id <> ${obCernereUserId}
+      AND target_company_id IS NOT NULL
+      AND EXISTS (SELECT 1 FROM backdoor_alumni ob
+        WHERE ob.cernere_user_id = ${obCernereUserId}
+          AND ob.current_company_id = ob_es_requests.target_company_id)
     RETURNING id, student_cernere_user_id, student_display_name, student_discord_handle,
               target_company_name, target_company_id, status,
               matched_ob_cernere_user_id, matched_ob_display_name,

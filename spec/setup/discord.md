@@ -38,16 +38,21 @@ The bot needs these Gateway intents enabled in the Discord Developer Portal:
 - Server Members Intent is not required.
 - Message Content Intent is required.
 - Guild Messages and Guilds are used by the bridge.
+- Direct Messages is requested for private ES mediation. Each participant must allow a DM conversation with the bot.
 
 ## Commands
 
 - `!tr text [target]` starts a text interview in the current channel.
 - `!tr voice [target]` creates a Discord MTG voice channel and starts the interview flow.
 - `!tr end` ends the active interview for the current channel.
+- `!tr es connect <one-time-code>` connects a matched ES request from the authenticated Tirocinium page (private DM only).
+- `!tr es reply <private-alias> <text>` relays text to the other participant through the bot, without account identifiers or reply links.
+
+ES mediation uses Bot A, not an incoming webhook. Run migration `026_es_discord_mediation.sql` through the normal authorized migration workflow before using it. Both participants connect separately. Pairing expires after ten minutes; reissuing revokes the old connection. Text is limited to 1400 characters per message; attachments, contact links, and mentions are rejected. Close the request from Tirocinium to disable future replies. Discord keeps already delivered messages; Tirocinium stores routing/delivery metadata only. See [ES mediation](../feature/web/es-discord-mediation.md).
 
 After a session starts, Tr sends the first interviewer message. Non-command messages in that channel are treated as candidate answers until `!tr end`.
 
-## 裏口 (卒業生/OB 面) — Discord Bot は無し
+## 裏口 (卒業生/OB 面) — Cernere 認証、ES のみ Bot A 仲介
 
 裏口 (`spec/feature/web/backdoor.md`) の認証は **Cernere に統一**した。 旧 Bot B (`!ob` / マジックリンク) は
 撤去済み。 OB は裏口 view (`/backdoor`) に Cernere ログイン (`cernere_token` Bearer) して自己投稿・求人投稿・

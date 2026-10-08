@@ -17,11 +17,12 @@ import type { ServerFrame } from '../ws/frames.js';
 import { parseDiscordCommand, renderDiscordHelp, type DiscordInterviewMode } from './commands.js';
 import { buildVoiceAdapterBridge, type VoiceAdapterBridge } from './voice-adapter.js';
 import { subscribeVoiceAudio, createTtsPlayer, playTts } from './voice-bridge.js';
+import { handleReviewMessage } from '../es-review/discord-relay.js';
 
 const DISCORD_API = 'https://discord.com/api/v10';
 const DISCORD_GATEWAY = 'wss://gateway.discord.gg/?v=10&encoding=json';
 // GUILDS(1) | GUILD_VOICE_STATES(128) | GUILD_MESSAGES(512) | MESSAGE_CONTENT(32768)
-const INTENTS = 1 | 128 | 512 | 32768;
+const INTENTS = 1 | 128 | 512 | 4096 | 32768;
 const DISCORD_MESSAGE_LIMIT = 1900;
 
 type GatewayPayload = {
@@ -105,9 +106,13 @@ export async function startDiscordBridge(): Promise<() => void> {
 
   const activeSessions = new Map<string, ActiveDiscordSession>();
   const voiceAdapters = new Map<string, VoiceAdapterBridge>();
-  const gateway = new WebSocket(DISCORD_GATEWAY);
+  let gateway: WebSocket;
+  let reconnectTimer: NodeJS.Timeout | null = null;
+  let stopped = false;
   let heartbeatTimer: NodeJS.Timeout | null = null;
   let sequence: number | null = null;
+  let gatewaySessionId: string | null = null;
+  let gatewayUrl = DISCORD_GATEWAY;
   let botUserId: string | null = null;
 
   const rest = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
@@ -131,7 +136,7 @@ export async function startDiscordBridge(): Promise<() => void> {
     for (const chunk of chunks) {
       await rest(`/channels/${channelId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ content: chunk }),
+        body: JSON.stringify({ content: chunk, allowed_mentions: { parse: [] } }),
       });
     }
   };
@@ -272,6 +277,7 @@ export async function startDiscordBridge(): Promise<() => void> {
 
   const handleMessageCreate = async (message: DiscordMessage): Promise<void> => {
     if (message.author.bot) return;
+    if (await handleReviewMessage(message, config.discord.commandPrefix, sendMessage)) return;
     if (
       config.discord.allowedChannelIds.length > 0 &&
       !config.discord.allowedChannelIds.includes(message.channel_id)
@@ -300,15 +306,32 @@ export async function startDiscordBridge(): Promise<() => void> {
     }
   };
 
-  gateway.on('message', (raw) => {
+  const connectGateway = (): void => {
+    if (stopped) return;
+    gateway = new WebSocket(gatewayUrl);
+    gateway.on('message', (raw) => {
     void (async () => {
       const payload = JSON.parse(raw.toString()) as GatewayPayload;
       if (typeof payload.s === 'number') sequence = payload.s;
+      if (payload.op === 7 || payload.op === 9) {
+        if (payload.op === 9 && payload.d !== true) {
+          gatewaySessionId = null;
+          sequence = null;
+          gatewayUrl = DISCORD_GATEWAY;
+        }
+        gateway.close();
+        return;
+      }
       if (payload.op === 10) {
         const hello = payload.d as { heartbeat_interval: number };
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
         heartbeatTimer = setInterval(() => {
           gateway.send(JSON.stringify({ op: 1, d: sequence }));
         }, hello.heartbeat_interval);
+        if (gatewaySessionId && sequence !== null) {
+          gateway.send(JSON.stringify({ op: 6, d: { token: config.discord.botToken, session_id: gatewaySessionId, seq: sequence } }));
+          return;
+        }
         gateway.send(JSON.stringify({
           op: 2,
           d: {
@@ -324,7 +347,11 @@ export async function startDiscordBridge(): Promise<() => void> {
         return;
       }
       if (payload.t === 'READY') {
-        const ready = payload.d as { user?: { id: string } };
+        const ready = payload.d as { user?: { id: string }; session_id?: string; resume_gateway_url?: string };
+        gatewaySessionId = ready.session_id ?? null;
+        if (ready.resume_gateway_url && /^wss:\/\/[a-z0-9.-]+\.discord\.gg\/?$/i.test(ready.resume_gateway_url)) {
+          gatewayUrl = `${ready.resume_gateway_url.replace(/\/$/, '')}/?v=10&encoding=json`;
+        }
         botUserId = ready.user?.id ?? null;
         console.log('[discord] bridge ready');
         return;
@@ -348,8 +375,24 @@ export async function startDiscordBridge(): Promise<() => void> {
   });
 
   gateway.on('error', (err) => console.error('[discord] gateway error', err));
+    gateway.on('close', (code) => {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+      // Authentication / privileged-intent failures require configuration changes, not a retry loop.
+      if (stopped || [4004, 4010, 4011, 4012, 4013, 4014].includes(code)) return;
+      if ([4007, 4009].includes(code)) {
+        gatewaySessionId = null;
+        sequence = null;
+        gatewayUrl = DISCORD_GATEWAY;
+      }
+      reconnectTimer = setTimeout(connectGateway, 5_000);
+    });
+  };
+  connectGateway();
 
   return () => {
+    stopped = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     for (const active of activeSessions.values()) {
       void active.runtime.close();

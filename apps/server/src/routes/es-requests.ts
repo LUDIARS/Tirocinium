@@ -11,9 +11,11 @@ import {
   insertEsRequest,
   listEsRequestsByStudent,
   closeEsRequestByStudent,
+  resolveCompanyId,
 } from '../companies/ob-es-requests-repo.js';
 import { listObsForCompany } from '../companies/backdoor-repo.js';
 import { pushNotification } from '../notifications/nuntius.js';
+import { reviewView } from '../es-review/view.js';
 
 const VIEWER_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../../es-requests-viewer');
 
@@ -23,7 +25,7 @@ export const esRequests = new Hono();
 esRequests.get('/', cernereAuth, async (c) => {
   const user = c.get('user');
   const requests = await listEsRequestsByStudent(user.id);
-  return c.json({ requests });
+  return c.json({ requests: requests.map(reviewView) });
 });
 
 /** POST /api/v1/es-requests — ES 相談リクエストを作成 (Cernere 認証済の在校生のみ) */
@@ -33,13 +35,16 @@ esRequests.post('/', cernereAuth, async (c) => {
   const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
   const targetCompanyName = str(body.target_company_name);
   if (!targetCompanyName) return c.json({ error: 'target_company_name_required' }, 400);
+  if (targetCompanyName.length > 200 || !await resolveCompanyId(targetCompanyName)) {
+    return c.json({ error: 'registered_company_required' }, 400);
+  }
 
   const request = await insertEsRequest(
     user.id,
-    str(body.student_display_name) || user.id,
-    str(body.student_discord_handle),
+    '学生',
+    '',
     targetCompanyName,
-    str(body.request_note),
+    '',
   );
 
   // 対象企業にいる OB へ Nuntius で通知 (Cernere user id 宛、 非同期・fire-and-forget)
@@ -67,7 +72,7 @@ esRequests.post('/', cernereAuth, async (c) => {
     })();
   }
 
-  return c.json({ request }, 201);
+  return c.json({ request: reviewView(request) }, 201);
 });
 
 /** DELETE /api/v1/es-requests/:id — 自分のリクエストをクローズ (Cernere 認証済の在校生のみ) */

@@ -75,19 +75,7 @@
         <input id="f-company" type="text" placeholder="例: 株式会社サンプルゲームス" />
         <p class="hint">その企業に在籍するOBに届きます。</p>
       </div>
-      <div class="field">
-        <label for="f-name">お名前 (表示用)</label>
-        <input id="f-name" type="text" placeholder="例: 田中 花子" />
-      </div>
-      <div class="field">
-        <label for="f-discord">Discord ハンドル (任意)</label>
-        <input id="f-discord" type="text" placeholder="例: hanako_t" />
-        <p class="hint">OBが引き受けた後、Discord DM でESを送ってください。</p>
-      </div>
-      <div class="field">
-        <label for="f-note">補足・コメント</label>
-        <textarea id="f-note" rows="3" placeholder="志望理由や知りたいことなど (任意)"></textarea>
-      </div>
+      <p class="hint">OBが引き受けたら「Botに接続」から個別DMを接続できます。質問・ES本文・添削はBotが中継します。氏名や連絡先を除いたテキストを使ってください。添付ファイルは未対応です。相手のアカウントは表示しません。</p>
       <div class="actions">
         <button id="submit">相談を申し込む</button>
         <span id="submit-status" class="status"></span>
@@ -134,11 +122,10 @@
     var el = $('my-requests');
     if (!requests.length) { el.innerHTML = '<p class="hint" style="margin:0">申し込み中の相談はありません。</p>'; return; }
     el.innerHTML = requests.map(function (r) {
-      var ob = r.status === 'matched' && r.matched_ob_display_name
-        ? '<div class="req-ob">引き受けてくれたOB: ' + esc(r.matched_ob_display_name) + ' (DM をお待ちください)</div>'
+      var ob = r.status === 'matched'
+        ? '<button data-review-connect="' + esc(r.id) + '">Botに接続</button>'
         : '';
-      var note = r.request_note ? '<div class="req-note">' + esc(r.request_note) + '</div>' : '';
-      var canClose = r.status === 'pending';
+      var canClose = r.status !== 'closed';
       return [
         '<div class="req">',
         '<div class="req-head">',
@@ -146,8 +133,8 @@
         '<span class="req-status ' + esc(r.status) + '">' + statusLabel(r.status) + '</span>',
         '</div>',
         '<div class="req-meta">' + new Date(r.created_at).toLocaleDateString('ja-JP') + '</div>',
-        note, ob,
-        canClose ? '<div style="margin-top:8px"><button class="danger" data-close="' + esc(r.id) + '">取り下げる</button></div>' : '',
+        ob,
+        canClose ? '<div style="margin-top:8px"><button class="danger" data-review-close="' + esc(r.id) + '">相談を終了</button></div>' : '',
         '</div>',
       ].join('');
     }).join('');
@@ -179,15 +166,12 @@
     if (!company) { setStatus('submit-status', '企業名を入力してください', false); return; }
     var body = {
       target_company_name: company,
-      student_display_name: $('f-name').value.trim(),
-      student_discord_handle: $('f-discord').value.trim(),
-      request_note: $('f-note').value.trim(),
     };
     fetch('/api/v1/es-requests', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
       .then(function () {
         setStatus('submit-status', '相談を申し込みました', true);
-        $('f-company').value = ''; $('f-note').value = '';
+        $('f-company').value = '';
         loadRequests();
       })
       .catch(function () { setStatus('submit-status', '送信に失敗しました', false); });
@@ -206,5 +190,6 @@
   tryAuth();
 })();
 </script>
+<script src="/api/v1/es-review/client.js"></script>
 </body>
 </html>
