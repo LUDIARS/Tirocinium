@@ -19,6 +19,7 @@ import { PoliteFetcher } from './fetcher.js';
 import { loadNewsSources, selectActiveNewsSources, type NewsSourceConfig } from './news-config.js';
 import { insertNewJobPostings, replaceJobPostings, markNotified, type StoredJobPosting } from './job-postings-repo.js';
 import { notifyJobPostings } from './job-news-notify.js';
+import { deliverInternshipNews } from './job-news-webhook.js';
 
 export type JobNewsCrawlSummary = {
   sources: string[];
@@ -26,6 +27,7 @@ export type JobNewsCrawlSummary = {
   discovered: number; // 抽出した求人件数 (重複・既存含む)
   inserted: number; // 新規に保存した件数
   notified: number; // Nuntius 通知した件数
+  webhookStopped: boolean;
   robotsBlocked: number;
   errors: { url: string; message: string }[];
 };
@@ -45,6 +47,7 @@ export async function runJobNewsCrawl(
     discovered: 0,
     inserted: 0,
     notified: 0,
+    webhookStopped: false,
     robotsBlocked: 0,
     errors: [],
   };
@@ -66,6 +69,8 @@ export async function runJobNewsCrawl(
   const added: StoredJobPosting[] = [];
   for (const source of sources) {
     summary.sources.push(source.id);
+    const errorsBefore = summary.errors.length;
+    const blockedBefore = summary.robotsBlocked;
     const collected: JobPostingItem[] = [];
     for (const url of source.urls) {
       try {
@@ -79,6 +84,8 @@ export async function runJobNewsCrawl(
     summary.discovered += deduped.length;
     // job-listing / recruit-page は「現在の掲載」スナップショットで置換 (重複累積を防ぐ)。
     // rss はニュースログとして追記。
+    // 一部取得失敗でsnapshotを空/部分集合に置換すると翌朝に既知求人が新着になる。
+    if (source.kind !== 'rss' && (summary.errors.length > errorsBefore || summary.robotsBlocked > blockedBefore)) continue;
     const newItems = source.kind === 'rss'
       ? await insertNewJobPostings(deduped)
       : await replaceJobPostings(source.id, deduped);
@@ -87,7 +94,11 @@ export async function runJobNewsCrawl(
   summary.inserted = added.length;
 
   // 新着を Nuntius 通知 (宛先未設定なら no-op、 その場合 notified は立てない)。
-  if (added.length > 0) {
+  if (config.jobNews.discordWebhookUrl) {
+    const result = await deliverInternshipNews();
+    summary.notified = result.sent;
+    summary.webhookStopped = result.stopped;
+  } else if (added.length > 0) {
     const res = await notifyJobPostings(added);
     if (res.sent) {
       await markNotified(added.map((p) => p.id));

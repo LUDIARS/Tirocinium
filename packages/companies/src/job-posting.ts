@@ -51,6 +51,7 @@ export type JobListingEntry = {
 /** 新卒/未経験 を表すテキストキーワード (LLM フラグの取りこぼし補完用)。 */
 export const NEWGRAD_ELIGIBLE_KEYWORDS = [
   '新卒', '第二新卒', '未経験', '未経験者歓迎', '未経験可', '未経験ok', '経験不問', '学生', '26卒', '27卒',
+  'インターン', 'internship', '仕事体験', 'オープン・カンパニー',
 ];
 
 /**
@@ -71,6 +72,7 @@ export function isNewgradEligible(entry: JobListingEntry): boolean {
 export const HIRING_KEYWORDS = [
   '求人', '採用', '転職', '中途', '新卒', '内定', 'リクルート', '雇用',
   '求める人物', '人材募集', 'スタッフ募集', '採用説明会',
+  'インターン', 'internship', '仕事体験', 'オープン・カンパニー',
 ];
 
 /**
@@ -129,7 +131,8 @@ export const JOB_LISTING_INSTRUCTION = `
 }
 
 ルール:
-- 本文に実在する求人のみ。 創作しない。 不明な項目は空文字 / false。
+- 本文に実在する求人・インターンシップ・仕事体験・オープンカンパニーのみ。 創作しない。 不明な項目は空文字 / false。
+- 募集終了・受付停止と明記された項目は除く。インターン等の種別をtitleまたはemployment_typeに明記する。
 - ナビゲーション・広告・関連リンクは求人として列挙しない。
 - newgrad / inexperienced_ok は本文の表記 (新卒採用・新卒可・第二新卒・未経験歓迎・未経験OK・経験不問 等) から判断する。 中途/経験者のみの求人は両方 false。
 - 1 ページ (チャンク) から最大 40 件まで。

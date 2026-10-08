@@ -80,6 +80,8 @@ export const config = {
   jobNews: {
     enabled: false,
     dailyHour: 6, // 毎朝この時刻 (ローカル 0-23 時) に 1 回クロールする
+    timeZone: 'Asia/Tokyo',
+    discordWebhookUrl: '', // secret-agent / 暗号化設定のみ。ログに出さない。
     optInSources: [] as string[], // enabled=false の source を env で明示有効化 (例 gamebiz-jobs)
     notifyUserId: '', // Nuntius 通知先 user_id。 空なら通知しない (broadcast 相当の宛先)
     maxItemsPerSource: 60, // 1 ソース 1 回の取込み上限

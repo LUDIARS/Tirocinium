@@ -24,6 +24,11 @@ const entry = (over: Partial<JobListingEntry>): JobListingEntry => ({
 });
 
 describe('isHiringNews', () => {
+  it('インターンと仕事体験を採用情報として拾う', () => {
+    expect(isHiringNews(feed({ title: 'プログラマーのインターン募集' }))).toBe(true);
+    expect(isHiringNews(feed({ title: 'ゲーム制作の仕事体験' }))).toBe(true);
+    expect(isNewgradEligible(entry({ title: 'Summer internship' }))).toBe(true);
+  });
   it('タイトル/カテゴリに採用語があれば true', () => {
     expect(isHiringNews(feed({ title: '新卒採用を開始' }))).toBe(true);
     expect(isHiringNews(feed({ title: '中途エンジニアを採用' }))).toBe(true);

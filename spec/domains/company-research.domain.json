@@ -3,6 +3,7 @@
   "description": "企業と求人の調査。 クロールと抽出、 企業データの正規化と保管、 OB パターンの整理。",
   "presetRules": [],
   "templateRules": [],
+  "specRefs": ["spec/feature/companies/job-news.md", "spec/feature/companies/internship-webhook.md"],
   "membership": [
     {
       "pathPattern": "(^|/)apps/server/src/companies/(?:.*/)?[^/]+$"

@@ -97,6 +97,8 @@ export function applyServerConfig(
   // 求人ニュース クロール
   setBool('COMPANY_JOB_NEWS_ENABLED', (v) => { cfg.jobNews.enabled = v; });
   setNum('COMPANY_JOB_NEWS_DAILY_HOUR', (v) => { cfg.jobNews.dailyHour = v; });
+  set('COMPANY_JOB_NEWS_TIME_ZONE', (v) => { cfg.jobNews.timeZone = v; });
+  set('COMPANY_JOB_NEWS_DISCORD_WEBHOOK_URL', (v) => { cfg.jobNews.discordWebhookUrl = v; });
   set('COMPANY_JOB_NEWS_OPTIN_SOURCES', (v) => {
     cfg.jobNews.optInSources = v.split(',').map((s) => s.trim()).filter(Boolean);
   });

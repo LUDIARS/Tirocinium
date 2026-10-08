@@ -1,5 +1,21 @@
 [
   {
+    "id": "gamemakers-rss",
+    "kind": "rss",
+    "urls": ["https://gamemakers.jp/feed/"],
+    "hiringOnly": true,
+    "enabled": true,
+    "note": "ゲームメーカーズの公開RSS。2026-10-08にRSSとrobotsの公開を確認。採用・インターン関連記事を収集。通知はインターン関連に限定。"
+  },
+  {
+    "id": "career-tasu-game-internships",
+    "kind": "job-listing",
+    "urls": ["https://job.career-tasu.jp/intern-search/lst-industryL-800000/lst-industryM-802000/lst-industryS-802020/"],
+    "newgradOnly": false,
+    "enabled": true,
+    "note": "キャリタス就活のゲームソフト業界インターン・キャリア一覧。2026-10-08公開一覧とrobotsを確認。公開本文のみLLM抽出し、ログイン・応募操作は行わない。募集終了は抽出しない。実行時にもrobotsを尊重する。"
+  },
+  {
     "id": "gamebiz-rss",
     "kind": "rss",
     "urls": ["https://gamebiz.jp/feed.rss"],
