@@ -26,11 +26,15 @@ import { startDiscordBridge } from './discord/bridge.js';
 import { hydrateSecrets } from './secrets/hydrate.js';
 import { initSql } from './db/index.js';
 import { assertSafeAuthConfig } from './auth/cernere.js';
+import { loadCernerePublicKeys } from './auth/cernere-public-keys.js';
+import { authRoutes } from './routes/auth.js';
 
 // 起動順: hydrateSecrets → initSql → serve → Discord
 // hydrateSecrets が失敗 (secret-agent 不通) したら起動を止める。
 await hydrateSecrets();
 assertSafeAuthConfig();
+// CERNERE_PUBLIC_KEY が無ければ Cernere の公開鍵一覧を取得する (失敗しても起動は続ける。認証は 503 のまま)
+await loadCernerePublicKeys();
 initSql();
 
 const app = new Hono();
@@ -41,6 +45,7 @@ app.route('/api/health', health);
 // 移行期の alias (旧パスの監視・スクリプトが残っているため当面残す)。
 app.route('/health', health);
 app.route('/api/readiness', readiness);
+app.route('/api/auth', authRoutes);
 app.route('/api/v1/reservations', reservations);
 app.route('/api/v1/sessions', sessions);
 app.route('/api/v1/sessions', summary);

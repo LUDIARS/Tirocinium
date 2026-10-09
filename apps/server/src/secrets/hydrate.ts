@@ -16,6 +16,10 @@ export const SECRET_KEYS = [
   'TIROCINIUM_DEV_AUTH',
   'CERNERE_PUBLIC_KEY',
   'CERNERE_AUDIENCE',
+  // Cernere 埋め込みログイン (URL は Ex topology、credential は Ex の起動時発行)
+  'CERNERE_URL',
+  'CERNERE_PROJECT_CLIENT_ID',
+  'CERNERE_PROJECT_CLIENT_SECRET',
   // LLM バックエンド
   'TIROCINIUM_LLM_BACKEND',
   // LLM API キー (process.env に passthrough)

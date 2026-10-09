@@ -72,6 +72,9 @@ export function applyServerConfig(
   setBool('TIROCINIUM_DEV_AUTH', (v) => { cfg.devAuth = v; });
   set('CERNERE_PUBLIC_KEY', (v) => { cfg.cernerePublicKey = v; });
   set('CERNERE_AUDIENCE', (v) => { cfg.cernereAudience = v; });
+  set('CERNERE_URL', (v) => { cfg.cernere.url = v.replace(/\/+$/, ''); });
+  set('CERNERE_PROJECT_CLIENT_ID', (v) => { cfg.cernere.projectClientId = v; });
+  set('CERNERE_PROJECT_CLIENT_SECRET', (v) => { cfg.cernere.projectClientSecret = v; });
   set('TIROCINIUM_LLM_BACKEND', (v) => { cfg.llmBackend = v as 'api' | 'cli'; });
   setNum('SLOT_DURATION_MIN', (v) => { cfg.slotDurationMin = v; });
   setNum('SLOT_CAPACITY', (v) => { cfg.slotCapacity = v; });

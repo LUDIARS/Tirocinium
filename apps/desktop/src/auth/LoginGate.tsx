@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { CompositeLogin } from '@ludiars/cernere-composite/ui';
 import { useAuth } from './AuthContext.js';
+import { compositeAuthApi, exchangeAuthCode } from './session-api.js';
 import { DEV_AUTH } from '../config.js';
 
 export function LoginGate({ children }: { children: ReactNode }) {
@@ -14,91 +16,27 @@ export function LoginGate({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** Cernere の埋め込みログイン。成功すると authCode をサーバで Tirocinium 向け token に交換する。 */
 function LoginScreen() {
-  const { setToken } = useAuth();
-  const [value, setValue] = useState('');
+  const { setSession } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = value.trim();
-    if (!trimmed) {
-      setError('トークンを入力してください');
-      return;
-    }
-    // V4 PASETO は v4.public. or v4.local. プレフィックスを持つ
-    if (!/^v4\.(public|local)\./.test(trimmed)) {
-      setError('Cernere PASETO V4 トークンの形式ではありません');
-      return;
-    }
+  const onAuthCode = async (authCode: string) => {
     setError(null);
-    setToken(trimmed);
+    try {
+      setSession(await exchangeAuthCode(authCode));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ログインに失敗しました');
+    }
   };
 
   return (
     <div className="app-shell">
-      <main className="app-main">
-        <h2>Cernere ログイン</h2>
-        <div className="card">
-          <p>
-            Cernere から発行された <strong>PASETO V4 token</strong> を貼り付けてください。
-            開発時は <code>/api/auth/project-token</code> で取得した token を直接入力します。
-            (将来は OAuth フローに置換)
-          </p>
-          <form onSubmit={onSubmit}>
-            <textarea
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="v4.public.xxxxxxxx..."
-              rows={4}
-              style={{
-                width: '100%',
-                padding: 12,
-                borderRadius: 8,
-                border: '1px solid rgba(0,0,0,0.18)',
-                fontFamily: 'monospace',
-                fontSize: 12,
-              }}
-            />
-            {error && <p style={{ color: '#c62828' }}>{error}</p>}
-            <button
-              type="submit"
-              style={{
-                marginTop: 12,
-                padding: '8px 20px',
-                borderRadius: 8,
-                border: 'none',
-                background: '#2b5cff',
-                color: 'white',
-                cursor: 'pointer',
-              }}
-            >
-              ログイン
-            </button>
-          </form>
-          {DEV_AUTH && (
-            <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px dashed rgba(0,0,0,0.18)' }}>
-              <p style={{ fontSize: 12, opacity: 0.8 }}>
-                <strong>Dev モード</strong>: server が <code>TIROCINIUM_DEV_AUTH=1</code> のとき、
-                Cernere 無しで固定 dev ユーザとして開始できます。
-              </p>
-              <button
-                type="button"
-                onClick={() => setToken('dev')}
-                style={{
-                  padding: '8px 20px',
-                  borderRadius: 8,
-                  border: '1px solid #2b5cff',
-                  background: 'white',
-                  color: '#2b5cff',
-                  cursor: 'pointer',
-                }}
-              >
-                Dev ログイン (Cernere バイパス)
-              </button>
-            </div>
-          )}
-        </div>
+      <main className="app-main" style={{ maxWidth: 420, margin: '0 auto' }}>
+        <h2>Tirocinium にログイン</h2>
+        <p style={{ fontSize: 13, opacity: 0.8 }}>LUDIARS 共通アカウント (Cernere) でログインします。</p>
+        <CompositeLogin authApi={compositeAuthApi} onAuthCode={(code) => void onAuthCode(code)} />
+        {error && <p style={{ color: '#c62828' }}>{error}</p>}
       </main>
     </div>
   );

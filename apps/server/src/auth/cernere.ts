@@ -1,6 +1,7 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { V4 } from 'paseto';
 import { config } from '../config.js';
+import { verificationKeys } from './cernere-public-keys.js';
 
 export type CernerePayload = {
   sub: string;
@@ -51,19 +52,23 @@ export const cernereAuth: MiddlewareHandler = async (c, next) => {
   }
   const token = header.slice(7);
 
-  if (!config.cernerePublicKey) {
+  const keys = verificationKeys();
+  if (keys.length === 0) {
     // 開発時の安全弁: 鍵未設定なら 503 にして「沈黙の素通し」を防ぐ
     return c.json({ error: 'auth_not_configured' }, 503);
   }
 
-  let payload: CernerePayload;
-  try {
-    payload = (await V4.verify(token, config.cernerePublicKey, {
-      audience: config.cernereAudience,
-    })) as CernerePayload;
-  } catch (err) {
-    return c.json({ error: 'invalid_token' }, 401);
+  // Cernere は鍵をローテーションするので、現行 + 旧鍵のどれかで検証できれば受け付ける
+  let payload: CernerePayload | null = null;
+  for (const key of keys) {
+    try {
+      payload = (await V4.verify(token, key, { audience: config.cernereAudience })) as CernerePayload;
+      break;
+    } catch {
+      // 次の鍵を試す
+    }
   }
+  if (!payload) return c.json({ error: 'invalid_token' }, 401);
 
   // PASETO iat/exp は ISO 文字列で来る (LUDIARS 規約)。 念のため exp チェック。
   if (payload.exp && Date.parse(payload.exp) < Date.now()) {

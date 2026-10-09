@@ -8,6 +8,13 @@ export const config = {
   databaseUrl: '',  // 空 = SQLite (data/tirocinium.sqlite)。db/index.ts 参照。
   cernerePublicKey: '',
   cernereAudience: 'tirocinium',
+  // Cernere の埋め込みログイン (composite)。URL は Excubitor の topology が CERNERE_URL で配り、
+  // project credential は catalog の cernere_launch_credentials で起動ごとに注入される。
+  cernere: {
+    url: '',
+    projectClientId: '',
+    projectClientSecret: '',
+  },
   devAuth: false,
   devUserId: '00000000-0000-0000-0000-000000000001',
   llmBackend: 'api' as 'api' | 'cli',
