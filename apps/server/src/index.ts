@@ -28,6 +28,7 @@ import { initSql } from './db/index.js';
 import { assertSafeAuthConfig } from './auth/cernere.js';
 import { loadCernerePublicKeys } from './auth/cernere-public-keys.js';
 import { authRoutes } from './routes/auth.js';
+import { attachCernereCompositeWsRelay } from './auth/cernere-composite-ws-relay.js';
 
 // 起動順: hydrateSecrets → initSql → serve → Discord
 // hydrateSecrets が失敗 (secret-agent 不通) したら起動を止める。
@@ -79,6 +80,7 @@ const server = serve(
 );
 
 attachSessionWs(server as unknown as Parameters<typeof attachSessionWs>[0]);
+attachCernereCompositeWsRelay(server as unknown as Parameters<typeof attachCernereCompositeWsRelay>[0]);
 startTickScheduler();
 startEnrichQueue();
 startCrawlQueue();

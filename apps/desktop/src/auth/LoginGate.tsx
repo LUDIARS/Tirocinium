@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { CompositeLogin } from '@ludiars/cernere-composite/ui';
 import { useAuth } from './AuthContext.js';
-import { compositeAuthApi, exchangeAuthCode } from './session-api.js';
+import { TrCompositeAuthApi, exchangeAuthCode } from './session-api.js';
 import { DEV_AUTH } from '../config.js';
 
 export function LoginGate({ children }: { children: ReactNode }) {
@@ -20,6 +20,9 @@ export function LoginGate({ children }: { children: ReactNode }) {
 function LoginScreen() {
   const { setSession } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  // パスワード後の本人確認 (WS) はこの画面が持つ。離れるときに閉じる
+  const authApi = useMemo(() => new TrCompositeAuthApi(), []);
+  useEffect(() => () => authApi.dispose(), [authApi]);
 
   const onAuthCode = async (authCode: string) => {
     setError(null);
@@ -35,7 +38,7 @@ function LoginScreen() {
       <main className="app-main" style={{ maxWidth: 420, margin: '0 auto' }}>
         <h2>Tirocinium にログイン</h2>
         <p style={{ fontSize: 13, opacity: 0.8 }}>LUDIARS 共通アカウント (Cernere) でログインします。</p>
-        <CompositeLogin authApi={compositeAuthApi} onAuthCode={(code) => void onAuthCode(code)} />
+        <CompositeLogin authApi={authApi} onAuthCode={(code) => void onAuthCode(code)} />
         {error && <p style={{ color: '#c62828' }}>{error}</p>}
       </main>
     </div>
