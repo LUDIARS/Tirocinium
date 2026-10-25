@@ -6,6 +6,7 @@ import { sql } from '../db/index.js';
 import { patchSessionMetadata } from '../db/session-metadata.js';
 import { config } from '../config.js';
 import { rateLimit } from '../middleware/rate-limit.js';
+import { issueCallTicket } from '../ws/call-tickets.js';
 
 export const sessions = new Hono();
 
@@ -100,6 +101,18 @@ sessions.get('/:id', async (c) => {
   if (!s) return c.json({ error: 'not_found' }, 404);
   if (s.user_id !== user.id) return c.json({ error: 'forbidden' }, 403);
   return c.json({ session: s });
+});
+
+/** One-use browser voice connection; never put a Cernere bearer in a WS URL. */
+sessions.post('/:id/call-ticket', sessionCreateLimiter, async (c) => {
+  const id = c.req.param('id');
+  const userId = c.get('user').id;
+  const rows = await sql<{ id: string }[]>`SELECT id FROM sessions
+    WHERE id = ${id} AND user_id = ${userId} AND status = 'active'`;
+  c.header('Cache-Control', 'private, no-store');
+  if (!rows.length) return c.json({ error: 'not_found' }, 404);
+  return c.json({ ticket: issueCallTicket(id, userId), expires_in: 30,
+    ws_path: `/api/v1/ws/call/${id}` });
 });
 
 /** POST /api/v1/sessions/:id/end */

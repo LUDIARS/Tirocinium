@@ -18,6 +18,7 @@ import { backdoor, backdoorPage, obJobsPage } from './routes/backdoor.js';
 import { esRequests, esRequestsPage } from './routes/es-requests.js';
 import { reviewActions } from './es-review/routes.js';
 import { attachSessionWs } from './ws/handler.js';
+import { attachCallWs } from './ws/call-handler.js';
 import { startTickScheduler, stopTickScheduler } from './reservation/tick.js';
 import { startEnrichQueue, stopEnrichQueue } from './companies/enrich-queue.js';
 import { startCrawlQueue, stopCrawlQueue } from './companies/crawl-queue.js';
@@ -80,6 +81,8 @@ const server = serve(
 );
 
 attachSessionWs(server as unknown as Parameters<typeof attachSessionWs>[0]);
+attachCallWs(server as unknown as Parameters<typeof attachCallWs>[0],
+  (code) => console.error('[call]', code));
 attachCernereCompositeWsRelay(server as unknown as Parameters<typeof attachCernereCompositeWsRelay>[0]);
 startTickScheduler();
 startEnrichQueue();
