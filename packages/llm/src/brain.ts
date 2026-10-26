@@ -6,7 +6,8 @@
 import { createAnthropicClient } from './anthropic.js';
 import { createOpenAIClient } from './openai.js';
 import { streamResponse } from './response.js';
-import { runClaudeCli, streamResponseCli } from './cli.js';
+import { runClaudeCli } from './cli.js';
+import { composeInterviewerCli, interviewerModel, type InterviewerModel } from './interviewer-cli.js';
 import { assessAnswer, type AnswerSignals } from './judge.js';
 import { refine } from './refine.js';
 import { evaluate } from './evaluator.js';
@@ -83,7 +84,8 @@ async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 export type LlmBrainOptions = {
-  /** 面接官応答の経路。'cli' は claude CLI (-p)、'api' は Anthropic SDK。 */
+  interviewerModel?: InterviewerModel;
+  /** Existing focus-point backend. Spoken questions always use the selected Sol/Opus CLI. */
   llmBackend: 'api' | 'cli';
   env?: NodeJS.ProcessEnv;
 };
@@ -93,14 +95,16 @@ export class LlmBrain implements InterviewerBrain {
   readonly kind = 'llm' as const;
   private readonly llmBackend: 'api' | 'cli';
   private readonly env: NodeJS.ProcessEnv;
+  private readonly questionModel: InterviewerModel;
 
   constructor(opts: LlmBrainOptions) {
     this.llmBackend = opts.llmBackend;
     this.env = opts.env ?? process.env;
+    this.questionModel = interviewerModel(opts.interviewerModel ?? this.env['TIROCINIUM_INTERVIEWER_MODEL']);
   }
 
   canCompose(): boolean {
-    return this.llmBackend === 'cli' || Boolean(this.env['ANTHROPIC_API_KEY']);
+    return true; // Spoken CLI composition checks executable/auth on invocation, never API fallback.
   }
   canAssess(): boolean {
     return Boolean(this.env['ANTHROPIC_API_KEY']);
@@ -116,19 +120,9 @@ export class LlmBrain implements InterviewerBrain {
     const systemPrompt = ctx.slot
       ? `${ctx.systemPrompt}\n\n${renderSlotBlock(ctx.slot)}`
       : ctx.systemPrompt;
-    if (this.llmBackend === 'cli') {
-      return streamResponseCli({
-        systemPrompt,
-        turns: ctx.turns,
-        signal: ctx.signal,
-        model: 'sonnet',
-      });
-    }
-    return streamResponse(createAnthropicClient({ apiKey: this.env['ANTHROPIC_API_KEY'] }), {
-      systemPrompt,
-      turns: ctx.turns,
-      signal: ctx.signal,
-    });
+    // This question-only backend is independent of legacy llmBackend used for
+    // focus/other roles: selecting Sol never routes speech through Sonnet/API.
+    return composeInterviewerCli({ model: this.questionModel, systemPrompt, turns: ctx.turns, signal: ctx.signal });
   }
 
   assessAnswer(ctx: AssessContext): Promise<AnswerSignals> {

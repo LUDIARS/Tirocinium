@@ -22,6 +22,7 @@ export const SECRET_KEYS = [
   'CERNERE_PROJECT_CLIENT_SECRET',
   // LLM バックエンド
   'TIROCINIUM_LLM_BACKEND',
+  'TIROCINIUM_INTERVIEWER_MODEL',
   // LLM API キー (process.env に passthrough)
   'ANTHROPIC_API_KEY',
   'OPENAI_API_KEY',

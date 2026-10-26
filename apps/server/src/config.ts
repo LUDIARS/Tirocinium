@@ -2,6 +2,7 @@
 // ローカル開発だけ TIROCINIUM_DEV_AUTH=1 で固定 dev user を使える。
 
 export const config = {
+  interviewerModel: 'sol' as 'sol' | 'opus',
   port: 8084,
   // 既定は loopback。外部公開する場合は TIROCINIUM_HOST と Cernere 設定を必ず入れる。
   host: '127.0.0.1',

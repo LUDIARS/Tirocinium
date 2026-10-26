@@ -161,11 +161,11 @@ export class SessionRuntime {
     private readonly userId: string,
     opts: SessionRuntimeOptions = {},
   ) {
-    // LLM の有効/無効 (cli バックエンドは API キー不要、api は ANTHROPIC_API_KEY 前提、
-    // refine は OPENAI_API_KEY 前提) は Brain の can* に閉じている。
-    this.brain = opts.brain ?? createBrain({ llmBackend: config.llmBackend });
+    // Spoken questions require Sol/Opus CLI authentication. Other roles retain
+    // their existing API-key/backend checks inside Brain.can*.
+    this.brain = opts.brain ?? createBrain({ llmBackend: config.llmBackend, interviewerModel: config.interviewerModel });
     this.ttsOverWs = opts.ttsOverWs ?? true;
-    this.planEnabled = process.env['TIROCINIUM_QUESTION_PLAN'] === '1';
+    this.planEnabled = process.env['TIROCINIUM_QUESTION_PLAN'] !== '0';
     this.judgeBlackbox = judgeBlackboxEnabled() ? getJudgeBlackbox() : null;
     this.ivClient = createIvClient();
   }
@@ -329,6 +329,8 @@ export class SessionRuntime {
     let stored = await getBrief(this.sessionId);
     if (!stored) {
       const built = await buildInterviewBrief({
+        userId: this.userId,
+        experienceLevel: this.specialist?.level ?? (this.interviewer.stage === 'lead-tech' ? 'experienced' : 'entry'),
         stage: this.interviewer.stage,
         targetCompany,
         targetRole,

@@ -1,5 +1,14 @@
 # モデル構成 (論点 A) — 3 機種分担 vs collapse
 
+## 現行の面接官発話
+
+ユーザー指定により、実面接の Brain.composeUtterance は Sol (既定) または Opus の
+subscription CLI を使用する。`TIROCINIUM_INTERVIEWER_MODEL=sol|opus` で選択し、
+legacy `llmBackend=api` でも Sonnet API へ代替しない。サービス実行ユーザーの
+Codex/Claude CLI インストール・既存認証が必要。失敗時は明示エラーとする。
+以下の RESPONSE と profile 表は既存 API helper/旧 simulation の設定であり、
+実面接発話のモデル選択には適用されない。他 role は今回変更しない。
+
 面接推論エンジンのモデル割当を env で切り替え可能にし、「Sonnet 応答 / Opus 評価 /
 Haiku judge の 3 機種分担」を必要に応じて collapse できるようにする。
 

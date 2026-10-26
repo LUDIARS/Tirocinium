@@ -1,4 +1,6 @@
 export * from './types.js';
+export { selectTechnicalTopic, type ExperienceLevel } from './technical-topics.js';
+export { interviewerModel, interviewerLaunch, type InterviewerModel } from './interviewer-cli.js';
 export * from './specialist-profile.js';
 export * from './specialist-focus.js';
 export { createAnthropicClient, extractText, MODEL, resolveModels, type ModelRole } from './anthropic.js';

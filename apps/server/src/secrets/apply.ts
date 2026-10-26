@@ -76,6 +76,10 @@ export function applyServerConfig(
   set('CERNERE_PROJECT_CLIENT_ID', (v) => { cfg.cernere.projectClientId = v; });
   set('CERNERE_PROJECT_CLIENT_SECRET', (v) => { cfg.cernere.projectClientSecret = v; });
   set('TIROCINIUM_LLM_BACKEND', (v) => { cfg.llmBackend = v as 'api' | 'cli'; });
+  set('TIROCINIUM_INTERVIEWER_MODEL', (v) => {
+    if (v !== 'sol' && v !== 'opus') throw new Error('TIROCINIUM_INTERVIEWER_MODEL must be sol or opus');
+    cfg.interviewerModel = v;
+  });
   setNum('SLOT_DURATION_MIN', (v) => { cfg.slotDurationMin = v; });
   setNum('SLOT_CAPACITY', (v) => { cfg.slotCapacity = v; });
   setNum('NO_SHOW_TIMEOUT_MIN', (v) => { cfg.noShowTimeoutMin = v; });

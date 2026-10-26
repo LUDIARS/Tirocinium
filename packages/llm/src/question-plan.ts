@@ -13,6 +13,10 @@ export type AxisKey = keyof Axes;
 export type QuestionOrigin = 'company' | 'ob' | 'newgrad' | 'seed' | 'refine';
 
 export type QuestionSlot = {
+  required?: 'random-technical' | 'company-color' | 'ai-strategy';
+  topicId?: string;
+  selectionReason?: string;
+  evidence?: { url: string; fetchedAt: string; publishedAt: string | null; excerpt: string }[];
   theme: string;            // 例: ガクチカ / 志望動機 / 技術選定の根拠
   question: string;         // 言語化の種 (Brain が persona 口調に整形)
   followups: string[];      // 深掘り候補 (弁証法の「反」の種)
@@ -103,10 +107,15 @@ export function compileQuestionPlan(
     if (p !== 0) return p;
     return weakScore(b.axes, weakTop3) - weakScore(a.axes, weakTop3);
   });
+  // Required categories are selected before theme deduplication; an ordinary
+  // company question with the same title must not erase a reserved category.
+  const required = (['random-technical', 'company-color', 'ai-strategy'] as const)
+    .flatMap(kind => { const c = ranked.find(item => item.required === kind); return c ? [c] : []; });
   const dedup: QuestionCandidate[] = [];
   // opening/closing の定型テーマは候補側から除外する (同一テーマの二重質問を防ぐ)
-  const seenThemes = new Set<string>(['自己紹介', '逆質問']);
+  const seenThemes = new Set<string>(['自己紹介', '逆質問', ...required.map(c => c.theme.trim())]);
   for (const c of ranked) {
+    if (c.required) continue;
     const key = c.theme.trim();
     if (seenThemes.has(key)) continue;
     seenThemes.add(key);
@@ -114,12 +123,14 @@ export function compileQuestionPlan(
   }
 
   // pressure: followups を持つ候補から優先確保 (弁証法の「反」を仕込むため)
-  const pressurePool = dedup.filter((c) => c.followups.length > 0);
+  const requiredSet = new Set(required);
+  const pressurePool = dedup.filter((c) => !requiredSet.has(c) && c.followups.length > 0);
   const pressure = pressurePool.slice(0, PLAN_SLOT_COUNTS.pressure);
   const pressureSet = new Set(pressure);
 
   // probe: 残りから順に
-  const probe = dedup.filter((c) => !pressureSet.has(c)).slice(0, PLAN_SLOT_COUNTS.probe);
+  const probe = [...required, ...dedup.filter((c) => !requiredSet.has(c) && !pressureSet.has(c))]
+    .slice(0, PLAN_SLOT_COUNTS.probe);
 
   return [
     fixedSlot('opening'),

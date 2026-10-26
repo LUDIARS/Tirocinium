@@ -9,6 +9,19 @@ import { sql } from '../db/index.js';
 
 export type CompanyRef = { id: string; name: string; url: string };
 
+/** Newest-first recent selected topics, no applicant text. A bounded history rotates topics. */
+export async function recentTechnicalTopics(userId: string): Promise<string[]> {
+  const rows = await sql<{ source_meta: unknown }[]>`SELECT b.source_meta FROM interview_briefs b
+    JOIN sessions s ON s.id = b.session_id WHERE s.user_id = ${userId}
+    ORDER BY b.created_at DESC LIMIT 12`;
+  return rows.flatMap(row => {
+    try {
+      const meta = typeof row.source_meta === 'string' ? JSON.parse(row.source_meta) : row.source_meta;
+      return meta && typeof meta.technical_topic_id === 'string' ? [meta.technical_topic_id] : [];
+    } catch { return []; }
+  });
+}
+
 /** JSONB (PG) / TEXT (SQLite) 両対応の配列読出し。 */
 function asStringArray(v: unknown): string[] {
   const arr = typeof v === 'string' ? (JSON.parse(v) as unknown) : v;
