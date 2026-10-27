@@ -7,6 +7,9 @@ import { patchSessionMetadata } from '../db/session-metadata.js';
 import { config } from '../config.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import { issueCallTicket } from '../ws/call-tickets.js';
+import { bodyLimit } from 'hono/body-limit';
+import { clearMaterialDigest } from '../materials/material-store.js';
+import { submitMaterial } from '../materials/submit-material.js';
 
 export const sessions = new Hono();
 
@@ -115,6 +118,27 @@ sessions.post('/:id/call-ticket', sessionCreateLimiter, async (c) => {
     ws_path: `/api/v1/ws/call/${id}` });
 });
 
+/**
+ * POST /api/v1/sessions/:id/materials — 面接前に ES / ポートフォリオを 1 件提出する
+ * (spec/feature/voice/glab-material-interview.md §2)。Consult の資料読解スキルで要点を作るまで待って返す。
+ * 資料そのものは保存しない (要点もプロセスのメモリだけ)。
+ */
+sessions.post('/:id/materials', sessionCreateLimiter, bodyLimit({
+  maxSize: 7 * 1024 * 1024,
+  onError: (c) => c.json({ error: 'material_too_large' }, 413),
+}), async (c) => {
+  const id = c.req.param('id');
+  const userId = c.get('user').id;
+  c.header('Cache-Control', 'private, no-store');
+  const rows = await sql<{ id: string }[]>`SELECT id FROM sessions
+    WHERE id = ${id} AND user_id = ${userId} AND status = 'active'`;
+  if (!rows.length) return c.json({ error: 'not_found' }, 404);
+  const raw: unknown = await c.req.json().catch(() => null);
+  const result = await submitMaterial(id, userId, raw);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json({ ok: true, kind: result.kind, digest_chars: result.digestChars });
+});
+
 /** POST /api/v1/sessions/:id/end */
 sessions.post('/:id/end', async (c) => {
   const user = c.get('user');
@@ -126,5 +150,6 @@ sessions.post('/:id/end', async (c) => {
     RETURNING id
   `;
   if (result.length === 0) return c.json({ error: 'not_found_or_not_active' }, 404);
+  clearMaterialDigest(id);
   return c.json({ ok: true });
 });

@@ -3,6 +3,7 @@ import { WebSocketServer } from 'ws';
 import { sql } from '../db/index.js';
 import { SessionRuntime } from './session-runtime.js';
 import { consumeCallTicket } from './call-tickets.js';
+import { clearMaterialDigest } from '../materials/material-store.js';
 import { isClientFrame } from './frames.js';
 
 /** The first frame authenticates; credentials never appear in the request URL. */
@@ -34,6 +35,7 @@ export function attachCallWs(server: Server, reportFailure: (code: string) => vo
               await sql`UPDATE sessions SET status = 'ended', ended_at = now()
                 WHERE id = ${sessionId} AND user_id = ${userId} AND status = 'active'`;
             } finally {
+              clearMaterialDigest(sessionId);
               owners.delete(sessionId);
             }
           }

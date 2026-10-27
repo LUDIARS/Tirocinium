@@ -27,6 +27,9 @@
       "pathPattern": "(^|/)apps/server/src/brief/(?:.*/)?[^/]+$"
     },
     {
+      "pathPattern": "(^|/)apps/server/src/materials/(?:.*/)?[^/]+$"
+    },
+    {
       "pathPattern": "(^|/)apps/server/src/feedback/(?:.*/)?[^/]+$"
     },
     {

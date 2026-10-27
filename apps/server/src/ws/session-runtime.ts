@@ -39,6 +39,8 @@ import { sql } from '../db/index.js';
 import { getInterviewer } from '../persona/repo.js';
 import { applyEvaluation } from '../feedback/weakness-updater.js';
 import { buildInterviewBrief, planBriefFromSourceMeta, RAG_SECTION_TITLE } from '../brief/brief-builder.js';
+import { clearMaterialDigest, getMaterialDigest } from '../materials/material-store.js';
+import { materialInterviewSpeaker, renderMaterialBrief } from '../materials/material-brief.js';
 import { getBrief, saveBriefIfAbsent } from '../brief/repo.js';
 import { enqueueCrawl } from '../companies/crawl-queue-repo.js';
 import { patchSessionMetadata } from '../db/session-metadata.js';
@@ -134,6 +136,10 @@ export class SessionRuntime {
   private specialist: SpecialistProfile | undefined;
   private weakTop3: string[] = [];
   private ragBlock = '';
+  /** 提出資料の要点と面接官スキル (glab-material-interview.md §4)。session 限定・非永続。 */
+  private materialBlock = '';
+  /** 提出資料のある面接の VOICEVOX 話者。無ければ TTS provider の既定。 */
+  private ttsVoice: string | undefined;
   private refineBlock = '';
   private phaseState: PhaseState | null = null;
   private latestSignals: PhaseSignals = DEFAULT_SIGNALS;
@@ -254,13 +260,20 @@ export class SessionRuntime {
       }
     }
 
+    // 提出資料の要点 (POST /sessions/:id/materials で作成済み) をこの接続に載せる。
+    const material = getMaterialDigest(this.sessionId, this.userId);
+    if (material) {
+      this.materialBlock = renderMaterialBrief(material);
+      this.ttsVoice = materialInterviewSpeaker();
+    }
+
     // 専門面接の要点は裏で用意する (最初の自己紹介の質問は要点を使わないため待たない)
     if (this.specialist) {
       void prepareSpecialistFocus({
         brain: this.brain,
         profile: this.specialist,
         targetCompany: sess.target_company,
-        materials: this.ragBlock,
+        materials: [this.ragBlock, material?.digest].filter(Boolean).join('\n\n'),
         onReady: (block) => {
           if (!this.closed) this.focusBlock = block;
         },
@@ -367,6 +380,7 @@ export class SessionRuntime {
     this.briefMd = this.ragBlock
       ? `${stored.body_md}\n# ${RAG_SECTION_TITLE} (session 限定・非永続)\n\n${this.ragBlock}\n`
       : stored.body_md;
+    if (this.materialBlock) this.briefMd = `${this.briefMd}\n${this.materialBlock}`;
 
     const planBrief = planBriefFromSourceMeta(stored.source_meta);
     if (!planBrief) {
@@ -708,7 +722,7 @@ export class SessionRuntime {
       for (const sentence of splitSentences(text)) {
         if (aborter.signal.aborted || this.closed) return;
         for await (const chunk of this.ivClient.tts(
-          { text: sentence, format: WS_TTS_FORMAT },
+          { text: sentence, format: WS_TTS_FORMAT, voice: this.ttsVoice },
           aborter.signal,
         )) {
           if (aborter.signal.aborted || this.closed) return;
@@ -743,6 +757,7 @@ export class SessionRuntime {
       UPDATE sessions SET status = 'ended', ended_at = now()
       WHERE id = ${this.sessionId} AND status = 'active'
     `;
+    clearMaterialDigest(this.sessionId);
     this.send({ kind: 'system', code: 'closing' });
     this.ws.close();
   }

@@ -18,12 +18,26 @@ export type ClaudeCliModel = 'sonnet' | 'haiku' | 'opus';
  * - モデル解決と購読認証用の環境分離は Lapilli が所有する。
  */
 export function runClaudeCli(prompt: string, model?: ClaudeCliModel): Promise<string> {
+  return runClaudeCliWith(prompt, { model });
+}
+
+export type ClaudeCliRunOptions = {
+  model?: ClaudeCliModel;
+  /** 子プロセスの作業ディレクトリ (既定は server の cwd)。 */
+  cwd?: string;
+  /** `-p` / `--model` の後ろに足す引数 (ツール制限など)。 */
+  extraArgs?: readonly string[];
+};
+
+/** runClaudeCli の作業ディレクトリ・引数を指定できる版 (提出資料の読解は資料だけを置いた一時フォルダで動かす)。 */
+export function runClaudeCliWith(prompt: string, options: ClaudeCliRunOptions = {}): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const args = ['-p'];
-    if (model) args.push('--model', model);
+    if (options.model) args.push('--model', options.model);
+    if (options.extraArgs) args.push(...options.extraArgs);
 
     const child = spawn('claude', args, {
-      cwd: process.cwd(),
+      cwd: options.cwd ?? process.cwd(),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 

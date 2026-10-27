@@ -30,3 +30,5 @@ Acceptance plan (not executed without permission): owner/other-user authorizatio
 expired/reused/wrong-session tickets, failed microphone/API/WS setup cleanup,
 disconnect slot release, mute/barge-in/end, independent concurrent Odeum use and
 existing session regression. No tests or service starts authorized for this change.
+
+Submitted ES / portfolio before the call: [GLab material interview](glab-material-interview.md).
