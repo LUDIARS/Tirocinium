@@ -3,11 +3,10 @@
 // `<root>/interviewer/.agents/skills/<name>/SKILL.md` を読む (Tr は正本を持たない)。
 
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 export const MATERIAL_READER_SKILL = 'interviewer-material-reader';
 export const MOCK_INTERVIEW_SKILL = 'interviewer-mock-interview';
-const DEFAULT_CONSULT_ROOT = 'E:/Document/Consult';
 
 export type InterviewerSkills = { reader: string; interviewer: string };
 
@@ -18,8 +17,12 @@ export function stripFrontmatter(text: string): string {
   return (match ? normalized.slice(match[0].length) : normalized).trim();
 }
 
-export function consultRoot(env: NodeJS.ProcessEnv = process.env): string {
-  return (env['TIROCINIUM_CONSULT_ROOT'] ?? '').trim() || DEFAULT_CONSULT_ROOT;
+/**
+ * 既定は作業ルートの 1 つ上の `Consult` (Excubitor は `<作業ルート>/Tirocinium` を cwd に起動する。
+ * Concordia の相談の既定と同じ置き場所)。この PC 固有の絶対パスはリポに書かない。
+ */
+export function consultRoot(env: NodeJS.ProcessEnv = process.env, cwd: string = process.cwd()): string {
+  return (env['TIROCINIUM_CONSULT_ROOT'] ?? '').trim() || resolve(cwd, '..', '..', 'Consult');
 }
 
 export function skillPath(root: string, name: string): string {

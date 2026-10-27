@@ -1,6 +1,6 @@
 import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { consultRoot, loadInterviewerSkills, skillPath, stripFrontmatter } from './consult-skills.js';
 
 describe('Consult interviewer skills', () => {
@@ -20,6 +20,6 @@ describe('Consult interviewer skills', () => {
   });
   it('uses TIROCINIUM_CONSULT_ROOT when set', () => {
     assert.equal(consultRoot({ TIROCINIUM_CONSULT_ROOT: ' D:/Consult ' }), 'D:/Consult');
-    assert.equal(consultRoot({}), 'E:/Document/Consult');
+    assert.equal(consultRoot({}, resolve('/work', 'ars', 'Tirocinium')), resolve('/work', 'Consult'));
   });
 });
