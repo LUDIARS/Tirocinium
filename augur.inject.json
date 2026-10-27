@@ -1,0 +1,11 @@
+{
+  "service": "tirocinium",
+  "include": [
+    "packages/companies/src/html.ts",
+    "packages/companies/src/links.ts",
+    "packages/companies/src/rss.ts"
+  ],
+  "rules": {
+    "contract-wrap": true
+  }
+}

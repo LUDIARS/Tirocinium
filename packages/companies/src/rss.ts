@@ -1,8 +1,11 @@
+import { replaceDelimited, scanElements, scanOpeningTags, stripTags } from './markup-scan.js';
 // RSS 2.0 / RSS 1.0 (RDF) / Atom フィードを依存ゼロで item 列に parse する。
 // 求人ニュースソース (gamebiz / GameBusiness 等) の取得層が使う。
 // サイト固有の構造は持たず、 主要 3 方言の <item> / <entry> を緩く拾う純粋関数。
 
 import { decodeEntities } from './html.js';
+import { contract } from './contracts/runtime.js'; /* augur-inject:import:1b8d451f */
+import augurContract_8cc5e387 from './contracts/feed.contract.js'; /* augur-inject:contract-predicate:8993dd50 */
 
 /** フィード 1 件分の正規化済みエントリ。 */
 export type FeedItem = {
@@ -18,33 +21,24 @@ export type FeedItem = {
 
 /** CDATA とタグを落としてプレーンテキスト化する。 */
 function stripMarkup(s: string): string {
-  return decodeEntities(
-    s
-      .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
-      .replace(/<[^>]+>/g, ' '),
-  )
-    .replace(/\s+/g, ' ')
-    .trim();
+  return decodeEntities(stripTags(replaceDelimited(s, '<![CDATA[', ']]>', null)))
+    .replace(/\s+/g, ' ').trim();
 }
 
-/** 最初に一致したタグの内側テキストを返す (名前空間 prefix 任意)。 */
 function tagText(block: string, tag: string): string {
-  const re = new RegExp(`<(?:[a-zA-Z0-9]+:)?${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</(?:[a-zA-Z0-9]+:)?${tag}>`, 'i');
-  const m = re.exec(block);
-  return m ? stripMarkup(m[1]!) : '';
+  const opening = new RegExp(`<(?:[a-zA-Z0-9]+:)?${tag}(?=\\s|>)`, 'gi');
+  const closing = new RegExp(`</(?:[a-zA-Z0-9]+:)?${tag}>`, 'gi');
+  const first = scanElements(block, opening, closing)[0];
+  return first ? stripMarkup(first.content) : '';
 }
 
-/** Atom <link href="..."/> もしくは RSS <link>...</link> を拾う。 */
 function extractLink(block: string): string {
-  // Atom: rel="alternate" を優先、 無ければ最初の href。
-  const hrefs = [...block.matchAll(/<link\b[^>]*?href=["']([^"']+)["'][^>]*>/gi)];
-  if (hrefs.length > 0) {
-    const alt = hrefs.find((m) => /rel=["']alternate["']/i.test(m[0]));
-    return decodeEntities((alt ?? hrefs[0]!)[1]!).trim();
-  }
-  // RSS 2.0 / RDF: <link>URL</link>
-  const m = /<(?:[a-zA-Z0-9]+:)?link(?:\s[^>]*)?>([\s\S]*?)<\/(?:[a-zA-Z0-9]+:)?link>/i.exec(block);
-  return m ? stripMarkup(m[1]!) : '';
+  const hrefs = scanOpeningTags(block, /<link\b/gi).flatMap(opening => {
+    const href = /href=["']([^"']+)["']/i.exec(opening)?.[1];
+    return href ? [{ opening, href }] : [];
+  });
+  const selected = hrefs.find(item => /rel=["']alternate["']/i.test(item.opening)) ?? hrefs[0];
+  return selected ? decodeEntities(selected.href).trim() : tagText(block, 'link');
 }
 
 /** 各方言の日時表現を ISO8601 へ。 parse 不能は ''。 */
@@ -57,13 +51,16 @@ function parseDate(raw: string): string {
 
 /** 1 つの <item> / <entry> ブロックを FeedItem へ。 */
 function parseEntry(block: string): FeedItem {
-  const categories = [...block.matchAll(/<(?:[a-zA-Z0-9]+:)?(?:category|subject)(?:\s[^>]*)?>([\s\S]*?)<\/(?:[a-zA-Z0-9]+:)?(?:category|subject)>/gi)]
-    .map((m) => stripMarkup(m[1]!))
-    .filter(Boolean);
-  // term 属性型 (Atom <category term="..."/>) も拾う。
-  for (const m of block.matchAll(/<category\b[^>]*?term=["']([^"']+)["'][^>]*\/?>/gi)) {
-    const v = decodeEntities(m[1]!).trim();
-    if (v) categories.push(v);
+  const categories = scanElements(block,
+    /<(?:[a-zA-Z0-9]+:)?(?:category|subject)(?=\s|>)/gi,
+    /<\/(?:[a-zA-Z0-9]+:)?(?:category|subject)>/gi)
+    .map(element => stripMarkup(element.content)).filter(Boolean);
+  for (const opening of scanOpeningTags(block, /<category\b/gi)) {
+    const term = /term=["']([^"']+)["']/i.exec(opening)?.[1];
+    if (term) {
+      const value = decodeEntities(term).trim();
+      if (value) categories.push(value);
+    }
   }
   const publishedAt =
     parseDate(tagText(block, 'pubDate')) ||
@@ -86,13 +83,15 @@ function parseEntry(block: string): FeedItem {
 export function parseFeed(xml: string): FeedItem[] {
   const text = xml ?? '';
   const blocks = [
-    ...text.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi),
-    ...text.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi),
+    ...scanElements(text, /<item\b/gi, /<\/item>/gi),
+    ...scanElements(text, /<entry\b/gi, /<\/entry>/gi),
   ];
   const out: FeedItem[] = [];
   for (const m of blocks) {
-    const item = parseEntry(m[1]!);
+    const item = parseEntry(m.content);
     if (item.link) out.push(item);
   }
   return out;
 }
+// @ts-expect-error augur-inject
+parseFeed = contract(parseFeed, { ...augurContract_8cc5e387, contractId: 'C-3', mode: 'observe', sample: 1, where: 'packages/companies/src/rss.ts:81', rule: 'contract-wrap', id: '8cc5e387' }); /* augur-inject:contract-wrap:8cc5e387 */

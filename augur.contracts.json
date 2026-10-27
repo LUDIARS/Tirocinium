@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "contractsDir": "packages/companies/src/contracts",
+  "runtimeFile": "packages/companies/src/contracts/runtime.ts",
+  "importFrom": "./contracts/runtime.js",
+  "contracts": [
+    {
+      "id": "C-1",
+      "criterion": "C-1 htmlToText(html): 可視テキストの互換性を維持し、未終端マークアップを線形走査する",
+      "symbol": "htmlToText",
+      "file": "packages/companies/src/html.ts",
+      "module": "packages/companies/src/contracts/html.contract.ts",
+      "sample": 1
+    },
+    {
+      "id": "C-2",
+      "criterion": "C-2 extractAnchors(html): href と可視ラベルを維持し、未終端アンカーを線形走査する",
+      "symbol": "extractAnchors",
+      "file": "packages/companies/src/links.ts",
+      "module": "packages/companies/src/contracts/anchors.contract.ts",
+      "sample": 1
+    },
+    {
+      "id": "C-3",
+      "criterion": "C-3 parseFeed(xml): RSS・Atom の正規化を維持し、未終端要素を線形走査する",
+      "symbol": "parseFeed",
+      "file": "packages/companies/src/rss.ts",
+      "module": "packages/companies/src/contracts/feed.contract.ts",
+      "sample": 1
+    }
+  ]
+}

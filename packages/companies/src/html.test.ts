@@ -15,6 +15,15 @@ describe('htmlToText', () => {
   it('truncates to maxChars', () => {
     expect(htmlToText('<p>' + 'あ'.repeat(100) + '</p>', 10)).toHaveLength(10);
   });
+
+  it('removes mixed raw elements in document order and decodes visible text', () => {
+    expect(htmlToText('<!--hidden--><p>A &amp; B</p><STYLE>"<script>"</STYLE><p>C</p><script>"</style>"</script>'))
+      .toBe('A & B\nC');
+    expect(htmlToText('<noscript>hidden</noscript><svg>hidden</svg><template>hidden</template><br>visible'))
+      .toBe('visible');
+    expect(htmlToText('İ<script>hidden</script><p>visible</p>')).toBe('İ visible');
+    expect(htmlToText('<><b>visible</b>')).toBe('<> visible');
+  });
 });
 
 describe('extractTitle / extractMetaDescription', () => {

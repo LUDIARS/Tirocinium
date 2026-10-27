@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { extractAiEvidence, isOfficialSite } from './ai-evidence.js';
 
 describe('official AI evidence boundary', () => {
+  it('finishes 128 KiB of unterminated titles under one second', () => {
+    const started = performance.now();
+    const html = '<title'.repeat(Math.ceil(131072 / 6)) + '<p>AI policy</p>';
+    expect(extractAiEvidence(html, 'https://example.com', '2026-10-26T00:00:00Z')[0]?.title).toBe('');
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
   it('allows official subdomains but excludes external recruitment, credentials and suffix tricks', () => {
     const root = 'https://www.example.com';
     expect(isOfficialSite('https://ir.example.com/strategy', root)).toBe(true);

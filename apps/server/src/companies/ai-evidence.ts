@@ -24,7 +24,8 @@ export function isOfficialSite(url: string, companyUrl: string): boolean {
 
 /** Preserve contextual negative statements; markers are NOT adoption assertions. */
 export function extractAiEvidence(html: string, url: string, fetchedAt: string): AiEvidence[] {
-  const title = (html.match(/<title[^>]*>([^<]{0,300})<\/title>/i)?.[1] ?? '').trim();
+  // Bound the attribute scan and reject nested '<' before it can restart quadratically.
+  const title = (html.match(/<title[^><]{0,2000}>([^<]{0,300})<\/title>/i)?.[1] ?? '').trim();
   // Only explicitly labelled publication dates; arbitrary years are not publication dates.
   const rawDate = html.match(/(?:article:published_time|datePublished)["'\s:= content]+(\d{4}-\d{2}-\d{2}(?:T[^"'<>\s]+)?)/i)?.[1];
   const publishedAt = rawDate && Number.isFinite(Date.parse(rawDate)) ? rawDate : null;

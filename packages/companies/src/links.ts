@@ -1,25 +1,27 @@
+import { scanElements, stripTags } from './markup-scan.js';
 // 企業サイト HTML から enrichment 対象リンク (IR / 理念 / 会社概要 / 採用) を選ぶ。 純粋関数。
 // アンカーの可視テキストと href 語彙でカテゴリ分けし、 相対 URL は base で絶対化する。
 
 import { decodeEntities } from './html.js';
 import type { EnrichmentLinks } from './types.js';
+import { contract } from './contracts/runtime.js'; /* augur-inject:import:57a29012 */
+import augurContract_2f559b50 from './contracts/anchors.contract.js'; /* augur-inject:contract-predicate:becdfd80 */
 
 type Anchor = { href: string; text: string };
 
-const ANCHOR_RE = /<a\b[^>]*\bhref\s*=\s*["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-
-/** HTML から <a href> を抽出 (テキストはタグ除去)。 */
+/** HTML ?? <a href> ??? (?????????)? */
 export function extractAnchors(html: string): Anchor[] {
   const out: Anchor[] = [];
-  let m: RegExpExecArray | null;
-  ANCHOR_RE.lastIndex = 0;
-  while ((m = ANCHOR_RE.exec(html)) !== null) {
-    const href = m[1]!.trim();
-    const text = decodeEntities(m[2]!.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+  for (const element of scanElements(html, /<a\b/gi, /<\/a>/gi)) {
+    const attr = /\bhref\s*=\s*["']([^"'#]+)["']/i.exec(element.opening);
+    const href = attr?.[1]?.trim();
+    const text = decodeEntities(stripTags(element.content)).replace(/\s+/g, ' ').trim();
     if (href) out.push({ href, text });
   }
   return out;
 }
+// @ts-expect-error augur-inject
+extractAnchors = contract(extractAnchors, { ...augurContract_2f559b50, contractId: 'C-2', mode: 'observe', sample: 1, where: 'packages/companies/src/links.ts:11', rule: 'contract-wrap', id: '2f559b50' }); /* augur-inject:contract-wrap:2f559b50 */
 
 const VOCAB: Record<keyof EnrichmentLinks, { text: RegExp; href: RegExp }> = {
   ir: {
