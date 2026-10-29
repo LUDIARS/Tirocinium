@@ -7,6 +7,10 @@ add_library(tr_core STATIC
   core/paseto.cpp
   core/url.cpp
   core/ip_policy.cpp
+  core/llm/engine.cpp
+  core/llm/prompts.cpp
+  core/llm/output.cpp
+  core/domain/domain.cpp
   http/message.cpp
   http/router.cpp
   http/cors.cpp

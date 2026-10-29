@@ -47,10 +47,11 @@ if(WIN32)
 endif()
 
 if(MSVC)
-  add_compile_options(/utf-8 /W4 /permissive- /bigobj)
+  add_compile_options(/utf-8 /W4 /permissive- /bigobj /fp:precise)
   add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00)
 else()
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  # 浮動小数点の積和を融合しない (FMA で JS と丸めが変わると決定的な結果がずれるため)。
+  add_compile_options(-Wall -Wextra -Wpedantic -ffp-contract=off)
 endif()
 
 add_subdirectory(src)
