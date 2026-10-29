@@ -11,6 +11,7 @@ add_library(tr_core STATIC
   core/llm/prompts.cpp
   core/llm/output.cpp
   core/domain/domain.cpp
+  core/rate_limit.cpp
   http/message.cpp
   http/router.cpp
   http/cors.cpp
@@ -30,7 +31,8 @@ add_library(tr_io STATIC
   io/http_server.cpp
   io/http_client.cpp
   io/tls_roots.cpp
-  io/pg_pool.cpp)
+  io/pg_pool.cpp
+  io/process.cpp)
 target_link_libraries(tr_io PUBLIC tr_core tr_crypto tr_boost OpenSSL::SSL OpenSSL::Crypto PostgreSQL::PostgreSQL
   Threads::Threads)
 if(WIN32)
@@ -43,6 +45,9 @@ add_library(tr_app STATIC
   app/config.cpp
   app/auth.cpp
   app/secrets.cpp
+  app/session_state.cpp
+  app/one_shot.cpp
+  app/llm.cpp
   app/version.cpp
   app/paths.cpp
   app/migrate.cpp
