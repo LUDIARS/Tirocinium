@@ -4,8 +4,14 @@ function(tr_test name)
   target_link_libraries(${name} PRIVATE ${ARGN})
   lorica_harden_target(${name})
   add_test(NAME tirocinium.${name} COMMAND ${name})
+  target_compile_definitions(${name} PRIVATE TR_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
   set_tests_properties(tirocinium.${name} PROPERTIES
-    ENVIRONMENT "TR_FIXTURES=${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
+    ENVIRONMENT "TR_FIXTURES=${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
+    SKIP_RETURN_CODE 77)
+  if(name MATCHES "^pg_")
+    # 同じ一時 DB を使うので直列に流す。
+    set_tests_properties(tirocinium.${name} PROPERTIES RESOURCE_LOCK tirocinium_pg LABELS pg)
+  endif()
 endfunction()
 
 tr_test(core_json_tests tr_core)
@@ -13,3 +19,6 @@ tr_test(core_text_time_tests tr_core)
 tr_test(http_router_tests tr_app)
 tr_test(app_config_tests tr_app)
 tr_test(io_http_server_tests tr_app)
+tr_test(auth_paseto_tests tr_app)
+tr_test(db_decode_tests tr_app)
+tr_test(pg_db_tests tr_app)
