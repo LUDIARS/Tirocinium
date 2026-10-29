@@ -5,6 +5,8 @@ add_library(tr_core STATIC
   core/time.cpp
   core/encoding.cpp
   core/paseto.cpp
+  core/url.cpp
+  core/ip_policy.cpp
   http/message.cpp
   http/router.cpp
   http/cors.cpp
@@ -22,15 +24,21 @@ lorica_harden_target(tr_crypto)
 # tr_io: 外部 I/O の adapter (Beast の HTTP/WS)。
 add_library(tr_io STATIC
   io/http_server.cpp
+  io/http_client.cpp
+  io/tls_roots.cpp
   io/pg_pool.cpp)
 target_link_libraries(tr_io PUBLIC tr_core tr_crypto tr_boost OpenSSL::SSL OpenSSL::Crypto PostgreSQL::PostgreSQL
   Threads::Threads)
+if(WIN32)
+  target_link_libraries(tr_io PUBLIC crypt32)
+endif()
 lorica_harden_target(tr_io)
 
 # tr_app: 経路・use case の組み立て。
 add_library(tr_app STATIC
   app/config.cpp
   app/auth.cpp
+  app/secrets.cpp
   app/version.cpp
   app/paths.cpp
   app/migrate.cpp
