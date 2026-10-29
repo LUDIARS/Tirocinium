@@ -159,6 +159,8 @@ std::unique_ptr<PgPool::Conn> PgPool::acquire() {
         cv_.notify_one();
         throw db::DbError("database connection failed: " + msg, "08001");
     }
+    // NOTICE を標準エラーへ流さない (値を含みうる。運用ログを汚さない)。
+    PQsetNoticeProcessor(c->pg, [](void*, const char*) {}, nullptr);
     run_script(c->pg, "SET TIME ZONE 'UTC'; SET statement_timeout = " + std::to_string(options_.statement_timeout_ms));
     return c;
 }

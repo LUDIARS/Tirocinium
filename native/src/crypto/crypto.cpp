@@ -40,6 +40,14 @@ std::string random_bytes(std::size_t n) {
     return out;
 }
 
+std::string random_uuid_v4() {
+    std::string b = random_bytes(16);
+    b[6] = static_cast<char>((static_cast<unsigned char>(b[6]) & 0x0F) | 0x40);
+    b[8] = static_cast<char>((static_cast<unsigned char>(b[8]) & 0x3F) | 0x80);
+    const std::string h = hex_encode(b);
+    return h.substr(0, 8) + "-" + h.substr(8, 4) + "-" + h.substr(12, 4) + "-" + h.substr(16, 4) + "-" + h.substr(20, 12);
+}
+
 bool equal_constant_time(std::string_view a, std::string_view b) {
     if (a.size() != b.size()) return false;
     return CRYPTO_memcmp(a.data(), b.data(), a.size()) == 0;

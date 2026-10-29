@@ -48,6 +48,10 @@ add_library(tr_app STATIC
   app/session_state.cpp
   app/one_shot.cpp
   app/llm.cpp
+  app/services.cpp
+  app/interview_repo.cpp
+  app/materials.cpp
+  app/routes/interview_routes.cpp
   app/version.cpp
   app/paths.cpp
   app/migrate.cpp

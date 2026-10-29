@@ -12,6 +12,8 @@ std::string sha256(std::string_view data);       // 生の 32 バイト
 std::string sha256_hex(std::string_view data);   // 小文字 16 進
 // 暗号論的乱数。失敗したら例外 (縮退しない)。
 std::string random_bytes(std::size_t n);
+// crypto.randomUUID() と同じ形 (v4、小文字)。
+std::string random_uuid_v4();
 // 定数時間比較。
 bool equal_constant_time(std::string_view a, std::string_view b);
 
