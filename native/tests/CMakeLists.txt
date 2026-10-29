@@ -1,0 +1,15 @@
+function(tr_test name)
+  add_executable(${name} ${name}.cpp)
+  target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_link_libraries(${name} PRIVATE ${ARGN})
+  lorica_harden_target(${name})
+  add_test(NAME tirocinium.${name} COMMAND ${name})
+  set_tests_properties(tirocinium.${name} PROPERTIES
+    ENVIRONMENT "TR_FIXTURES=${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
+endfunction()
+
+tr_test(core_json_tests tr_core)
+tr_test(core_text_time_tests tr_core)
+tr_test(http_router_tests tr_app)
+tr_test(app_config_tests tr_app)
+tr_test(io_http_server_tests tr_app)
