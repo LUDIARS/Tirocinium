@@ -52,6 +52,8 @@ add_library(tr_app STATIC
   app/interview_repo.cpp
   app/materials.cpp
   app/routes/interview_routes.cpp
+  app/alumni_repo.cpp
+  app/routes/alumni_routes.cpp
   app/version.cpp
   app/paths.cpp
   app/migrate.cpp
