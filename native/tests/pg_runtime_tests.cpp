@@ -175,6 +175,28 @@ TEST_CASE("companies: list/filter/total, detail 404s, configured sources, map co
              "job postings");
 }
 
+// companies/repo-quality.test.ts: quality=1 はゲームも求人も無い企業を除き、求人だけある企業は残す
+TEST_CASE("companies: quality filter keeps a company with a job posting and drops one with neither") {
+    auto& r = rt();
+    auto& db = *r.f.pool;
+    seed_company(db, "合成バレ会社", {}, {}, "");
+    const std::string open = seed_company(db, "合成求人会社", {}, {}, "");
+    db.query("INSERT INTO job_postings (source, kind, dedup_key, url, title, company_name, company_id) "
+             "VALUES ('s', 'recruit-page', $1, 'http://x.test/1', '合成職種', '合成求人会社', $2)",
+             {"k-" + open, open});
+    auto names = [&](const std::string& q) {
+        std::vector<std::string> out;
+        const Json b = body(r.f.call("GET", "/api/v1/companies" + q));  // 一時オブジェクトの中を range-for で回さない
+        for (const auto& c : b["companies"]) out.push_back(c["name"]);
+        return out;
+    };
+    auto has = [](const std::vector<std::string>& v, const std::string& n) { return std::find(v.begin(), v.end(), n) != v.end(); };
+    const auto q = names("?quality=1&limit=200");
+    check(has(q, "合成求人会社") && !has(q, "合成バレ会社"), "quality filter");
+    check(has(names("?limit=200"), "合成バレ会社"), "unfiltered keeps it");
+    check_eq(body(r.f.call("GET", "/api/v1/companies/job-postings?source=s"))["total"], Json(1), "job posting counted");
+}
+
 TEST_CASE("companies: crawl enqueue (auth, allowlist, validation, dedupe, seed-file)") {
     auto& r = rt();
     const auto ta = r.f.token_for(kUserA);
