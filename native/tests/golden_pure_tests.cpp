@@ -2,11 +2,14 @@
 // native/tools/golden/record_pure.mjs が作る) と、C++ 実装の出力が一致することを確かめる。
 #include <cstdlib>
 #include <fstream>
+#include <cmath>
 #include <map>
+#include <set>
 #include <sstream>
 
 #include "check.hpp"
 #include "core/domain/domain.hpp"
+#include "core/domain/recommend.hpp"
 #include "core/encoding.hpp"
 #include "core/llm/engine.hpp"
 #include "core/llm/output.hpp"
@@ -90,8 +93,56 @@ std::vector<llm::Turn> turns_of(const Json& a) {
     return out;
 }
 
+// score / recommend の合成の企業 (fixture の __companyPool)。
+std::vector<Json> g_pool;
+
+domain::ApplicantProfile profile_of(const Json& j) {
+    domain::ApplicantProfile p;
+    p.es_text = string_or(j, "esText");
+    if (starts_with(p.es_text, "x*")) p.es_text = std::string(std::stoul(p.es_text.substr(2)), 'x');
+    if (j.contains("targetRole")) p.target_role = j["targetRole"].get<std::string>();
+    if (j.contains("targetCompany")) p.target_company = j["targetCompany"].get<std::string>();
+    p.tags = strs(j.value("tags", Json::array()));
+    p.weak_axes = strs(j.value("weakAxes", Json::array()));
+    return p;
+}
+
+Json breakdown_json(const domain::ScoreBreakdown& b) {
+    return Json{{"score", b.score}, {"roleMatch", b.role_match}, {"tagOverlap", b.tag_overlap}, {"keywordHits", b.keyword_hits}};
+}
+
 // 1 ケースを C++ で計算する。Node が例外だったケースは C++ も例外であること。
 Json run_case(const std::string& fn, const Json& in) {
+    if (fn == "scoreCompany") {
+        for (const auto& c : g_pool) {
+            if (c["id"] == in["company"]) return breakdown_json(domain::score_company(profile_of(in["profile"]), c));
+        }
+        throw std::runtime_error("company not in pool");
+    }
+    if (fn == "recommendHeuristic") {
+        const auto p = profile_of(in["profile"]);
+        // topK は Array.prototype.slice(0, topK) の件数として扱う (負数・小数を含む)
+        const double top_k = in["topK"].is_null() ? 8.0 : in["topK"].get<double>();
+        const std::size_t positive = domain::rank_candidates(p, g_pool, static_cast<std::size_t>(-1)).size();
+        const double t = std::trunc(top_k);
+        const std::size_t n = t < 0 ? static_cast<std::size_t>(std::max(static_cast<double>(positive) + t, 0.0))
+                                    : static_cast<std::size_t>(std::min(t, static_cast<double>(positive)));
+        return domain::recommend_heuristic(p, g_pool, n);
+    }
+    if (fn == "renderProfile") return domain::render_profile(profile_of(in));
+    if (fn == "renderCandidates") return domain::render_candidates(domain::rank_candidates(profile_of(in), g_pool, 30));
+    if (fn == "tokenize") return domain::tokenize_keywords(in.get<std::string>());
+    if (fn == "normalizeRoles") {
+        const auto roles = domain::normalize_roles(in.empty() ? std::vector<std::string>{} : std::vector<std::string>{in[0].get<std::string>()});
+        return std::find(roles.begin(), roles.end(), "planner") != roles.end();
+    }
+    if (fn == "parseRecommendation") {
+        std::set<std::string> ids;
+        for (const auto& x : in["ids"]) ids.insert(x.get<std::string>());
+        Json out = Json::array();
+        for (auto& it : domain::parse_recommendation(in["text"].get<std::string>(), ids)) out.push_back(it);
+        return out;
+    }
     if (fn == "mulberry32") {
         auto r = llm::mulberry32(in["seed"].get<std::uint32_t>());
         Json out = Json::array();
@@ -266,6 +317,10 @@ TEST_CASE("golden: Node pure functions and the C++ port give identical outputs")
     for (const auto& c : fx["cases"]) {
         const std::string fn = c["fn"];
         const Json& input = c["input"];
+        if (fn == "__companyPool") {
+            g_pool.assign(c["output"].begin(), c["output"].end());
+            continue;
+        }
         const bool node_error = c.contains("error");
         try {
             Json got = run_case(fn, input);

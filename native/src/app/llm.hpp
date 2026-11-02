@@ -45,6 +45,9 @@ struct CliRunOptions {
     const std::atomic<bool>* cancel = nullptr;
 };
 
+// claude -p をツール無し・MCP 無しで動かす引数 (文章の生成だけ)。
+std::vector<std::string> claude_text_args();
+
 // 子プロセスの起動を差し替えるための関数 (テストでは偽の CLI を使う)。
 using ProcessRunner = std::function<io::ProcessResult(const io::ProcessSpec&, const std::atomic<bool>*)>;
 

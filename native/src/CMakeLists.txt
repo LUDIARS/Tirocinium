@@ -11,6 +11,7 @@ add_library(tr_core STATIC
   core/llm/prompts.cpp
   core/llm/output.cpp
   core/domain/domain.cpp
+  core/domain/recommend.cpp
   core/rate_limit.cpp
   http/message.cpp
   http/router.cpp
@@ -32,7 +33,9 @@ add_library(tr_io STATIC
   io/http_client.cpp
   io/tls_roots.cpp
   io/pg_pool.cpp
-  io/process.cpp)
+  io/process.cpp
+  io/ws_client.cpp
+  io/resident_process.cpp)
 target_link_libraries(tr_io PUBLIC tr_core tr_crypto tr_boost OpenSSL::SSL OpenSSL::Crypto PostgreSQL::PostgreSQL
   Threads::Threads)
 if(WIN32)
@@ -54,6 +57,19 @@ add_library(tr_app STATIC
   app/routes/interview_routes.cpp
   app/alumni_repo.cpp
   app/routes/alumni_routes.cpp
+  app/cernere.cpp
+  app/brief.cpp
+  app/voice.cpp
+  app/memoria.cpp
+  app/companies_repo.cpp
+  app/session_runtime.cpp
+  app/ws_routes.cpp
+  app/reservation_tick.cpp
+  app/companies_worker.cpp
+  app/routes/companies_routes.cpp
+  app/recommend.cpp
+  app/discord_bridge.cpp
+  app/runtime_extensions.cpp
   app/version.cpp
   app/paths.cpp
   app/migrate.cpp

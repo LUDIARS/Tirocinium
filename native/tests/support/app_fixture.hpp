@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <mutex>
+#include <random>
 #include <vector>
 
 #include "support/paseto_signer.hpp"
@@ -29,6 +30,7 @@ struct AppFixture {
     std::function<tr::io::HttpClientResponse(const tr::io::HttpClientRequest&)> fake_http;
     std::unique_ptr<tr::app::Services> services;
     tr::http::Router router;
+    std::mutex logs_mu;
     std::vector<std::string> logs;
 
     AppFixture() {
@@ -37,11 +39,24 @@ struct AppFixture {
         config.cernere_public_key = "k4.public." + tr::base64url_encode(signer.public_raw());
         auth = std::make_unique<tr::app::Authenticator>(config, keys);
         limiter = std::make_unique<tr::FixedWindowLimiter>(config.session_rate_limit.window_ms, config.session_rate_limit.max);
-        services.reset(new tr::app::Services{config, *pool, *auth, std::filesystem::path(TR_SOURCE_DIR).parent_path(),
+        // リポ直下の data/ (実データ) を読まないよう、既定の基点は空の一時フォルダにする。
+        services.reset(new tr::app::Services{config, *pool, *auth, empty_root(),
                                              [this](const tr::io::HttpClientRequest& r) { return fetch(r); },
                                              [] { return tr::now_ms(); },
-                                             [this](const std::string& l) { logs.push_back(l); },
+                                             [this](const std::string& l) {
+                                                 std::lock_guard lock(logs_mu);
+                                                 logs.push_back(l);
+                                             },
                                              tickets, materials, *limiter, background, nullptr, {}, 30});
+    }
+
+    static std::filesystem::path empty_root() {
+        static const auto d = [] {
+            auto p = std::filesystem::temp_directory_path() / ("tr-empty-root-" + std::to_string(std::random_device{}()));
+            std::filesystem::create_directories(p);
+            return p;
+        }();
+        return d;
     }
 
     tr::io::HttpClientResponse fetch(const tr::io::HttpClientRequest& r) {

@@ -19700,6 +19700,2209 @@
    "fn": "normalizeName",
    "input": "[有限会社] 【ほげ】",
    "output": "[]ほげ"
+  },
+  {
+   "fn": "__companyPool",
+   "input": null,
+   "output": [
+    {
+     "id": "a",
+     "name": "架空ゲームス",
+     "normalized_name": "てすと",
+     "url": "",
+     "industry": "ゲーム",
+     "description": "Unity を使ったゲーム開発。C# で 3 年",
+     "roles": [
+      "programmer"
+     ],
+     "tags": [
+      "Unity",
+      "C#"
+     ],
+     "location": "東京",
+     "size": "100",
+     "source": "s",
+     "source_url": "",
+     "is_newgrad": false,
+     "is_game": false,
+     "has_opening": false,
+     "recruit_url": "",
+     "stock_reason": "",
+     "crawled_at": "",
+     "updated_at": ""
+    },
+    {
+     "id": "b",
+     "name": "架空スタジオ",
+     "normalized_name": "てすと",
+     "url": "",
+     "industry": "",
+     "description": "UI/UX デザイン、企画",
+     "roles": [
+      "designer",
+      "planner"
+     ],
+     "tags": [
+      "UI",
+      "Figma"
+     ],
+     "location": "",
+     "size": "",
+     "source": "s",
+     "source_url": "",
+     "is_newgrad": false,
+     "is_game": false,
+     "has_opening": false,
+     "recruit_url": "",
+     "stock_reason": "",
+     "crawled_at": "",
+     "updated_at": ""
+    },
+    {
+     "id": "c",
+     "name": "テスト・ソフト株式会社",
+     "normalized_name": "てすと",
+     "url": "",
+     "industry": "",
+     "description": "Unreal Engine と C++ のゲーム",
+     "roles": [
+      "programmer",
+      "sound"
+     ],
+     "tags": [
+      "unreal",
+      "c++"
+     ],
+     "location": "",
+     "size": "",
+     "source": "s",
+     "source_url": "",
+     "is_newgrad": false,
+     "is_game": false,
+     "has_opening": false,
+     "recruit_url": "",
+     "stock_reason": "",
+     "crawled_at": "",
+     "updated_at": ""
+    },
+    {
+     "id": "d",
+     "name": "無関係商事",
+     "normalized_name": "てすと",
+     "url": "",
+     "industry": "",
+     "description": "広告制作",
+     "roles": [],
+     "tags": [],
+     "location": "",
+     "size": "",
+     "source": "s",
+     "source_url": "",
+     "is_newgrad": false,
+     "is_game": false,
+     "has_opening": false,
+     "recruit_url": "",
+     "stock_reason": "",
+     "crawled_at": "",
+     "updated_at": ""
+    },
+    {
+     "id": "e",
+     "name": "同点 A",
+     "normalized_name": "てすと",
+     "url": "",
+     "industry": "",
+     "description": "",
+     "roles": [
+      "programmer"
+     ],
+     "tags": [],
+     "location": "",
+     "size": "",
+     "source": "s",
+     "source_url": "",
+     "is_newgrad": false,
+     "is_game": false,
+     "has_opening": false,
+     "recruit_url": "",
+     "stock_reason": "",
+     "crawled_at": "",
+     "updated_at": ""
+    },
+    {
+     "id": "f",
+     "name": "同点 B",
+     "normalized_name": "てすと",
+     "url": "",
+     "industry": "",
+     "description": "",
+     "roles": [
+      "programmer"
+     ],
+     "tags": [],
+     "location": "",
+     "size": "",
+     "source": "s",
+     "source_url": "",
+     "is_newgrad": false,
+     "is_game": false,
+     "has_opening": false,
+     "recruit_url": "",
+     "stock_reason": "",
+     "crawled_at": "",
+     "updated_at": ""
+    },
+    {
+     "id": "g",
+     "name": "サウンド工房",
+     "normalized_name": "てすと",
+     "url": "",
+     "industry": "音響",
+     "description": "作曲・効果音（ゲーム）",
+     "roles": [
+      "sound"
+     ],
+     "tags": [
+      "作曲",
+      "Wwise"
+     ],
+     "location": "",
+     "size": "",
+     "source": "s",
+     "source_url": "",
+     "is_newgrad": false,
+     "is_game": false,
+     "has_opening": false,
+     "recruit_url": "",
+     "stock_reason": "",
+     "crawled_at": "",
+     "updated_at": ""
+    },
+    {
+     "id": "h",
+     "name": "架空ゲームス 第二",
+     "normalized_name": "てすと",
+     "url": "",
+     "industry": "",
+     "description": "unity　ゲーム開発・運営",
+     "roles": [
+      "programmer"
+     ],
+     "tags": [
+      "Unity"
+     ],
+     "location": "",
+     "size": "",
+     "source": "s",
+     "source_url": "",
+     "is_newgrad": false,
+     "is_game": false,
+     "has_opening": false,
+     "recruit_url": "",
+     "stock_reason": "",
+     "crawled_at": "",
+     "updated_at": ""
+    }
+   ]
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "company": "a"
+   },
+   "output": {
+    "score": 71,
+    "roleMatch": true,
+    "tagOverlap": [
+     "Unity",
+     "C#"
+    ],
+    "keywordHits": [
+     "unity",
+     "c#"
+    ]
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "company": "b"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "company": "c"
+   },
+   "output": {
+    "score": 35,
+    "roleMatch": true,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "company": "d"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "company": "e"
+   },
+   "output": {
+    "score": 35,
+    "roleMatch": true,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "company": "f"
+   },
+   "output": {
+    "score": 35,
+    "roleMatch": true,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "company": "g"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "company": "h"
+   },
+   "output": {
+    "score": 59,
+    "roleMatch": true,
+    "tagOverlap": [
+     "Unity"
+    ],
+    "keywordHits": [
+     "unity",
+     "ゲーム開発"
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "topK": null
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "a",
+      "name": "架空ゲームス",
+      "score": 71,
+      "reasons": [
+       "志望職種の募集と一致",
+       "共通キーワード: Unity, C#",
+       "ES と関連: unity, c#"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "h",
+      "name": "架空ゲームス 第二",
+      "score": 59,
+      "reasons": [
+       "志望職種の募集と一致",
+       "共通キーワード: Unity",
+       "ES と関連: unity, ゲーム開発"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "c",
+      "name": "テスト・ソフト株式会社",
+      "score": 35,
+      "reasons": [
+       "志望職種の募集と一致"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "e",
+      "name": "同点 A",
+      "score": 35,
+      "reasons": [
+       "志望職種の募集と一致"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "f",
+      "name": "同点 B",
+      "score": 35,
+      "reasons": [
+       "志望職種の募集と一致"
+      ],
+      "concerns": []
+     }
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "topK": 2
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "a",
+      "name": "架空ゲームス",
+      "score": 71,
+      "reasons": [
+       "志望職種の募集と一致",
+       "共通キーワード: Unity, C#",
+       "ES と関連: unity, c#"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "h",
+      "name": "架空ゲームス 第二",
+      "score": 59,
+      "reasons": [
+       "志望職種の募集と一致",
+       "共通キーワード: Unity",
+       "ES と関連: unity, ゲーム開発"
+      ],
+      "concerns": []
+     }
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "topK": 0
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": []
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "topK": -1
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "a",
+      "name": "架空ゲームス",
+      "score": 71,
+      "reasons": [
+       "志望職種の募集と一致",
+       "共通キーワード: Unity, C#",
+       "ES と関連: unity, c#"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "h",
+      "name": "架空ゲームス 第二",
+      "score": 59,
+      "reasons": [
+       "志望職種の募集と一致",
+       "共通キーワード: Unity",
+       "ES と関連: unity, ゲーム開発"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "c",
+      "name": "テスト・ソフト株式会社",
+      "score": 35,
+      "reasons": [
+       "志望職種の募集と一致"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "e",
+      "name": "同点 A",
+      "score": 35,
+      "reasons": [
+       "志望職種の募集と一致"
+      ],
+      "concerns": []
+     }
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+     "targetRole": "programmer",
+     "tags": [
+      "Unity",
+      "C#"
+     ]
+    },
+    "topK": 2.5
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "a",
+      "name": "架空ゲームス",
+      "score": 71,
+      "reasons": [
+       "志望職種の募集と一致",
+       "共通キーワード: Unity, C#",
+       "ES と関連: unity, c#"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "h",
+      "name": "架空ゲームス 第二",
+      "score": 59,
+      "reasons": [
+       "志望職種の募集と一致",
+       "共通キーワード: Unity",
+       "ES と関連: unity, ゲーム開発"
+      ],
+      "concerns": []
+     }
+    ]
+   }
+  },
+  {
+   "fn": "renderProfile",
+   "input": {
+    "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+    "targetRole": "programmer",
+    "tags": [
+     "Unity",
+     "C#"
+    ]
+   },
+   "output": "## 受験者プロファイル\n志望職種: programmer\n興味タグ: Unity, C#\n\n## ES / ポートフォリオ要約\nUnity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発"
+  },
+  {
+   "fn": "renderCandidates",
+   "input": {
+    "esText": "Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発",
+    "targetRole": "programmer",
+    "tags": [
+     "Unity",
+     "C#"
+    ]
+   },
+   "output": "- id: a / 名前: 架空ゲームス / 業界: ゲーム / 募集職種: programmer / タグ: Unity, C# / 所在地: 東京 / 規模: 100 / 概要: Unity を使ったゲーム開発。C# で 3 年\n- id: h / 名前: 架空ゲームス 第二 / 募集職種: programmer / タグ: Unity / 概要: unity　ゲーム開発・運営\n- id: c / 名前: テスト・ソフト株式会社 / 募集職種: programmer, sound / タグ: unreal, c++ / 概要: Unreal Engine と C++ のゲーム\n- id: e / 名前: 同点 A / 募集職種: programmer\n- id: f / 名前: 同点 B / 募集職種: programmer"
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "company": "a"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "company": "b"
+   },
+   "output": {
+    "score": 53,
+    "roleMatch": true,
+    "tagOverlap": [
+     "UI"
+    ],
+    "keywordHits": [
+     "ui"
+    ]
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "company": "c"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "company": "d"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "company": "e"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "company": "f"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "company": "g"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "company": "h"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "topK": null
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "b",
+      "name": "架空スタジオ",
+      "score": 53,
+      "reasons": [
+       "志望職種の募集と一致",
+       "共通キーワード: UI",
+       "ES と関連: ui"
+      ],
+      "concerns": []
+     }
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "topK": 2
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "b",
+      "name": "架空スタジオ",
+      "score": 53,
+      "reasons": [
+       "志望職種の募集と一致",
+       "共通キーワード: UI",
+       "ES と関連: ui"
+      ],
+      "concerns": []
+     }
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "topK": 0
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": []
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "topK": -1
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": []
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "",
+     "targetRole": "デザイナー",
+     "tags": [
+      "UI"
+     ],
+     "weakAxes": [
+      "clarity",
+      "depth_resilience"
+     ]
+    },
+    "topK": 2.5
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "b",
+      "name": "架空スタジオ",
+      "score": 53,
+      "reasons": [
+       "志望職種の募集と一致",
+       "共通キーワード: UI",
+       "ES と関連: ui"
+      ],
+      "concerns": []
+     }
+    ]
+   }
+  },
+  {
+   "fn": "renderProfile",
+   "input": {
+    "esText": "",
+    "targetRole": "デザイナー",
+    "tags": [
+     "UI"
+    ],
+    "weakAxes": [
+     "clarity",
+     "depth_resilience"
+    ]
+   },
+   "output": "## 受験者プロファイル\n志望職種: デザイナー\n興味タグ: UI\n鍛えたい弱点軸: clarity, depth_resilience\n\n## ES / ポートフォリオ要約\n"
+  },
+  {
+   "fn": "renderCandidates",
+   "input": {
+    "esText": "",
+    "targetRole": "デザイナー",
+    "tags": [
+     "UI"
+    ],
+    "weakAxes": [
+     "clarity",
+     "depth_resilience"
+    ]
+   },
+   "output": "- id: b / 名前: 架空スタジオ / 募集職種: designer, planner / タグ: UI, Figma / 概要: UI/UX デザイン、企画"
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "company": "a"
+   },
+   "output": {
+    "score": 6,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": [
+     "ゲーム"
+    ]
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "company": "b"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "company": "c"
+   },
+   "output": {
+    "score": 35,
+    "roleMatch": true,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "company": "d"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "company": "e"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "company": "f"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "company": "g"
+   },
+   "output": {
+    "score": 58,
+    "roleMatch": true,
+    "tagOverlap": [],
+    "keywordHits": [
+     "作曲",
+     "ゲーム",
+     "効果音"
+    ]
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "company": "h"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "topK": null
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "g",
+      "name": "サウンド工房",
+      "score": 58,
+      "reasons": [
+       "志望職種の募集と一致",
+       "ES と関連: 作曲, ゲーム, 効果音"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "c",
+      "name": "テスト・ソフト株式会社",
+      "score": 35,
+      "reasons": [
+       "志望職種の募集と一致"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "a",
+      "name": "架空ゲームス",
+      "score": 6,
+      "reasons": [
+       "ES と関連: ゲーム"
+      ],
+      "concerns": [
+       "志望職種の募集有無を要確認"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "topK": 2
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "g",
+      "name": "サウンド工房",
+      "score": 58,
+      "reasons": [
+       "志望職種の募集と一致",
+       "ES と関連: 作曲, ゲーム, 効果音"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "c",
+      "name": "テスト・ソフト株式会社",
+      "score": 35,
+      "reasons": [
+       "志望職種の募集と一致"
+      ],
+      "concerns": []
+     }
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "topK": 0
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": []
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "topK": -1
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "g",
+      "name": "サウンド工房",
+      "score": 58,
+      "reasons": [
+       "志望職種の募集と一致",
+       "ES と関連: 作曲, ゲーム, 効果音"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "c",
+      "name": "テスト・ソフト株式会社",
+      "score": 35,
+      "reasons": [
+       "志望職種の募集と一致"
+      ],
+      "concerns": []
+     }
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "作曲（ゲーム）・効果音",
+     "targetRole": "サウンド",
+     "targetCompany": "サウンド",
+     "tags": []
+    },
+    "topK": 2.5
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "g",
+      "name": "サウンド工房",
+      "score": 58,
+      "reasons": [
+       "志望職種の募集と一致",
+       "ES と関連: 作曲, ゲーム, 効果音"
+      ],
+      "concerns": []
+     },
+     {
+      "company_id": "c",
+      "name": "テスト・ソフト株式会社",
+      "score": 35,
+      "reasons": [
+       "志望職種の募集と一致"
+      ],
+      "concerns": []
+     }
+    ]
+   }
+  },
+  {
+   "fn": "renderProfile",
+   "input": {
+    "esText": "作曲（ゲーム）・効果音",
+    "targetRole": "サウンド",
+    "targetCompany": "サウンド",
+    "tags": []
+   },
+   "output": "## 受験者プロファイル\n志望職種: サウンド\n志望企業/業界: サウンド\n\n## ES / ポートフォリオ要約\n作曲（ゲーム）・効果音"
+  },
+  {
+   "fn": "renderCandidates",
+   "input": {
+    "esText": "作曲（ゲーム）・効果音",
+    "targetRole": "サウンド",
+    "targetCompany": "サウンド",
+    "tags": []
+   },
+   "output": "- id: g / 名前: サウンド工房 / 業界: 音響 / 募集職種: sound / タグ: 作曲, Wwise / 概要: 作曲・効果音（ゲーム）\n- id: c / 名前: テスト・ソフト株式会社 / 募集職種: programmer, sound / タグ: unreal, c++ / 概要: Unreal Engine と C++ のゲーム\n- id: a / 名前: 架空ゲームス / 業界: ゲーム / 募集職種: programmer / タグ: Unity, C# / 所在地: 東京 / 規模: 100 / 概要: Unity を使ったゲーム開発。C# で 3 年"
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "company": "a"
+   },
+   "output": {
+    "score": 23,
+    "roleMatch": false,
+    "tagOverlap": [
+     "Unity"
+    ],
+    "keywordHits": [
+     "unity"
+    ]
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "company": "b"
+   },
+   "output": {
+    "score": 5,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "company": "c"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "company": "d"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "company": "e"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "company": "f"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "company": "g"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "company": "h"
+   },
+   "output": {
+    "score": 23,
+    "roleMatch": false,
+    "tagOverlap": [
+     "Unity"
+    ],
+    "keywordHits": [
+     "unity"
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "topK": null
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "a",
+      "name": "架空ゲームス",
+      "score": 23,
+      "reasons": [
+       "共通キーワード: Unity",
+       "ES と関連: unity"
+      ],
+      "concerns": [
+       "志望職種の募集有無を要確認"
+      ]
+     },
+     {
+      "company_id": "h",
+      "name": "架空ゲームス 第二",
+      "score": 23,
+      "reasons": [
+       "共通キーワード: Unity",
+       "ES と関連: unity"
+      ],
+      "concerns": [
+       "志望職種の募集有無を要確認"
+      ]
+     },
+     {
+      "company_id": "b",
+      "name": "架空スタジオ",
+      "score": 5,
+      "reasons": [
+       "プロフィールと部分的に一致"
+      ],
+      "concerns": [
+       "志望職種の募集有無を要確認"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "topK": 2
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "a",
+      "name": "架空ゲームス",
+      "score": 23,
+      "reasons": [
+       "共通キーワード: Unity",
+       "ES と関連: unity"
+      ],
+      "concerns": [
+       "志望職種の募集有無を要確認"
+      ]
+     },
+     {
+      "company_id": "h",
+      "name": "架空ゲームス 第二",
+      "score": 23,
+      "reasons": [
+       "共通キーワード: Unity",
+       "ES と関連: unity"
+      ],
+      "concerns": [
+       "志望職種の募集有無を要確認"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "topK": 0
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": []
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "topK": -1
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "a",
+      "name": "架空ゲームス",
+      "score": 23,
+      "reasons": [
+       "共通キーワード: Unity",
+       "ES と関連: unity"
+      ],
+      "concerns": [
+       "志望職種の募集有無を要確認"
+      ]
+     },
+     {
+      "company_id": "h",
+      "name": "架空ゲームス 第二",
+      "score": 23,
+      "reasons": [
+       "共通キーワード: Unity",
+       "ES と関連: unity"
+      ],
+      "concerns": [
+       "志望職種の募集有無を要確認"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "x*5000",
+     "targetRole": "unknown",
+     "targetCompany": "架空",
+     "tags": [
+      "",
+      "Unity"
+     ]
+    },
+    "topK": 2.5
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": [
+     {
+      "company_id": "a",
+      "name": "架空ゲームス",
+      "score": 23,
+      "reasons": [
+       "共通キーワード: Unity",
+       "ES と関連: unity"
+      ],
+      "concerns": [
+       "志望職種の募集有無を要確認"
+      ]
+     },
+     {
+      "company_id": "h",
+      "name": "架空ゲームス 第二",
+      "score": 23,
+      "reasons": [
+       "共通キーワード: Unity",
+       "ES と関連: unity"
+      ],
+      "concerns": [
+       "志望職種の募集有無を要確認"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "fn": "renderProfile",
+   "input": {
+    "esText": "x*5000",
+    "targetRole": "unknown",
+    "targetCompany": "架空",
+    "tags": [
+     "",
+     "Unity"
+    ]
+   },
+   "output": "## 受験者プロファイル\n志望職種: unknown\n志望企業/業界: 架空\n興味タグ: , Unity\n\n## ES / ポートフォリオ要約\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "fn": "renderCandidates",
+   "input": {
+    "esText": "x*5000",
+    "targetRole": "unknown",
+    "targetCompany": "架空",
+    "tags": [
+     "",
+     "Unity"
+    ]
+   },
+   "output": "- id: a / 名前: 架空ゲームス / 業界: ゲーム / 募集職種: programmer / タグ: Unity, C# / 所在地: 東京 / 規模: 100 / 概要: Unity を使ったゲーム開発。C# で 3 年\n- id: h / 名前: 架空ゲームス 第二 / 募集職種: programmer / タグ: Unity / 概要: unity　ゲーム開発・運営\n- id: b / 名前: 架空スタジオ / 募集職種: designer, planner / タグ: UI, Figma / 概要: UI/UX デザイン、企画"
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "company": "a"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "company": "b"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "company": "c"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "company": "d"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "company": "e"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "company": "f"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "company": "g"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "scoreCompany",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "company": "h"
+   },
+   "output": {
+    "score": 0,
+    "roleMatch": false,
+    "tagOverlap": [],
+    "keywordHits": []
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "topK": null
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": []
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "topK": 2
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": []
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "topK": 0
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": []
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "topK": -1
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": []
+   }
+  },
+  {
+   "fn": "recommendHeuristic",
+   "input": {
+    "profile": {
+     "esText": "  ",
+     "tags": []
+    },
+    "topK": 2.5
+   },
+   "output": {
+    "method": "heuristic",
+    "model": "none",
+    "items": []
+   }
+  },
+  {
+   "fn": "renderProfile",
+   "input": {
+    "esText": "  ",
+    "tags": []
+   },
+   "output": "## 受験者プロファイル\n\n## ES / ポートフォリオ要約\n  "
+  },
+  {
+   "fn": "renderCandidates",
+   "input": {
+    "esText": "  ",
+    "tags": []
+   },
+   "output": ""
+  },
+  {
+   "fn": "tokenize",
+   "input": "Unity、C#・ゲーム開発",
+   "output": [
+    "unity",
+    "c#",
+    "ゲーム開発"
+   ]
+  },
+  {
+   "fn": "tokenize",
+   "input": "A　B\tC　DD",
+   "output": [
+    "dd"
+   ]
+  },
+  {
+   "fn": "tokenize",
+   "input": "（括弧）「鍵」【墨】x:y：z;w；v",
+   "output": [
+    "括弧"
+   ]
+  },
+  {
+   "fn": "tokenize",
+   "input": "ab/cd\\ef|gh",
+   "output": [
+    "ab",
+    "cd",
+    "ef",
+    "gh"
+   ]
+  },
+  {
+   "fn": "tokenize",
+   "input": "",
+   "output": []
+  },
+  {
+   "fn": "normalizeRoles",
+   "input": [
+    "Planner",
+    " プランナー ",
+    "any",
+    "ENGINEER",
+    "ui",
+    "unknown",
+    "",
+    "programmer"
+   ],
+   "output": true
+  },
+  {
+   "fn": "normalizeRoles",
+   "input": [],
+   "output": false
+  },
+  {
+   "fn": "parseRecommendation",
+   "input": {
+    "text": "{\"items\":[{\"company_id\":\"a\",\"score\":40,\"reasons\":[\"r1\"],\"concerns\":[]},{\"company_id\":\"ghost\",\"score\":99},{\"company_id\":\"b\",\"score\":200,\"reasons\":[\"r2\"]}]}",
+    "ids": [
+     "a",
+     "b",
+     "c"
+    ]
+   },
+   "output": [
+    {
+     "company_id": "b",
+     "name": "",
+     "score": 100,
+     "reasons": [
+      "r2"
+     ],
+     "concerns": []
+    },
+    {
+     "company_id": "a",
+     "name": "",
+     "score": 40,
+     "reasons": [
+      "r1"
+     ],
+     "concerns": []
+    }
+   ]
+  },
+  {
+   "fn": "parseRecommendation",
+   "input": {
+    "text": "{\"items\":[{\"company_id\":\"a\",\"score\":10.5,\"reasons\":[\"ok\",\"\",\" \",1,\"b\",\"c\",\"d\",\"e\"],\"concerns\":[\"x\",\"y\",\"z\",\"w\"]},{\"company_id\":\"c\",\"score\":\"abc\"},{\"company_id\":\"b\",\"score\":-3},{\"company_id\":\"b\",\"score\":null}]}",
+    "ids": [
+     "a",
+     "b",
+     "c"
+    ]
+   },
+   "output": [
+    {
+     "company_id": "a",
+     "name": "",
+     "score": 11,
+     "reasons": [
+      "ok",
+      "b",
+      "c",
+      "d"
+     ],
+     "concerns": [
+      "x",
+      "y",
+      "z"
+     ]
+    },
+    {
+     "company_id": "c",
+     "name": "",
+     "score": 0,
+     "reasons": [],
+     "concerns": []
+    },
+    {
+     "company_id": "b",
+     "name": "",
+     "score": 0,
+     "reasons": [],
+     "concerns": []
+    },
+    {
+     "company_id": "b",
+     "name": "",
+     "score": 0,
+     "reasons": [],
+     "concerns": []
+    }
+   ]
+  },
+  {
+   "fn": "parseRecommendation",
+   "input": {
+    "text": "前置き\n```json\n{\"items\":[{\"company_id\":\"c\",\"score\":\"77\"}]}\n```",
+    "ids": [
+     "a",
+     "b",
+     "c"
+    ]
+   },
+   "output": [
+    {
+     "company_id": "c",
+     "name": "",
+     "score": 77,
+     "reasons": [],
+     "concerns": []
+    }
+   ]
+  },
+  {
+   "fn": "parseRecommendation",
+   "input": {
+    "text": "{\"items\": 1}",
+    "ids": [
+     "a",
+     "b",
+     "c"
+    ]
+   },
+   "output": []
+  },
+  {
+   "fn": "parseRecommendation",
+   "input": {
+    "text": "[]",
+    "ids": [
+     "a",
+     "b",
+     "c"
+    ]
+   },
+   "error": "no JSON object found in LLM output"
+  },
+  {
+   "fn": "parseRecommendation",
+   "input": {
+    "text": "null",
+    "ids": [
+     "a",
+     "b",
+     "c"
+    ]
+   },
+   "error": "no JSON object found in LLM output"
+  },
+  {
+   "fn": "parseRecommendation",
+   "input": {
+    "text": "{\"items\":[null]}",
+    "ids": [
+     "a",
+     "b",
+     "c"
+    ]
+   },
+   "error": "Cannot read properties of null (reading 'company_id')"
+  },
+  {
+   "fn": "parseRecommendation",
+   "input": {
+    "text": "{\"items\":[1,\"a\"]}",
+    "ids": [
+     "a",
+     "b",
+     "c"
+    ]
+   },
+   "output": []
+  },
+  {
+   "fn": "parseRecommendation",
+   "input": {
+    "text": "not json",
+    "ids": [
+     "a",
+     "b",
+     "c"
+    ]
+   },
+   "error": "no JSON object found in LLM output"
   }
  ]
 }

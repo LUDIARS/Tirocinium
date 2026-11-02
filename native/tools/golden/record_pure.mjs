@@ -38,6 +38,8 @@ const commands = await mod('apps/server/src/discord/commands.ts');
 const gateway = await mod('apps/server/src/discord/gateway-client.ts');
 const normalize = await mod('packages/companies/src/normalize.ts');
 const skills = await mod('apps/server/src/materials/consult-skills.ts');
+const score = await mod('packages/companies/src/score.ts');
+const recommend = await mod('packages/companies/src/recommend.ts');
 
 const cases = [];
 function rec(fn, input, run) {
@@ -274,6 +276,44 @@ for (const c of ['', '  ', 'short', 'あ'.repeat(4000), `${'a'.repeat(1899)}😀
 for (const n of ['株式会社テスト', 'グリー株式会社（グリーホールディングス株式会社）', 'Princeton Inc.', 'ＡＢＣ　Co., Ltd.', 'ディー・エヌ・エー', 'Foo Corp (旧 Bar)', '[有限会社] 【ほげ】']) {
   rec('normalizeName', n, () => normalize.normalizeName(n));
 }
+
+// ---- companies: score / recommend (合成の企業・受験者) ----
+const co = (over) => ({ id: 'c1', name: 'テスト社', normalized_name: 'てすと', url: '', industry: '', description: '', roles: [], tags: [], location: '', size: '',
+  source: 's', source_url: '', is_newgrad: false, is_game: false, has_opening: false, recruit_url: '', stock_reason: '', crawled_at: '', updated_at: '', ...over });
+const pool = [
+  co({ id: 'a', name: '架空ゲームス', roles: ['programmer'], tags: ['Unity', 'C#'], industry: 'ゲーム', description: 'Unity を使ったゲーム開発。C# で 3 年', location: '東京', size: '100' }),
+  co({ id: 'b', name: '架空スタジオ', roles: ['designer', 'planner'], tags: ['UI', 'Figma'], description: 'UI/UX デザイン、企画' }),
+  co({ id: 'c', name: 'テスト・ソフト株式会社', roles: ['programmer', 'sound'], tags: ['unreal', 'c++'], description: 'Unreal Engine と C++ のゲーム' }),
+  co({ id: 'd', name: '無関係商事', roles: [], tags: [], description: '広告制作' }),
+  co({ id: 'e', name: '同点 A', roles: ['programmer'], tags: [] }),
+  co({ id: 'f', name: '同点 B', roles: ['programmer'], tags: [] }),
+  co({ id: 'g', name: 'サウンド工房', roles: ['sound'], tags: ['作曲', 'Wwise'], industry: '音響', description: '作曲・効果音（ゲーム）' }),
+  co({ id: 'h', name: '架空ゲームス 第二', roles: ['programmer'], tags: ['Unity'], description: 'unity　ゲーム開発・運営' }),
+];
+rec('__companyPool', null, () => pool);
+const profiles = [
+  { esText: 'Unity でゲーム開発を3年やってきました。C#、Unity、ゲーム開発', targetRole: 'programmer', tags: ['Unity', 'C#'] },
+  { esText: '', targetRole: 'デザイナー', tags: ['UI'], weakAxes: ['clarity', 'depth_resilience'] },
+  { esText: '作曲（ゲーム）・効果音', targetRole: 'サウンド', targetCompany: 'サウンド', tags: [] },
+  { esText: 'x'.repeat(5000), targetRole: 'unknown', targetCompany: '架空', tags: ['', 'Unity'] },
+  { esText: '  ', tags: [] },
+];
+for (const p of profiles) {
+  const shown = p.esText.length > 100 ? { ...p, esText: `x*${p.esText.length}` } : p;
+  for (const c of pool) rec('scoreCompany', { profile: shown, company: c.id }, () => score.scoreCompany(p, c));
+  for (const topK of [undefined, 2, 0, -1, 2.5]) rec('recommendHeuristic', { profile: shown, topK: topK ?? null }, () => recommend.recommendHeuristic(p, pool, topK === undefined ? {} : { topK }));
+  rec('renderProfile', shown, () => recommend.renderProfile(p));
+  rec('renderCandidates', shown, () => recommend.renderCandidates(score.rankCandidates(p, pool, 30)));
+}
+for (const t of ['Unity、C#・ゲーム開発', 'A　B\tC　DD', '（括弧）「鍵」【墨】x:y：z;w；v', 'ab/cd\\ef|gh', '']) rec('tokenize', t, () => [...score.tokenize(t)]);
+for (const r of [['Planner', ' プランナー ', 'any', 'ENGINEER', 'ui', 'unknown', '', 'programmer'], []]) rec('normalizeRoles', r, () => score.scoreCompany({ esText: '', tags: [], targetRole: r[0] }, co({ roles: ['planner'] })).roleMatch);
+const ids = ['a', 'b', 'c'];
+for (const text of [
+  JSON.stringify({ items: [{ company_id: 'a', score: 40, reasons: ['r1'], concerns: [] }, { company_id: 'ghost', score: 99 }, { company_id: 'b', score: 200, reasons: ['r2'] }] }),
+  JSON.stringify({ items: [{ company_id: 'a', score: 10.5, reasons: ['ok', '', ' ', 1, 'b', 'c', 'd', 'e'], concerns: ['x', 'y', 'z', 'w'] }, { company_id: 'c', score: 'abc' }, { company_id: 'b', score: -3 }, { company_id: 'b', score: null }] }),
+  '前置き\n```json\n{"items":[{"company_id":"c","score":"77"}]}\n```',
+  '{"items": 1}', '[]', 'null', '{"items":[null]}', '{"items":[1,"a"]}', 'not json',
+]) rec('parseRecommendation', { text, ids }, () => recommend.parseRecommendation(text, new Set(ids)));
 
 writeFileSync(process.argv[2], JSON.stringify({ generated_by: 'native/tools/golden/record_pure.mjs', cases }, null, 1) + '\n');
 console.log(`recorded ${cases.length} cases → ${process.argv[2]}`);

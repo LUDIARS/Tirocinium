@@ -9,6 +9,9 @@
       "pathPattern": "(^|/)apps/server/src/companies/(?:.*/)?[^/]+$"
     },
     {
+      "pathPattern": "(^|/)apps/server/src/companies-worker/(?:.*/)?[^/]+$"
+    },
+    {
       "pathPattern": "(^|/)packages/companies/(?:.*/)?[^/]+$"
     },
     {

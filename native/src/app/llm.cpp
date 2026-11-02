@@ -181,9 +181,9 @@ Json EvaluationResult::to_json() const {
     return Json{{"turn_range", turn_range}, {"axes", axes}, {"comment", comment}, {"hints", hints}, {"model", model}};
 }
 
-namespace {
-
 std::vector<std::string> claude_text_args() { return {"--tools", "", "--strict-mcp-config"}; }
+
+namespace {
 
 template <class T, class F>
 T retry_once(F&& f) {
