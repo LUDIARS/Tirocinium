@@ -1,5 +1,7 @@
 #include "app/voice.hpp"
 
+#include <lorica/checked_size.hpp>
+
 #include <cstdint>
 
 #include "app/config.hpp"
@@ -64,17 +66,19 @@ std::string extract_wav_data(const std::string& wav) {
         throw std::runtime_error("voicevox synthesis 応答が WAV (RIFF/WAVE) でない");
     }
     std::size_t off = 12;
-    while (off + 8 <= wav.size()) {
+    while (lorica::contains_range(wav.size(), off, 8)) {
         const std::string id = wav.substr(off, 4);
-        const std::uint64_t size = u32(off + 4);
+        const std::size_t size = u32(off + 4);
         if (id == "data") {
-            const std::uint64_t end = std::min<std::uint64_t>(off + 8 + size, wav.size());
-            return wav.substr(off + 8, static_cast<std::size_t>(end - (off + 8)));
+            // 宣言された長さがバッファを超えていれば、あるところまでを返す (Node の subarray と同じ)
+            const std::size_t avail = wav.size() - (off + 8);
+            return wav.substr(off + 8, std::min(size, avail));
         }
-        // チャンクは 2 byte 境界に padding される (オーバーフローしないよう 64bit で進める)
-        const std::uint64_t next = static_cast<std::uint64_t>(off) + 8 + size + (size % 2);
-        if (next > wav.size()) break;
-        off = static_cast<std::size_t>(next);
+        // チャンクは 2 byte 境界に padding される。桁あふれは checked_add で検出する。
+        const auto body = lorica::checked_add(size, size % 2);
+        const auto next = body ? lorica::checked_add(off + 8, *body) : std::nullopt;
+        if (!next || *next > wav.size()) break;
+        off = *next;
     }
     throw std::runtime_error("voicevox WAV に data チャンクが見つからない");
 }

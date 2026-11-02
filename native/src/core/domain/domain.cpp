@@ -1,5 +1,8 @@
 #include "core/domain/domain.hpp"
 
+#include <lorica/checked_size.hpp>
+#include <lorica/input_budget.hpp>
+
 #include <algorithm>
 #include <cmath>
 
@@ -306,8 +309,13 @@ std::variant<MaterialUpload, std::string> parse_material_upload(const Json* raw)
         if (!is_js_space(cp)) append_utf8(data, cp);
     }
     if (data.empty()) return std::string("material_empty");
-    // base64 は 4 文字で 3 バイト。復号の前に大きさを弾く (JS の length = UTF-16 単位)。
-    if ((utf16_length(data) * 3) / 4 > kMaxMaterialBytes + 2) return std::string("material_too_large");
+    // base64 は 4 文字で 3 バイト。復号の前に、復号後の大きさの見積もりを予算に課金して弾く
+    // (JS の length = UTF-16 単位)。
+    {
+        const auto scaled = lorica::checked_multiply(utf16_length(data), 3);
+        lorica::input_budget decoded_budget({kMaxMaterialBytes + 2, 1, 1, 1});
+        if (!scaled || !decoded_budget.consume(*scaled / 4, 1, 1)) return std::string("material_too_large");
+    }
     // /^[A-Za-z0-9+/]+={0,2}$/
     std::size_t i = 0;
     while (i < data.size() && (std::isalnum(static_cast<unsigned char>(data[i])) || data[i] == '+' || data[i] == '/')) ++i;
