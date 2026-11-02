@@ -8,7 +8,10 @@
 #include <string>
 #include <vector>
 
+#include <chrono>
+
 #include "app/config.hpp"
+#include "app/secrets.hpp"
 #include "core/json.hpp"
 #include "db/database.hpp"
 
@@ -45,6 +48,24 @@ std::vector<Json> top_companies_by_ob(db::Database& db, long long limit);
 std::vector<Json> search_games(db::Database& db, const std::string& q, long long limit);
 db::Rows list_job_postings(db::Database& db, const std::optional<std::string>& source, std::optional<long long> limit);
 long long count_job_postings(db::Database& db, const std::optional<std::string>& source);
+
+// ---- ゲーム起点の関連会社・技術での検索 (games-repo.ts の relatedCompaniesByGame / companiesByTech) ----
+struct RelatedFilters {
+    bool smb = false, newgrad = false, opening = false, social = false;
+    std::optional<std::string> engine;
+    std::optional<long long> limit;
+};
+// {game, direct, related}。game が無ければ game=null (経路が 404 にする)。
+Json related_companies_by_game(db::Database& db, const std::string& game_id, const RelatedFilters& f);
+std::vector<Json> companies_by_tech(db::Database& db, const std::string& tech, bool smb, bool social, std::optional<long long> limit);
+
+// ---- 地図マーカー (geocode.ts buildMapMarkers + packages/companies parseGeocodeResult) ----
+// Google Geocoding API の応答から先頭結果の緯度経度 (status!=OK・結果なし・(0,0) は nullopt)。
+std::optional<std::pair<double, double>> parse_geocode_result(const Json& body);
+// 未キャッシュの所在地を最大 max_geocode 件だけ geocode する。Node 版に無い全体の期限 (deadline) を
+// 過ぎたら残りは pendingLocations に回す (次の呼び出しで解決する)。key が空なら enabled:false。
+Json build_map_markers(db::Database& db, const HttpFetch& fetch, const std::string& api_key, long long max_geocode,
+                       std::chrono::milliseconds deadline);
 
 // data/companies/*.json の設定 (無い・壊れている → 空)。
 std::vector<Json> load_listing_sources(const std::filesystem::path& root);

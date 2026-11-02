@@ -33,8 +33,6 @@ const { researchCompanyAi } = await import('../companies/interview-research.js')
 const { startEnrichQueue, stopEnrichQueue, enrichQueueStatus } = await import('../companies/enrich-queue.js');
 const { startCrawlQueue, stopCrawlQueue, crawlQueueStatus } = await import('../companies/crawl-queue.js');
 const { startJobNewsQueue, stopJobNewsQueue } = await import('../companies/job-news-queue.js');
-const { buildMapMarkers } = await import('../companies/geocode.js');
-const { relatedCompaniesByGame, companiesByTech } = await import('../companies/games-repo.js');
 const { topObStudios } = await import('../companies/ob-repo.js');
 
 type Args = Record<string, unknown>;
@@ -51,9 +49,6 @@ const ops: Record<string, (a: Args) => Promise<unknown>> = {
   'ai-research': (a) => researchCompanyAi(String(a['companyUrl'] ?? ''), Array.isArray(a['profileUrls']) ? (a['profileUrls'] as string[]) : []),
   'crawl-queue-status': () => crawlQueueStatus(),
   'enrich-queue-status': () => enrichQueueStatus(),
-  'map-markers': (a) => buildMapMarkers(num(a['max'])),
-  'games-related': (a) => relatedCompaniesByGame(String(a['gameId'] ?? ''), (a['filters'] ?? {}) as Parameters<typeof relatedCompaniesByGame>[1]),
-  'by-tech': (a) => companiesByTech(String(a['tech'] ?? ''), (a['filters'] ?? {}) as Parameters<typeof companiesByTech>[1]),
   'ob-studios': (a) => topObStudios(num(a['limit']), num(a['games'])),
 };
 

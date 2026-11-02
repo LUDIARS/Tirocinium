@@ -1,11 +1,14 @@
 #include "app/companies_repo.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <map>
 #include <sstream>
 
 #include "app/interview_repo.hpp"
+#include "core/llm/output.hpp"
+#include "http/message.hpp"
 #include "core/text.hpp"
 
 namespace tr::app {
@@ -315,6 +318,299 @@ long long count_job_postings(db::Database& db, const std::optional<std::string>&
     const std::string s = source ? js_trim(*source) : "";
     auto rows = db.query("SELECT count(*) AS n FROM job_postings WHERE ($1::text = '' OR source = $1)", {s});
     return rows.empty() ? 0 : static_cast<long long>(num(rows[0]["n"]));
+}
+
+// ---------------------------------------------------------------- ゲームグラフの探索
+
+namespace {
+
+const char* kCompanySel =
+    "c.id, c.name, c.location, c.url, c.industry, c.is_smb, c.is_listed, c.employee_count, c.listing_market, c.is_newgrad, "
+    "c.has_opening, c.recruit_url, c.is_social, c.primary_platform, c.description, c.crawled_at, "
+    "(SELECT COALESCE(sum(op.headcount), 0) FROM company_ob_placement op WHERE op.company_id = c.id) AS ob_total, "
+    "(SELECT count(*) FROM company_interview_articles a WHERE a.company_id = c.id) AS article_count, "
+    "CASE WHEN EXISTS(SELECT 1 FROM company_profiles p WHERE p.company_id = c.id) THEN TRUE ELSE FALSE END AS has_profile";
+
+// toBool: v === true || v === 1 || v === '1' || v === 't'
+bool to_bool(const Json* v) {
+    if (!v) return false;
+    if (v->is_boolean()) return v->get<bool>();
+    if (v->is_number()) return v->get<double>() == 1;
+    if (v->is_string()) return *v == "1" || *v == "t";
+    return false;
+}
+
+Json number_json(const Json* v) {
+    // Number(v): null → 0、文字列は数値化 (int8/numeric は postgres.js と同じく文字列で来る)
+    const double d = v ? num(*v) : 0;
+    return d == static_cast<double>(static_cast<std::int64_t>(d)) ? Json(static_cast<std::int64_t>(d)) : Json(d);
+}
+
+// direct / by-tech の行: 列はそのまま、真偽値と数値を正規化し relation を足す (JS の {...r, x: ...} と同じ順)。
+Json company_row(Json r, const std::string& relation) {
+    for (const char* k : {"is_smb", "is_listed", "is_newgrad", "has_opening", "is_social", "has_profile"}) r[k] = to_bool(member(r, k));
+    for (const char* k : {"employee_count", "ob_total", "article_count"}) r[k] = number_json(member(r, k));
+    if (!r.contains("description") || r["description"].is_null()) r["description"] = "";
+    r["relation"] = relation;
+    return r;
+}
+
+std::map<std::string, std::vector<std::string>> tech_names(db::Database& db, const std::vector<std::string>& ids) {
+    std::map<std::string, std::vector<std::string>> out;
+    for (const auto& id : ids) {
+        if (out.count(id)) continue;
+        std::vector<std::string> names;
+        for (const auto& r : db.query("SELECT t.name, t.category FROM company_tech ct JOIN tech t ON t.id = ct.tech_id WHERE ct.company_id = $1",
+                                      {id})) {
+            names.push_back(string_or(r, "name"));
+        }
+        out[id] = names;
+    }
+    return out;
+}
+
+Json tech_json(const std::map<std::string, std::vector<std::string>>& m, const std::string& id) {
+    auto it = m.find(id);
+    return it == m.end() ? Json::array() : Json(it->second);
+}
+
+}  // namespace
+
+Json related_companies_by_game(db::Database& db, const std::string& game_id, const RelatedFilters& f) {
+    Json none{{"game", nullptr}, {"direct", Json::array()}, {"related", Json::array()}};
+    if (!is_uuid(game_id)) return none;
+    auto games = db.query(
+        "SELECT id, title, normalized_title, series, normalized_series, platform, platform_class, genre, release_year, source, "
+        "source_url, sources, crawled_at, updated_at FROM games WHERE id = $1",
+        {game_id});
+    if (games.empty()) return none;
+    const Json game = games[0];
+    std::vector<Json> direct;
+    for (auto& r : db.query(std::string("SELECT ") + kCompanySel +
+                                ", cg.role AS role FROM company_game cg JOIN companies c ON c.id = cg.company_id WHERE cg.game_id = $1 "
+                                "ORDER BY cg.role",
+                            {game_id})) {
+        direct.push_back(company_row(std::move(r), "direct"));
+    }
+    // つながり (reason) を 1 件足す。最初に見た行で項目を作る (Map の挿入順を保つ)。
+    std::vector<std::string> order;
+    std::map<std::string, Json> by_id;
+    auto add_reason = [&](const Json& row, const std::string& reason) {
+        const std::string id = string_or(row, "id");
+        auto it = by_id.find(id);
+        if (it == by_id.end()) {
+            Json rc{{"id", row["id"]},
+                    {"name", row["name"]},
+                    {"location", row["location"]},
+                    {"url", row["url"]},
+                    {"industry", row["industry"]},
+                    {"is_smb", to_bool(member(row, "is_smb"))},
+                    {"is_listed", to_bool(member(row, "is_listed"))},
+                    {"employee_count", number_json(member(row, "employee_count"))},
+                    {"listing_market", row["listing_market"]},
+                    {"is_newgrad", to_bool(member(row, "is_newgrad"))},
+                    {"has_opening", to_bool(member(row, "has_opening"))},
+                    {"is_social", to_bool(member(row, "is_social"))},
+                    {"primary_platform", row["primary_platform"]},
+                    {"ob_total", number_json(member(row, "ob_total"))},
+                    {"description", row["description"].is_null() ? Json("") : row["description"]},
+                    {"has_profile", to_bool(member(row, "has_profile"))},
+                    {"article_count", number_json(member(row, "article_count"))},
+                    {"crawled_at", row.value("crawled_at", Json(nullptr))},
+                    {"recruit_url", row["recruit_url"]},
+                    {"relation", "related"},
+                    {"shared_games", 0},
+                    {"via_titles", Json::array()}};
+            it = by_id.emplace(id, std::move(rc)).first;
+            order.push_back(id);
+        }
+        Json& titles = it->second["via_titles"];
+        if (!reason.empty() && std::find(titles.begin(), titles.end(), Json(reason)) == titles.end()) titles.push_back(reason);
+    };
+    const std::string in_game = "(SELECT company_id FROM company_game WHERE game_id = $1)";
+    // 1) 作り手と他ゲームを共作した企業 (2 ホップ)
+    for (const auto& r : db.query(std::string("SELECT ") + kCompanySel +
+                                      ", g.title AS via_title FROM company_game cg1 JOIN company_game cg2 ON cg2.game_id = cg1.game_id "
+                                      "AND cg2.company_id <> cg1.company_id JOIN companies c ON c.id = cg2.company_id JOIN games g ON g.id = cg1.game_id "
+                                      "WHERE cg1.company_id IN " + in_game + " AND cg2.company_id NOT IN " + in_game,
+                                  {game_id})) {
+        add_reason(r, "共作: " + string_or(r, "via_title"));
+    }
+    // 2) 同シリーズの他作品の開発/発売企業 (正規化キーが空の行は raw series に戻す)
+    const std::string series = string_or(game, "series");
+    if (!series.empty()) {
+        const std::string key0 = "(CASE WHEN g0.normalized_series <> '' THEN g0.normalized_series ELSE g0.series END)";
+        for (const auto& r :
+             db.query(std::string("SELECT ") + kCompanySel +
+                          ", g2.title AS via_title FROM games g0 JOIN games g2 ON (CASE WHEN g2.normalized_series <> '' THEN "
+                          "g2.normalized_series ELSE g2.series END) = " + key0 +
+                          " AND g2.id <> g0.id JOIN company_game cg ON cg.game_id = g2.id JOIN companies c ON c.id = cg.company_id "
+                          "WHERE g0.id = $1 AND " + key0 + " <> '' AND c.id NOT IN " + in_game,
+                      {game_id})) {
+            add_reason(r, series + "シリーズ: " + string_or(r, "via_title"));
+        }
+    }
+    // 3) 直接関与企業の取引先
+    for (const auto& r : db.query(std::string("SELECT ") + kCompanySel +
+                                      " FROM company_partner cp JOIN companies c ON c.id = cp.partner_id WHERE cp.company_id IN " + in_game +
+                                      " AND cp.partner_id NOT IN " + in_game,
+                                  {game_id})) {
+        add_reason(r, "取引先");
+    }
+    std::vector<Json> related;
+    for (const auto& id : order) {
+        Json r = by_id[id];
+        r["shared_games"] = r["via_titles"].size();
+        if (f.smb && !r["is_smb"].get<bool>()) continue;
+        if (f.newgrad && !r["is_newgrad"].get<bool>()) continue;
+        if (f.opening && !r["has_opening"].get<bool>()) continue;
+        if (f.social && !r["is_social"].get<bool>()) continue;
+        related.push_back(std::move(r));
+    }
+    std::stable_sort(related.begin(), related.end(),
+                     [](const Json& a, const Json& b) { return a["shared_games"].get<std::size_t>() > b["shared_games"].get<std::size_t>(); });
+    if (related.size() > 200) related.resize(200);  // 技術の付与前に候補を絞る
+    std::vector<std::string> ids;
+    for (const auto& d : direct) ids.push_back(string_or(d, "id"));
+    for (const auto& r : related) ids.push_back(string_or(r, "id"));
+    const auto techs = tech_names(db, ids);
+    Json direct_out = Json::array();
+    for (auto& d : direct) {
+        d["tech"] = tech_json(techs, string_or(d, "id"));
+        direct_out.push_back(std::move(d));
+    }
+    for (auto& r : related) r["tech"] = tech_json(techs, string_or(r, "id"));
+    if (f.engine && !f.engine->empty()) {
+        const std::string needle = js_to_lower(*f.engine);
+        std::vector<Json> kept;
+        for (auto& r : related) {
+            bool hit = false;
+            for (const auto& t : r["tech"]) hit |= js_to_lower(t.get<std::string>()).find(needle) != std::string::npos;
+            if (hit) kept.push_back(std::move(r));
+        }
+        related.swap(kept);
+    }
+    const auto lim = static_cast<std::size_t>(std::min<long long>(std::max<long long>(f.limit.value_or(30), 1), 100));
+    if (related.size() > lim) related.resize(lim);
+    Json related_out = Json::array();
+    for (auto& r : related) {
+        Json& v = r["via_titles"];
+        if (v.size() > 5) v.erase(v.begin() + 5, v.end());
+        related_out.push_back(std::move(r));
+    }
+    return Json{{"game", game}, {"direct", direct_out}, {"related", related_out}};
+}
+
+std::vector<Json> companies_by_tech(db::Database& db, const std::string& tech, bool smb, bool social, std::optional<long long> limit) {
+    const auto lim = static_cast<std::size_t>(std::min<long long>(std::max<long long>(limit.value_or(50), 1), 200));
+    std::vector<Json> out;
+    std::vector<std::string> seen;
+    for (auto& r : db.query(std::string("SELECT ") + kCompanySel +
+                                " FROM company_tech ct JOIN tech t ON t.id = ct.tech_id JOIN companies c ON c.id = ct.company_id "
+                                "WHERE t.name ILIKE $1",
+                            {"%" + tech + "%"})) {
+        Json row = company_row(std::move(r), "related");
+        if (smb && !row["is_smb"].get<bool>()) continue;
+        if (social && !row["is_social"].get<bool>()) continue;
+        const std::string id = string_or(row, "id");
+        if (std::find(seen.begin(), seen.end(), id) != seen.end()) continue;  // 重複社を畳む
+        seen.push_back(id);
+        out.push_back(std::move(row));
+    }
+    if (out.size() > lim) out.resize(lim);
+    std::vector<std::string> ids;
+    for (const auto& r : out) ids.push_back(string_or(r, "id"));
+    const auto techs = tech_names(db, ids);
+    for (auto& r : out) r["tech"] = tech_json(techs, string_or(r, "id"));
+    return out;
+}
+
+// ---------------------------------------------------------------- 地図マーカー
+
+std::optional<std::pair<double, double>> parse_geocode_result(const Json& body) {
+    if (!body.is_object() || body.value("status", Json(nullptr)) != "OK") return std::nullopt;
+    const Json* results = member(body, "results");
+    if (!results || !results->is_array() || results->empty()) return std::nullopt;
+    const Json& first = (*results)[0];
+    const Json* geometry = first.is_object() ? member(first, "geometry") : nullptr;
+    const Json* loc = geometry && geometry->is_object() ? member(*geometry, "location") : nullptr;
+    auto number_of = [&](const char* k) {
+        if (!loc || !loc->is_object() || !loc->contains(k)) return std::nan("");  // Number(undefined) = NaN
+        return llm::js_to_number((*loc)[k]);
+    };
+    const double lat = number_of("lat");
+    const double lng = number_of("lng");
+    if (!std::isfinite(lat) || !std::isfinite(lng)) return std::nullopt;
+    if (lat == 0 && lng == 0) return std::nullopt;
+    return std::make_pair(lat, lng);
+}
+
+Json build_map_markers(db::Database& db, const HttpFetch& fetch, const std::string& api_key, long long max_geocode,
+                       std::chrono::milliseconds deadline) {
+    if (api_key.empty()) return Json{{"enabled", false}, {"markers", Json::array()}, {"pendingLocations", 0}};
+    const auto companies = db.query(
+        "SELECT c.id, c.name, c.location, c.is_smb, c.is_social, (SELECT count(*) FROM company_game cg WHERE cg.company_id = c.id) "
+        "AS game_count FROM companies c WHERE c.location <> '' AND EXISTS (SELECT 1 FROM company_game cg WHERE cg.company_id = c.id)");
+    std::vector<std::string> distinct;
+    for (const auto& c : companies) {
+        const std::string loc = string_or(c, "location");
+        if (std::find(distinct.begin(), distinct.end(), loc) == distinct.end()) distinct.push_back(loc);
+    }
+    struct LatLng {
+        double lat, lng;
+        bool ok;
+    };
+    std::map<std::string, LatLng> coords;
+    long long geocoded = 0, pending = 0;
+    const auto until = std::chrono::steady_clock::now() + deadline;
+    for (const auto& loc : distinct) {
+        auto cached = db.query("SELECT location, lat, lng, ok FROM geocode_cache WHERE location = $1", {loc});
+        if (!cached.empty()) {
+            coords[loc] = {num(cached[0]["lat"]), num(cached[0]["lng"]), to_bool(member(cached[0], "ok"))};
+            continue;
+        }
+        if (geocoded >= max_geocode || std::chrono::steady_clock::now() >= until) {
+            ++pending;
+            continue;
+        }
+        std::optional<std::pair<double, double>> ll;
+        try {
+            io::HttpClientRequest req;
+            req.method = "GET";
+            // キーは URL に載る (Google の仕様)。この URL はログに出さない。
+            req.url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + http::encode_uri_component(loc) +
+                      "&language=ja&region=jp&key=" + http::encode_uri_component(api_key);
+            req.timeout = std::chrono::milliseconds(10'000);
+            req.max_response_bytes = 1024 * 1024;
+            req.public_only = true;
+            const auto res = fetch(req);
+            if (res.ok()) {
+                if (auto body = parse_json(res.body)) ll = parse_geocode_result(*body);
+            }
+        } catch (...) {
+            ll.reset();
+        }
+        ++geocoded;
+        const LatLng v = ll ? LatLng{ll->first, ll->second, true} : LatLng{0, 0, false};  // 失敗も記録して再試行を抑える
+        db.query("INSERT INTO geocode_cache (location, lat, lng, ok) VALUES ($1, $2, $3, $4) ON CONFLICT (location) DO UPDATE SET "
+                 "lat = EXCLUDED.lat, lng = EXCLUDED.lng, ok = EXCLUDED.ok, geocoded_at = now()",
+                 {loc, v.lat, v.lng, v.ok});
+        coords[loc] = v;
+    }
+    Json markers = Json::array();
+    for (const auto& c : companies) {
+        auto it = coords.find(string_or(c, "location"));
+        if (it == coords.end() || !it->second.ok) continue;
+        markers.push_back(Json{{"id", c["id"]},
+                               {"name", c["name"]},
+                               {"location", c["location"]},
+                               {"lat", it->second.lat},
+                               {"lng", it->second.lng},
+                               {"is_smb", to_bool(member(c, "is_smb"))},
+                               {"is_social", to_bool(member(c, "is_social"))},
+                               {"game_count", number_json(member(c, "game_count"))}});
+    }
+    return Json{{"enabled", true}, {"markers", markers}, {"pendingLocations", pending}};
 }
 
 std::vector<Json> load_listing_sources(const std::filesystem::path& root) {

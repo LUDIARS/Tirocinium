@@ -102,7 +102,8 @@ worker の 45 は `native/tools/npm_dep_inventory.py` の関数で上の 5 パ�
 | `routes/backdoor.ts` / `es-requests.ts` / `resources.ts` / `analytics.ts`、`es-review/*` | `app/routes/alumni_routes`, `app/alumni_repo` | ✅ | |
 | `routes/companies.ts` (読み出し 14 経路・クロール投入・設定済みソース・地図設定) | `app/routes/companies_routes`, `app/companies_repo` | ✅ | |
 | `routes/companies.ts` (crawl-listing / crawl-job-news / contribute / enrich / merge-duplicates / ob/sync) | 同上 → 企業 worker | ⛔ (委託) | HTML/RSS/Notion の解析と LLM 抽出を含む。失敗の形 (`{error, detail}` 502、`company not found` は 404) は同じ。 |
-| `routes/companies.ts` (map-markers / games/:id/related / by-tech / ob/studios / キューの状態) | 同上 → 企業 worker | 🟡 | DB の読み出しだが、ゲームグラフの系列正規化・技術タグ・geocode を含むので今回は worker に委託。worker が無ければ 503、キューの状態は DB から組み立てる (§7)。 |
+| `routes/companies.ts` (map-markers / games/:id/related / by-tech) + `companies/{geocode,games-repo,tech-repo}.ts` の読み出し | `app/companies_repo` (`build_map_markers` / `related_companies_by_game` / `companies_by_tech`) | ✅ | geocode は外向き HTTP (SSRF 判定つき、10 秒、1 MiB)。Node 版に無い全体の期限 60 秒を足した (過ぎた分は次回)。 |
+| `routes/companies.ts` (ob/studios / crawl-queue・enrich-queue の状態) | 同上 → 企業 worker | 🟡 | OB スタジオの代表作選びは系列名の NFKC 正規化と `localeCompare` (ICU) を要する。キューの状態はキューを持つ worker に聞き、worker が無ければ DB から組み立てる。ob/studios は worker が無ければ 503。 |
 | `companies/{crawl-queue,enrich-queue,job-news-queue}.ts` (常駐キュー) | 企業 worker | ⛔ | クロール本体と同じ理由。 |
 | `routes/recommend.ts` + `recommend/*` + `packages/companies` の score/recommend | `app/recommend`, `core/domain/recommend` | ✅ | LLM rerank は `claude -p` (RECOMMENDER)。golden で一致。 |
 | `discord/bridge.ts` (テキスト面接)・`discord/commands.ts`・`discord/gateway-client.ts`・`es-review/discord-relay.ts` | `app/discord_bridge`, `core/domain` | ✅ | |
@@ -122,7 +123,7 @@ worker の 45 は `native/tools/npm_dep_inventory.py` の関数で上の 5 パ�
 
 - `sub` の無いトークンは 401 (Node 版は undefined のまま通していた)。
 - 本文の上限: 資料提出 7 MiB、その他 2 MiB (Node 版は資料以外に上限なし)。
-- `:id` が UUID の形でない要求は 404 (Node + Postgres では 500)。`limit` / `offset` が数でなければ既定値 (Node 版は DB エラーで 500)。
+- `:id` が UUID の形でない要求は 404 (Node + Postgres では 500)。`limit` / `offset` / `max` が数でなければ既定値 (Node 版は DB エラーで 500、map-markers の `max` は上限なしになっていた)。
 - 未知のパスへの WebSocket upgrade は 404 で断る (Node 版は応答せず放置)。session WS は init が終わるまで後続のフレームを待たせる。
 - Discord 本文の分割でサロゲート対を割らない。gateway の heartbeat 要求 (op 1) に応じ、120 秒無通信なら切って再接続する。
 - 企業 worker への委託は同時 4 件まで、超えたら待たせずに断る (書き込み系は Node 版と同じ形の 502、読み出し系は 503)。
@@ -190,6 +191,7 @@ ctest の名前は `tirocinium.<実行ファイル>`。DB を使うもの (`pg_*
 | `packages/voice/{tts-voicevox-provider,stt-provider}.test.ts` | `voice_brief_tests` | STT の grpc は「拒否」になる |
 | `packages/voice/{vad,queue}.test.ts` | — | STT 経路と一緒に未移植 (§6) |
 | `packages/training/memoria-client.test.ts` | `pg_interview_routes_tests` (training)、`pg_runtime_tests` | 偽の Memoria |
+| `packages/companies/geocode.test.ts` (parseGeocodeResult) | `pg_runtime_tests` (map markers) | + キャッシュ・失敗の記録・max の扱い |
 | `companies/{backdoor-repo,repo-quality}.test.ts`、`crawl-queue-repo.test.ts` (投入・畳み込み・件数・直近) | `pg_alumni_routes_tests`, `pg_runtime_tests` | C++ に移した読み出し・投入の部分。キューの claim/完了/失敗は worker 側 (Node のテストのまま) |
 | `companies/news-config.test.ts` | `pg_runtime_tests` (job-sources の表示) | 表示に使う kind/有効判定だけ C++。newgradOnly・company は worker 側 |
 | `judge-blackbox/judge-blackbox.test.ts` | — | 未移植 (起動拒否) |
@@ -218,7 +220,7 @@ C++ だけの追加テスト: `io_http_server_tests` (ソケット越しの境�
   (音声・STT を移した後なら `@discordjs/voice`, `opusscript`, `prism-media`, `@grpc/grpc-js`, `@grpc/proto-loader`、
   blackbox を捨てるなら `@ludiars/blackbox`)。`packages/llm` の index を分ければ worker から `openai` を外せる。
   Node 実装と package.json は今回は消していない。
-- worker に委託している DB の読み出し (地図マーカー・ゲームからの関連会社・技術での検索・OB スタジオ) の C++ 化。
+- OB スタジオ (`/ob/studios`) の C++ 化には NFKC 正規化と照合順序 (ICU 相当) が要る。ICU は許可依存に無いので worker のまま。
 - HTTP+JSON だけの運用 CLI (gBizINFO 取り込み・Wikidata・Sheets 同期・重複マージ・系列正規化・技術グラフ) の C++ 化。
 - Windows でのビルドと実行の確認 (コードは Windows 分岐を持つが、クラウドでは Linux しか試していない)。
 

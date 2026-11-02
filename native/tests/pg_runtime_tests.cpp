@@ -16,6 +16,7 @@
 
 #include "check.hpp"
 #include "support/app_fixture.hpp"
+#include "app/companies_repo.hpp"
 #include "app/discord_bridge.hpp"
 #include "app/interview_repo.hpp"
 #include "app/recommend.hpp"
@@ -77,9 +78,6 @@ createInterface({ input: process.stdin }).on('line', (line) => {
     case 'ob-sync': return ok(id, { dryRun: a.dryRun });
     case 'crawl-queue-status': return ok(id, { enabled: true, running: true, from: 'worker' });
     case 'enrich-queue-status': return ok(id, { enabled: true, running: true, from: 'worker' });
-    case 'map-markers': return ok(id, { enabled: true, markers: [], pendingLocations: a.max ?? 60 });
-    case 'games-related': return ok(id, a.gameId === 'none' ? { game: null, direct: [], related: [] } : { game: { id: a.gameId }, direct: [], related: [], filters: a.filters });
-    case 'by-tech': return ok(id, [{ id: 'x', tech: a.tech, smb: a.filters.smb }]);
     case 'ob-studios': return ok(id, [{ limit: a.limit ?? null }]);
     case 'ai-research': return ok(id, { status: 'mentions_found', checkedAt: 't', evidence: [], failures: [], checkedUrls: [a.companyUrl], scope: 'synthetic' });
     default: return fail(id, 'unknown_op');
@@ -254,13 +252,122 @@ TEST_CASE("companies: delegated operations map worker results and errors like No
              "dryRun === true only");
     check_eq(body(r.f.call("POST", "/api/v1/companies/ob/sync", ta, R"({"dryRun":true})"))["summary"]["dryRun"], Json(true), "ob sync");
     check_eq(body(r.f.call("GET", "/api/v1/companies/crawl-queue/status"))["from"], Json("worker"), "status from the worker");
-    check_eq(r.f.call("GET", "/api/v1/companies/games/none/related").status, 404, "game not found");
-    auto rel = body(r.f.call("GET", "/api/v1/companies/games/g1/related?smb=1&engine=Unity&limit=5"));
-    check(rel["filters"]["smb"] == true && rel["filters"]["engine"] == "Unity" && rel["filters"]["limit"] == 5, "filters passed");
-    check_eq(body(r.f.call("GET", "/api/v1/companies/by-tech?tech=%20Unreal%20&smb=true"))["companies"][0]["tech"], Json("Unreal"),
-             "tech trimmed");
     check_eq(js_stringify(body(r.f.call("GET", "/api/v1/companies/ob/studios?limit=3"))), std::string(R"({"studios":[{"limit":3}]})"),
              "studios");
+}
+
+// games-repo.ts relatedCompaniesByGame / companiesByTech (Node 版にテストは無い。SQL と組み立てを合成データで確かめる)
+TEST_CASE("companies: game graph — direct, co-developers, same series, partners, filters, tech, limits") {
+    auto& r = rt();
+    auto& db = *r.f.pool;
+    auto game = [&](const std::string& title, const std::string& series, const std::string& nseries) {
+        return db.query("INSERT INTO games (title, normalized_title, series, normalized_series, release_year) VALUES ($1, $1, $2, $3, 2020) "
+                        "RETURNING id",
+                        {title, series, nseries})
+            .at(0)["id"]
+            .get<std::string>();
+    };
+    auto link = [&](const std::string& c, const std::string& g, const std::string& role) {
+        db.query("INSERT INTO company_game (company_id, game_id, role) VALUES ($1, $2, $3)", {c, g, role});
+    };
+    auto tech = [&](const std::string& c, const std::string& name) {
+        auto t = db.query("INSERT INTO tech (name, normalized_name, category) VALUES ($1, lower($1), 'engine') ON CONFLICT (normalized_name) "
+                          "DO UPDATE SET name = EXCLUDED.name RETURNING id",
+                          {name});
+        db.query("INSERT INTO company_tech (company_id, tech_id) VALUES ($1, $2)", {c, t.at(0)["id"].get<std::string>()});
+    };
+    const std::string dev = seed_company(db, "合成開発元", {}, {}, "");
+    const std::string pub = seed_company(db, "合成発売元", {}, {}, "");
+    const std::string co = seed_company(db, "合成共作先", {}, {}, "");
+    const std::string ser = seed_company(db, "合成同シリーズ", {}, {}, "");
+    const std::string partner = seed_company(db, "合成取引先", {}, {}, "");
+    db.query("UPDATE companies SET is_smb = true WHERE id = $1", {co});
+    db.query("INSERT INTO company_ob_placement (company_id, join_year, class_name, role, headcount) VALUES ($1, 2024, 'k', 'r', 3)", {dev});
+    const std::string g1 = game("合成作品 1", "合成シリーズ", "");
+    const std::string g2 = game("合成作品 2", "", "");
+    const std::string g3 = game("合成作品 3", "別表記", "合成シリーズ");
+    link(dev, g1, "developer");
+    link(pub, g1, "publisher");
+    link(dev, g2, "developer");
+    link(co, g2, "support");
+    link(ser, g3, "developer");
+    db.query("INSERT INTO company_partner (company_id, partner_id) VALUES ($1, $2)", {pub, partner});
+    tech(co, "Unreal Engine");
+    tech(dev, "Unity");
+
+    check_eq(r.f.call("GET", "/api/v1/companies/games/not-a-uuid/related").status, 404, "non-uuid");
+    check_eq(r.f.call("GET", "/api/v1/companies/games/00000000-0000-4000-8000-000000000000/related").status, 404, "unknown game");
+    const Json res = body(r.f.call("GET", "/api/v1/companies/games/" + g1 + "/related"));
+    check(res["game"]["title"] == "合成作品 1" && res["game"]["release_year"] == 2020, "game row");
+    check(res["direct"].size() == 2 && res["direct"][0]["role"] == "developer" && res["direct"][0]["relation"] == "direct", "direct by role");
+    check(res["direct"][0]["ob_total"] == 3 && res["direct"][0]["tech"] == Json::array({"Unity"}), "ob total and tech");
+    std::map<std::string, Json> rel;
+    for (const auto& x : res["related"]) rel[x["name"].get<std::string>()] = x;
+    check(rel.size() == 3, "three related companies");
+    check(rel["合成共作先"]["via_titles"] == Json::array({"共作: 合成作品 2"}) && rel["合成共作先"]["shared_games"] == 1, "co-developer");
+    check(rel["合成同シリーズ"]["via_titles"] == Json::array({"合成シリーズシリーズ: 合成作品 3"}), "same normalized series");
+    check(rel["合成取引先"]["via_titles"] == Json::array({"取引先"}), "partner");
+    std::vector<std::string> keys;
+    for (auto it = rel["合成取引先"].begin(); it != rel["合成取引先"].end(); ++it) keys.push_back(it.key());
+    check(keys.front() == "id" && keys.back() == "tech" && keys[keys.size() - 2] == "via_titles", "related key order (Node object literal + tech)");
+    const Json smb = body(r.f.call("GET", "/api/v1/companies/games/" + g1 + "/related?smb=1"));
+    check(smb["related"].size() == 1 && smb["related"][0]["name"] == "合成共作先", "smb filter");
+    const Json eng = body(r.f.call("GET", "/api/v1/companies/games/" + g1 + "/related?engine=unreal"));
+    check(eng["related"].size() == 1 && eng["related"][0]["tech"] == Json::array({"Unreal Engine"}), "engine filter (case-insensitive)");
+    check_eq(body(r.f.call("GET", "/api/v1/companies/games/" + g1 + "/related?limit=1"))["related"].size(), std::size_t{1}, "limit");
+
+    const Json bt = body(r.f.call("GET", "/api/v1/companies/by-tech?tech=%20unreal%20"));
+    check(bt["companies"].size() == 1 && bt["companies"][0]["name"] == "合成共作先" && bt["companies"][0]["relation"] == "related" &&
+              bt["companies"][0]["is_smb"] == true,
+          "by-tech (ILIKE, trimmed)");
+    check(body(r.f.call("GET", "/api/v1/companies/by-tech?tech=Unity&smb=1"))["companies"].empty(), "by-tech smb filter");
+}
+
+// geocode.ts buildMapMarkers + packages/companies geocode.test.ts (parseGeocodeResult)
+TEST_CASE("companies: map markers geocode once per location, cache failures, respect max, parse like Node") {
+    auto& r = rt();
+    auto& db = *r.f.pool;
+    check(app::parse_geocode_result(Json{{"status", "OK"}, {"results", Json::array({Json{{"geometry", Json{{"location", Json{{"lat", "35.5"}, {"lng", 139}}}}}}})}}) ==
+              std::optional<std::pair<double, double>>({35.5, 139.0}),
+          "string numbers like Number()");
+    check(!app::parse_geocode_result(Json{{"status", "ZERO_RESULTS"}, {"results", Json::array()}}), "status");
+    check(!app::parse_geocode_result(Json{{"status", "OK"}, {"results", Json::array({Json{{"geometry", Json{{"location", Json{{"lat", 0}, {"lng", 0}}}}}}})}}),
+          "(0,0) rejected");
+    check(!app::parse_geocode_result(Json{{"status", "OK"}, {"results", Json::array({Json{{"geometry", Json::object()}}})}}), "no location");
+    const std::string a = seed_company(db, "合成地図 A", {}, {}, "");
+    const std::string b = seed_company(db, "合成地図 B", {}, {}, "");
+    const std::string c = seed_company(db, "合成地図 C", {}, {}, "");
+    const std::string g = db.query("INSERT INTO games (title, normalized_title) VALUES ('合成地図作品', '合成地図作品') RETURNING id").at(0)["id"];
+    for (const auto& [id, loc] : std::vector<std::pair<std::string, std::string>>{{a, "合成県 1"}, {b, "合成県 1"}, {c, "合成県 2"}}) {
+        db.query("UPDATE companies SET location = $1 WHERE id = $2", {loc, id});
+        db.query("INSERT INTO company_game (company_id, game_id, role) VALUES ($1, $2, 'developer')", {id, g});
+    }
+    int geocode_calls = 0;
+    r.f.fake_http = [&](const io::HttpClientRequest& req) {
+        io::HttpClientResponse res;
+        res.status = 200;
+        if (req.url.rfind("https://maps.googleapis.com/maps/api/geocode/json?", 0) == 0) {
+            ++geocode_calls;
+            check(req.public_only, "geocode goes through the SSRF guard");
+            res.body = req.url.find(http::encode_uri_component("合成県 1")) != std::string::npos
+                           ? R"({"status":"OK","results":[{"geometry":{"location":{"lat":35.1,"lng":139.2}}}]})"
+                           : R"({"status":"ZERO_RESULTS","results":[]})";
+        } else {
+            res.body = "{}";
+        }
+        return res;
+    };
+    r.f.config.google_maps_api_key = "synthetic-maps-key";
+    const Json one = body(r.f.call("GET", "/api/v1/companies/map-markers?max=1"));
+    check(one["enabled"] == true && one["pendingLocations"] == 1 && geocode_calls == 1, "max=1 geocodes one location");
+    check(one["markers"].size() == 2 && one["markers"][0]["lat"] == 35.1 && one["markers"][0]["game_count"] == 1, "both companies at loc 1");
+    const Json two = body(r.f.call("GET", "/api/v1/companies/map-markers"));
+    check(two["pendingLocations"] == 0 && geocode_calls == 2 && two["markers"].size() == 2, "failed location cached as ok=false");
+    (void)body(r.f.call("GET", "/api/v1/companies/map-markers"));
+    check_eq(geocode_calls, 2, "no repeated calls for cached locations");
+    check(db.query("SELECT ok FROM geocode_cache WHERE location = '合成県 2'").at(0)["ok"] == false, "failure recorded");
+    r.f.config.google_maps_api_key.clear();
+    r.f.fake_http = nullptr;
 }
 
 TEST_CASE("recommend: auth, heuristic ranking without LLM, ES text not stored, history") {

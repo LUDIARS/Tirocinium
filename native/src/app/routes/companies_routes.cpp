@@ -87,12 +87,8 @@ std::optional<Json> delegate_read(CompaniesWorker* worker, const std::string& op
 std::chrono::milliseconds companies_op_timeout(const std::string& op) {
     using std::chrono::milliseconds;
     if (op == "ai-research") return milliseconds(20'000);  // worker 側で 8 秒の全体期限がある
-    if (op == "crawl-queue-status" || op == "enrich-queue-status" || op == "games-related" || op == "by-tech" ||
-        op == "ob-studios") {
-        return milliseconds(60'000);
-    }
-    if (op == "map-markers") return milliseconds(300'000);  // 未 geocode を最大 60 件ずつ解決する
-    return milliseconds(30 * 60'000);                       // クロール・enrich・同期
+    if (op == "crawl-queue-status" || op == "enrich-queue-status" || op == "ob-studios") return milliseconds(60'000);
+    return milliseconds(30 * 60'000);  // クロール・enrich・同期
 }
 
 void register_companies_routes(http::Router& r, Services& s, CompaniesWorker* worker) {
@@ -154,31 +150,23 @@ void register_companies_routes(http::Router& r, Services& s, CompaniesWorker* wo
         return json(Json{{"games", array_of(search_games(s.db, q, int_query(req, "limit").value_or(20)))}});
     });
 
-    r.get(base + "/games/:gameId/related", [worker](Request& req, Ctx&) {
-        Json filters{{"smb", truthy_flag(req, "smb")},
-                     {"newgrad", truthy_flag(req, "newgrad")},
-                     {"opening", truthy_flag(req, "opening")},
-                     {"social", truthy_flag(req, "social")}};
-        if (auto e = nonempty_query(req, "engine")) filters["engine"] = *e;
-        if (auto l = int_query(req, "limit")) filters["limit"] = *l;
-        Response failure;
-        auto result = delegate_read(worker, "games-related", Json{{"gameId", req.param("gameId")}, {"filters", filters}}, failure);
-        if (!result) return failure;
-        if (!result->is_object() || !(*result).contains("game") || (*result)["game"].is_null()) {
-            return json(Json{{"error", "not_found"}}, 404);
-        }
-        return json(*result);
+    r.get(base + "/games/:gameId/related", [&s](Request& req, Ctx&) {
+        RelatedFilters f;
+        f.smb = truthy_flag(req, "smb");
+        f.newgrad = truthy_flag(req, "newgrad");
+        f.opening = truthy_flag(req, "opening");
+        f.social = truthy_flag(req, "social");
+        f.engine = nonempty_query(req, "engine");
+        f.limit = int_query(req, "limit");
+        const Json result = related_companies_by_game(s.db, req.param("gameId"), f);
+        return result["game"].is_null() ? json(Json{{"error", "not_found"}}, 404) : json(result);
     });
 
-    r.get(base + "/by-tech", [worker](Request& req, Ctx&) {
+    r.get(base + "/by-tech", [&s](Request& req, Ctx&) {
         const std::string tech = js_trim(req.query("tech").value_or(""));
         if (tech.empty()) return json(Json{{"companies", Json::array()}});
-        Json filters{{"smb", truthy_flag(req, "smb")}, {"social", truthy_flag(req, "social")}};
-        if (auto l = int_query(req, "limit")) filters["limit"] = *l;
-        Response failure;
-        auto result = delegate_read(worker, "by-tech", Json{{"tech", tech}, {"filters", filters}}, failure);
-        if (!result) return failure;
-        return json(Json{{"companies", *result}});
+        return json(Json{{"companies", array_of(companies_by_tech(s.db, tech, truthy_flag(req, "smb"), truthy_flag(req, "social"),
+                                                                  int_query(req, "limit")))}});
     });
 
     // Google Maps の JS API キーは referrer 制限を前提に公開する設計 (Node 版と同じ)。
@@ -187,15 +175,10 @@ void register_companies_routes(http::Router& r, Services& s, CompaniesWorker* wo
         return json(Json{{"enabled", !key.empty()}, {"apiKey", key}});
     });
 
-    r.get(base + "/map-markers", [&s, worker](Request& req, Ctx&) {
-        if (s.config.google_maps_api_key.empty()) {
-            return json(Json{{"enabled", false}, {"markers", Json::array()}, {"pendingLocations", 0}});
-        }
-        Json args = Json::object();
-        if (auto m = int_query(req, "max")) args["max"] = *m;
-        Response failure;
-        auto result = delegate_read(worker, "map-markers", args, failure);
-        return result ? json(*result) : failure;
+    // 未 geocode の所在地は 1 回に最大 max 件 (既定 60)。Node 版に無い全体の期限 60 秒を過ぎたら残りは次回に回す。
+    r.get(base + "/map-markers", [&s](Request& req, Ctx&) {
+        return json(build_map_markers(s.db, s.fetch, s.config.google_maps_api_key, int_query(req, "max").value_or(60),
+                                      std::chrono::seconds(60)));
     });
 
     r.get(base + "/enrich-queue/status", [&s, worker](Request&, Ctx&) {
