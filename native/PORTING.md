@@ -18,7 +18,7 @@ job `cpp-node-20261030` (WP-Tirocinium)。目的は脆弱性の受け口 (npm �
 | 実行時の DB | `apps/server/src/index.ts` は `hydrateSecrets()` 後に `initSql()` を呼ぶが、`config.databaseUrl` を設定する経路が無い (`DATABASE_URL` は scripts だけが読む)。常駐サーバは常に `node:sqlite` (Node 同梱の SQLite) で `data/tirocinium.sqlite` を開く。 | C++ 版は libpq (Postgres) だけで動く。`DATABASE_URL` (postgres://) を env かローカルの暗号化 config から読み、無い・SQLite を指す場合は起動を拒否する。既存の SQLite のデータの移し替えは §6 (人間の判断)。 |
 | Postgres 用 migration | `migrations/` に 017 (analytics) が無く、`analytics/store.ts` の SQL は SQLite 専用。Node 版は Postgres では analytics が動かない。 | `apps/server/migrations/017_analytics.sql` (SQLite 版と同じ列) を追加した。既存の migration は変えていない。 |
 | PASETO の版・用途 | Cernere は **v4.public** (Ed25519) で署名。claims は `sub/aud/iat/exp(ISO 8601)/kind/jti`、footer は `{"kid":…}`。公開鍵は `/.well-known/cernere-public-key` が raw 32 byte の base64。`CERNERE_PUBLIC_KEY` は PASERK (`k4.public.`) か PEM。 | OpenSSL 3 の Ed25519 で検証 (公式テストベクタ 4-S-1 で確認)。v4.local は使われていない。 |
-| LLM の経路 | 面接官の発話は `codex exec --model sol` / `claude -p --model opus` を引数配列で起動 (`@ludiars/one-shot`)。judge・評価・サマリ・推薦は `@anthropic-ai/sdk` (API キー)、refine は `openai` (chat.completions を 1 回)。 | C++ 版は Anthropic の API を呼ばず `claude -p` (ツール無し) に置換。機能の有効判定は Node 版と同じく `ANTHROPIC_API_KEY` の有無 (キーは子に渡さない)。OpenAI は HTTPS の 1 リクエスト。 |
+| LLM の経路 | 面接官の発話は `codex exec --model sol` / `claude -p --model opus` を引数配列で起動 (`@ludiars/one-shot`)。judge・評価・サマリ・推薦は Anthropic の直接 API (API キー)、refine は OpenAI の chat.completions を 1 回。Node 側の直接 API は SDK をやめ Portus (`lib/portus`) で通信する (`spec/feature/inference/direct-api-portus.md`)。 | C++ 版は Anthropic の API を呼ばず `claude -p` (ツール無し) に置換。機能の有効判定は Node 版と同じく `ANTHROPIC_API_KEY` の有無 (キーは子に渡さない)。OpenAI は HTTPS の 1 リクエスト。 |
 | gRPC STT | `packages/voice` の gRPC は Imperativus stt-service の `StreamingRecognize` (双方向ストリーム) 1 本。既定は off。 | gRPC C++ は入れない。設定されていれば C++ 版は起動を拒否する (§6)。 |
 | 外部 HTML / フィード | 企業クロール (listing / enrich / contribute / job-news / AI 調査) は HTML・RSS・Atom を解析し、LLM で抽出する。 | 共通規約により C++ で HTML パーサーを自作しない → Node の企業 worker に残す (受け口は持たない)。 |
 | 本番の起動方法 | catalog は `npm run dev:server` (= `tsx watch src/index.ts`)。tsx (esbuild を含む) は本番で動いている。 | 企業 worker も `node --import tsx` で起動する (既存と同じ)。dist から起動する案は §7。 |
@@ -41,9 +41,10 @@ job `cpp-node-20261030` (WP-Tirocinium)。目的は脆弱性の受け口 (npm �
 | apps/server | `gray-matter` | 4.0.3 | 10 | 不要 (サーバ) / 残す (scripts) | サーバは使っていない (Consult スキルの frontmatter 除去は `domain::strip_frontmatter`)。 |
 | apps/server | `@ludiars/blackbox` | 0.2.0 | 1 | 不要 (既定 off) | judge の卒業機構 (SQLite)。`TIROCINIUM_JUDGE_BLACKBOX=1` なら C++ 版は起動を拒否 (§6)。 |
 | apps/server | `@ludiars/canalis` | 0.1.0 | 1 | 残す (Node CLI) | `companies:notion-import` だけ (ブラウザ操作)。 |
-| apps/server | `@tirocinium/llm` | — | 43 | 置き換え済み (サーバ) / 残す (worker) | 純関数は `core/llm/*` (golden で一致)。worker のクロール抽出が SDK を使う。 |
-| packages/llm | `@anthropic-ai/sdk` | 0.30.1 | 39 | 置き換え済み (サーバ) / 残す (worker) | サーバは `claude -p`。worker の抽出は Node 版のまま (§6)。 |
-| packages/llm | `openai` | 4.104.0 | 39 | 置き換え済み (サーバ) / worker が読み込む | refine は HTTPS 1 回 (`app/llm`)。worker は使わないが `packages/llm` の index が読み込む。 |
+| apps/server | `@tirocinium/llm` | — | 43 → 2 | 置き換え済み (サーバ) / 残す (worker) | 純関数は `core/llm/*` (golden で一致)。Node 側は SDK 2 つを Portus に替え、閉包は `@ludiars/one-shot` と `@ludiars/portus` の 2 つ。 |
+| packages/llm | `@anthropic-ai/sdk` | 0.30.1 | 39 | 置き換え済み (サーバ) / Portus に置き換え (Node) | サーバは `claude -p`。Node 側 (worker の抽出・Node 版サーバ・scripts) は Portus の `AnthropicClient` (stream は `packages/llm/src/anthropic-stream.ts`)。依存から外した。 |
+| packages/llm | `openai` | 4.104.0 | 39 | 置き換え済み (サーバ) / Portus に置き換え (Node) | refine は HTTPS 1 回 (`app/llm`)。Node 側は Portus の `OpenAIClient`。依存から外した。 |
+| packages/llm | `@ludiars/portus` (追加) | 0.1.0 (`lib/portus` submodule、タグ v0.1.0 = af663ded) | 1 | Node に追加 | 実行時依存ゼロ (`node:` 標準と fetch だけ)。`npm run build:portus` で dist を作る。 |
 | packages/llm | `@ludiars/one-shot` | 0.1.0 | 1 | 置き換え済み | `app/one_shot` + `io/process`。 |
 | apps/server | `@tirocinium/secrets` | — | 1 | 置き換え済み (サーバ) / 残す (worker) | `app/secrets` (agent クライアント・ローカル暗号化 config)。 |
 | packages/secrets | `@ludiars/encrypted-config` | 0.1.0 | 1 | 置き換え済み (サーバ) / 残す (worker) | 同じファイル形式 (scrypt + AES-256-GCM) を OpenSSL で。Node で暗号化した fixture の復号で互換を確認。 |
@@ -52,7 +53,7 @@ job `cpp-node-20261030` (WP-Tirocinium)。目的は脆弱性の受け口 (npm �
 | apps/server | `@tirocinium/voice` | — | 35 | 一部置き換え | VOICEVOX TTS・WAV 抽出・文分割は `app/voice`。gRPC STT は §6。 |
 | packages/voice | `@grpc/grpc-js` | 1.14.4 | 34 | 要判断 | §6。 |
 | packages/voice | `@grpc/proto-loader` | 0.7.15 | 32 | 要判断 | §6。 |
-| apps/server | `@tirocinium/companies` | — | 43 | 一部置き換え | 社名正規化・ソース一覧・推薦スコア/推薦は `core/domain` (golden で一致)。HTML/RSS/robots/抽出は worker。 |
+| apps/server | `@tirocinium/companies` | — | 43 → 2 | 一部置き換え | 社名正規化・ソース一覧・推薦スコア/推薦は `core/domain` (golden で一致)。HTML/RSS/robots/抽出は worker。 |
 | apps/server | `@tirocinium/analytics` | — | 0 | 置き換え済み | 型だけ。 |
 | (Node ランタイム) | `node:sqlite` | Node 22 同梱 | — | 要判断 | §6。 |
 | (Node ランタイム) | Node 同梱部品 (OpenSSL・Brotli・zlib・llhttp・nghttp2・undici・c-ares・libuv・V8・ICU) | Node 22 | — | 受け口から外した | C++ サーバは HTTP 受け口・外向き HTTP・WS を自前で持ち、展開器を持たない (`Accept-Encoding: identity`、`Content-Encoding` 付き応答は拒否)。Node は worker の中だけで動く。 |
@@ -61,12 +62,12 @@ job `cpp-node-20261030` (WP-Tirocinium)。目的は脆弱性の受け口 (npm �
 
 | | 移行前 | 移行後 |
 |---|---|---|
-| 外から接続を受けるプロセス | Node + npm 112 (本番依存) + tsx 29 (起動に使用) | C++ サーバ: npm 0。C++ 依存 5 (Boost ヘッダ・nlohmann_json・OpenSSL 3・libpq・Lorica) + 標準ライブラリ |
-| 子プロセス (企業 worker、受け口なし) | — | Node + npm 45 (`postgres`・`@anthropic-ai/sdk`・`openai`・`@ludiars/encrypted-config`・`@ludiars/one-shot` の閉包) + tsx 29 |
+| 外から接続を受けるプロセス | Node + npm 112 (本番依存。Portus 適用後の Node 版は 73) + tsx 29 (起動に使用) | C++ サーバ: npm 0。C++ 依存 5 (Boost ヘッダ・nlohmann_json・OpenSSL 3・libpq・Lorica) + 標準ライブラリ |
+| 子プロセス (企業 worker、受け口なし) | — | Node + npm 4 (`postgres`・`@ludiars/portus`・`@ludiars/encrypted-config`・`@ludiars/one-shot`。Portus 適用前は SDK 2 つの閉包を含めて 45) + tsx 29 |
 | 運用 CLI (`npm run companies:*` ほか) | Node | Node のまま (§7) |
 
-worker の 45 は `native/tools/npm_dep_inventory.py` の関数で上の 5 パッケージの閉包を合併した数
-(worker の入口から import を静的にたどって外部パッケージを列挙した結果)。
+worker の数は `native/tools/npm_dep_inventory.py` の関数で上のパッケージの閉包を合併した数
+(worker の入口から import を静的にたどって外部パッケージを列挙した結果)。Portus 適用前は 45、適用後は 4。
 
 ## 2. 移行後の C++ 依存
 
@@ -210,7 +211,7 @@ C++ だけの追加テスト: `io_http_server_tests` (ソケット越しの境�
    (同じ bot token で 2 つの gateway を張れないので、分けるなら token を分ける)。
 3. **gRPC STT (Imperativus)**: gRPC C++ は入れない。Imperativus 側に HTTP (WebSocket など) の口を作るか、STT を使う間は Node 版で動かすか。
 4. **judge の卒業機構 (`@ludiars/blackbox`、SQLite)**: 既定 off。使うなら保存先の変更 (Postgres) が要る。
-5. **企業 worker の LLM**: クロール抽出は Node 版のまま `@anthropic-ai/sdk` (API キー) を使う。`claude -p` に寄せるか (llm-completer の cli 経路はある)。
+5. **企業 worker の LLM**: クロール抽出は Anthropic の直接 API (API キー) を使う (通信は SDK から Portus に替えた)。`claude -p` に寄せるか (llm-completer の cli 経路はある)。
 6. **企業 worker の起動方法**: 今は既存と同じく `node --import tsx` (tsx = esbuild を含む 29 パッケージ)。`tsc` で build した dist を node で起動すれば tsx を外せる。
 7. **公開 POST `/api/v1/companies/crawl-job-news`**: Node 版のまま認証なしで外部取得を起動できる (取得先は設定済みソースだけ)。C++ 版は worker の同時実行上限で抑えているだけ。認証を付けるかの判断。
 
@@ -218,7 +219,7 @@ C++ だけの追加テスト: `io_http_server_tests` (ソケット越しの境�
 
 - 切り替え後 (C++ サーバ + worker) に `apps/server` から外せる直接依存: `hono`, `@hono/node-server`, `ws`, `paseto`
   (音声・STT を移した後なら `@discordjs/voice`, `opusscript`, `prism-media`, `@grpc/grpc-js`, `@grpc/proto-loader`、
-  blackbox を捨てるなら `@ludiars/blackbox`)。`packages/llm` の index を分ければ worker から `openai` を外せる。
+  blackbox を捨てるなら `@ludiars/blackbox`)。`@anthropic-ai/sdk` と `openai` は Portus に置き換えて外した。
   Node 実装と package.json は今回は消していない。
 - OB スタジオ (`/ob/studios`) の C++ 化には NFKC 正規化と照合順序 (ICU 相当) が要る。ICU は許可依存に無いので worker のまま。
 - HTTP+JSON だけの運用 CLI (gBizINFO 取り込み・Wikidata・Sheets 同期・重複マージ・系列正規化・技術グラフ) の C++ 化。
@@ -228,6 +229,8 @@ C++ だけの追加テスト: `io_http_server_tests` (ソケット越しの境�
 
 ```sh
 # 依存: CMake 3.24+、Ninja、GCC 13 か MSVC 2022、OpenSSL 3 と libpq の開発パッケージ
+# 企業 worker (Node) の準備: submodule (lib/lapilli・lib/portus) → npm install → Portus の dist
+git submodule update --init lib/lapilli lib/portus && npm install && npm run build:portus
 cmake -S native -B native/build -G Ninja -DCMAKE_BUILD_TYPE=Release [-DLORICA_SOURCE_DIR=<Lorica>]
 cmake --build native/build
 # DB を使うテストには空の Postgres を 1 つ (テストが public schema を作り直す)
