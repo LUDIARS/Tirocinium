@@ -3,7 +3,7 @@
 // phase 状態機の signals (synthesis 到達 / 矛盾の残存) を供給する。
 // 面接官応答とは別経路で非同期に走らせるため、知覚レイテンシを増やさない。
 
-import type Anthropic from '@anthropic-ai/sdk';
+import type { AnthropicApi } from './anthropic-types.js';
 import { extractText, MODEL } from './anthropic.js';
 import { coerceSignals } from './coerce.js';
 import { extractJsonBlock, serializeHistory } from './evaluator.js';
@@ -48,7 +48,7 @@ export type AssessInput = {
 };
 
 /** 軽量モデル (Haiku) で回答を 1 コール評価し、phase 信号を返す。 */
-export async function assessAnswer(client: Anthropic, input: AssessInput): Promise<AnswerSignals> {
+export async function assessAnswer(client: AnthropicApi, input: AssessInput): Promise<AnswerSignals> {
   const ctx = input.recent && input.recent.length ? serializeHistory(input.recent) + '\n\n' : '';
   const res = await client.messages.create({
     model: MODEL.JUDGE,

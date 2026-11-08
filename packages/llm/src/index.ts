@@ -4,6 +4,7 @@ export { interviewerModel, interviewerLaunch, type InterviewerModel } from './in
 export * from './specialist-profile.js';
 export * from './specialist-focus.js';
 export { createAnthropicClient, extractText, MODEL, resolveModels, type ModelRole } from './anthropic.js';
+export type { AnthropicApi, MessageParam, MessageCreateParams, Message, ContentBlock, TextBlock, MessageStreamEvent } from './anthropic-types.js';
 export {
   evaluate,
   parseEvaluation,
@@ -24,7 +25,7 @@ export {
   buildWeaknessBlock,
   asMessages,
 } from './response.js';
-export { createOpenAIClient, OPENAI_MODEL } from './openai.js';
+export { createOpenAIClient, OPENAI_MODEL, type OpenAIApi, type ChatCompletionParams, type ChatCompletion } from './openai.js';
 export { refine } from './refine.js';
 export { runClaudeCli, runClaudeCliWith, streamResponseCli, type ClaudeCliModel, type ClaudeCliRunOptions } from './cli.js';
 export {

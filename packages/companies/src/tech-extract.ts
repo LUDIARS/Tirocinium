@@ -2,8 +2,7 @@
 // 抽出は LLM (recruit の必須スキル等は非構造のため)、 正準化は決定論 (tech.ts) に委ねる。
 // spec/feature/companies/game-graph.md (tech レイヤー)。
 
-import type Anthropic from '@anthropic-ai/sdk';
-import { extractText, extractJsonBlock } from '@tirocinium/llm';
+import { extractText, extractJsonBlock, type AnthropicApi } from '@tirocinium/llm';
 
 export const TECH_INSTRUCTION = `
 あなたはゲーム会社の採用ページ・技術ブログから「実際に使われている技術・ツール」を抽出するアシスタントです。
@@ -27,7 +26,7 @@ export function parseTechExtraction(text: string): string[] {
 }
 
 /** 採用/技術ページ本文から使用技術を抽出する (LLM)。 */
-export async function extractTech(client: Anthropic, model: string, pageText: string): Promise<string[]> {
+export async function extractTech(client: AnthropicApi, model: string, pageText: string): Promise<string[]> {
   const res = await client.messages.create({
     model,
     max_tokens: 1024,

@@ -1,5 +1,4 @@
-import type OpenAI from 'openai';
-import { OPENAI_MODEL } from './openai.js';
+import { OPENAI_MODEL, type OpenAIApi } from './openai.js';
 import { serializeHistory } from './evaluator.js';
 import type { Turn } from './types.js';
 
@@ -24,7 +23,7 @@ export type RefineInput = {
 
 /** GPT-5.5 (現状 GPT-4o 代替) で「次に深掘るべき論点」 を返す */
 export async function refine(
-  client: OpenAI,
+  client: OpenAIApi,
   input: RefineInput,
 ): Promise<string> {
   const res = await client.chat.completions.create({

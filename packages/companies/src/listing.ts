@@ -1,8 +1,7 @@
 // listing ページ (求人サイト / ゲーム業界ソース / 新卒ナビ等) のテキスト → ListingEntry[]。
 // LLM 抽出 (extractListing) と parse (純粋) を分離。 サイト固有のセレクタは持たず LLM に委ねる。
 
-import type Anthropic from '@anthropic-ai/sdk';
-import { extractText, extractJsonBlock } from '@tirocinium/llm';
+import { extractText, extractJsonBlock, type AnthropicApi } from '@tirocinium/llm';
 import type { ListingEntry } from './types.js';
 
 export const LISTING_INSTRUCTION = `
@@ -93,7 +92,7 @@ export function chunkText(text: string, size: number, maxChunks: number): string
 
 /** listing ページ本文から企業エントリを抽出する (LLM)。 */
 export async function extractListing(
-  client: Anthropic,
+  client: AnthropicApi,
   model: string,
   pageText: string,
 ): Promise<ListingEntry[]> {

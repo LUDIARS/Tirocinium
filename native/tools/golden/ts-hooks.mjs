@@ -4,8 +4,8 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const STUBS = {
-  '@anthropic-ai/sdk': 'export default class Anthropic {}',
-  openai: 'export default class OpenAI {}',
+  '@ludiars/portus/ai': 'export class AnthropicClient {} export class OpenAIClient {}',
+  '@ludiars/portus/net': 'export class HttpError extends Error {}',
   '@ludiars/one-shot': 'export function spawnOneShot() { throw new Error("stub"); }',
   '@ludiars/blackbox': 'export function makeSqliteBlackBox() { throw new Error("stub"); }',
   postgres: 'export default function postgres() { throw new Error("stub"); }',

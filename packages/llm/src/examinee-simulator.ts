@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk';
+import type { AnthropicApi } from './anthropic-types.js';
 import { extractText, MODEL } from './anthropic.js';
 import { serializeHistory } from './evaluator.js';
 import type { ExamineePersonaInput, Turn } from './types.js';
@@ -40,7 +40,7 @@ export type SimulatorInput = {
 };
 
 export async function respondAsExaminee(
-  client: Anthropic,
+  client: AnthropicApi,
   input: SimulatorInput,
 ): Promise<string> {
   const res = await client.messages.create({

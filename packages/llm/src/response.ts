@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk';
+import type { AnthropicApi, MessageParam } from './anthropic-types.js';
 import { MODEL } from './anthropic.js';
 import type { ExamineePersonaInput, InterviewerPersonaInput, Turn } from './types.js';
 import type { Phase } from './phase.js';
@@ -102,10 +102,10 @@ export type StreamResponseInput = {
 
 /** Sonnet で stream 応答。 token (string) を yield する async generator */
 export async function* streamResponse(
-  client: Anthropic,
+  client: AnthropicApi,
   input: StreamResponseInput,
 ): AsyncGenerator<string, void, unknown> {
-  const messages: Anthropic.Messages.MessageParam[] = input.turns
+  const messages: MessageParam[] = input.turns
     .filter((t) => t.role === 'interviewer' || t.role === 'user')
     .map((t) => ({
       role: t.role === 'interviewer' ? 'assistant' : 'user',
@@ -123,14 +123,14 @@ export async function* streamResponse(
   );
 
   for await (const event of stream) {
-    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+    if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta' && typeof event.delta.text === 'string') {
       yield event.delta.text;
     }
   }
 }
 
 /** examinee からの応答も sonnet/haiku で受けたいときの簡易版 (Haiku は別ファイル) */
-export function asMessages(turns: Turn[]): Anthropic.Messages.MessageParam[] {
+export function asMessages(turns: Turn[]): MessageParam[] {
   return turns.map((t) => ({
     role: t.role === 'interviewer' ? 'assistant' : 'user',
     content: t.text,
