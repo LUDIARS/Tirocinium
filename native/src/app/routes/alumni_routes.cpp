@@ -1,7 +1,5 @@
 #include "app/routes/alumni_routes.hpp"
 
-#include <fstream>
-#include <sstream>
 
 #include "io/file_read.hpp"
 #include "app/alumni_repo.hpp"
@@ -27,7 +25,7 @@ std::optional<std::string> read_file(const std::filesystem::path& p) {
 }
 
 // c.req.json().catch(() => ({}))。object 以外は空の object として扱う。
-Json body_object(const Request& req) {
+Json body_object(Request& req) {
     auto b = read_json_body(req);
     return b && b->is_object() ? *b : Json::object();
 }

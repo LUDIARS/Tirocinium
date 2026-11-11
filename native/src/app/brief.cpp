@@ -1,8 +1,6 @@
 #include "app/brief.hpp"
 
 #include <algorithm>
-#include <fstream>
-#include <sstream>
 
 #include "io/file_read.hpp"
 #include "app/interview_repo.hpp"

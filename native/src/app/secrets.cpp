@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <fstream>
 #include <set>
-#include <sstream>
 
 #ifdef _WIN32
 #include <windows.h>

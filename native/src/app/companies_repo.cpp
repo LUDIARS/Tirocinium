@@ -2,9 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <fstream>
 #include <map>
-#include <sstream>
 
 #include "io/file_read.hpp"
 #include "app/interview_repo.hpp"

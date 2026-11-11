@@ -33,7 +33,15 @@ inline constexpr std::size_t kMaxHeaderFields = 1024;
 std::optional<lorica::budget_limits> request_budget_limits(const RequestBudgetSpec& spec);
 
 // ヘッダ (名前 + 値 + 区切り 4 バイト) を課金する。超えたら false (431)。
+// fields は受信したままのフィールド (同じ名前を 1 つに畳む前)。http::Headers::items() は同じ名前を
+// ", " で連結して 1 件にするので、数の上限の検査には使わない (受け口は下の charge_header_block を使う)。
 bool charge_headers(lorica::input_budget& budget, const std::vector<std::pair<std::string, std::string>>& fields);
+
+// 受信したフィールドの数と、名前 + 値 + 区切りの合計バイト数で課金する。数が kMaxHeaderFields を超えたら false。
+bool charge_header_block(lorica::input_budget& budget, std::size_t field_count, std::size_t bytes);
+
+// 1 フィールド分のバイト数 (名前 + 値 + ": " と CRLF の 4) を total に足す。桁あふれなら false。
+bool add_header_line(std::size_t& total, std::size_t name_size, std::size_t value_size);
 
 // 本文を課金する。超えたら false (413)。
 bool charge_body(lorica::input_budget& budget, std::string_view body);

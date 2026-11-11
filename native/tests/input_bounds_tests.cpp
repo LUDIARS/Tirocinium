@@ -111,6 +111,16 @@ TEST_CASE("request budget: header fields at the cap pass, cap + 1 is refused") {
     fields.emplace_back("x", "1");
     lorica::input_budget b2(*limits);
     check(!http::charge_headers(b2, fields), "1025 fields");
+    // 回帰: 同じ名前のフィールドは http::Headers で 1 件に畳まれるので、受け口は受信したままの数で課金する。
+    http::Headers merged;
+    for (const auto& [n, v] : fields) merged.append(n, v);
+    check_eq(merged.items().size(), std::size_t{1}, "Headers folds repeated names (why the raw count is used)");
+    lorica::input_budget b3(*limits);
+    check(!http::charge_header_block(b3, fields.size(), 0), "raw count 1025 is refused");
+    lorica::input_budget b4(*limits);
+    check(http::charge_header_block(b4, http::kMaxHeaderFields, 0), "raw count 1024 passes");
+    std::size_t total = std::numeric_limits<std::size_t>::max() - 3;
+    check(!http::add_header_line(total, 0, 0), "line length overflow is refused");
 }
 
 TEST_CASE("request body JSON: within bytes but over the element budget is refused (400), at the budget is read") {
@@ -135,10 +145,16 @@ TEST_CASE("request body JSON: body over the route limit is flagged before parsin
     check(!big.body_too_large, "budget alone keeps headroom for parsing");
     auto broken = request_with_body("{\"a\":");
     check(!app::read_json_body(broken).has_value(), "broken");
-    auto deep = request_with_body(std::string(65, '[') + std::string(65, ']'));
-    check(!app::read_json_body(deep).has_value(), "depth 65");
-    auto ok_deep = request_with_body(std::string(63, '[') + std::string(63, ']'));
-    check(app::read_json_body(ok_deep).has_value(), "depth 63");
+    // 深さの数え方は core_json_tests と同じ (nlohmann の callback の depth、最上位 = 0、上限 64)。
+    // 64 重の配列の中の値は深さ 64 (ちょうど)、65 重なら深さ 65 (+1)。空の配列は一番内側の配列が最も深い。
+    auto ok_deep = request_with_body(std::string(64, '[') + "0" + std::string(64, ']'));
+    check(app::read_json_body(ok_deep).has_value(), "value at depth 64 (exactly the limit)");
+    auto deep = request_with_body(std::string(65, '[') + "0" + std::string(65, ']'));
+    check(!app::read_json_body(deep).has_value(), "value at depth 65 (limit + 1)");
+    auto ok_empty = request_with_body(std::string(65, '[') + std::string(65, ']'));
+    check(app::read_json_body(ok_empty).has_value(), "innermost empty array at depth 64");
+    auto deep_empty = request_with_body(std::string(66, '[') + std::string(66, ']'));
+    check(!app::read_json_body(deep_empty).has_value(), "innermost empty array at depth 65");
     http::Request no_budget;  // 受け口を通らない要求 (単体テスト) でも予算を作って読む
     no_budget.body = R"({"a":1})";
     check(app::read_json_body(no_budget).has_value(), "lazy budget");

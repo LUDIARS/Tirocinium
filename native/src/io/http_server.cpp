@@ -39,6 +39,19 @@ http::Request to_request(const bhttp::request<bhttp::string_body>& msg, const st
     return req;
 }
 
+// 受信したままのヘッダ (同じ名前を畳む前) を要求の予算に課金する。to_request の http::Headers は同じ名前を
+// 1 件に連結するので、数の上限はここで Beast のフィールドを数えて課す。
+bool charge_raw_headers(lorica::input_budget& budget, const bhttp::request<bhttp::string_body>& msg) {
+    std::size_t count = 0;
+    std::size_t bytes = 0;
+    for (const auto& field : msg) {
+        ++count;
+        if (count > http::kMaxHeaderFields) return false;
+        if (!http::add_header_line(bytes, field.name_string().size(), field.value().size())) return false;
+    }
+    return http::charge_header_block(budget, count, bytes);
+}
+
 // ---- WebSocket (server) ----------------------------------------------------------------------
 
 class ServerWs final : public WsConnection, public std::enable_shared_from_this<ServerWs> {
@@ -281,7 +294,7 @@ private:
             // upgrade 要求にも予算を作ってヘッダを課金する (本文は無い。フレームはメッセージごとの予算)。
             auto limits = http::request_budget_limits({server_->options.header_limit, 0});
             if (limits) req.budget.emplace(*limits);
-            if (!req.budget || !http::charge_headers(*req.budget, req.headers.items())) {
+            if (!req.budget || !charge_raw_headers(*req.budget, msg)) {
                 write_raw_and_close("HTTP/1.1 431 Request Header Fields Too Large\r\nConnection: close\r\n\r\n");
                 return;
             }
@@ -296,7 +309,7 @@ private:
         // 要求 1 つに予算 1 つ (Lorica)。ヘッダをここで課金し、本文と本文の JSON も同じ予算から引く。
         budget_.reset();
         if (auto limits = http::request_budget_limits({server_->options.header_limit, limit})) budget_.emplace(*limits);
-        if (!budget_ || !http::charge_headers(*budget_, probe.headers.items())) {
+        if (!budget_ || !charge_raw_headers(*budget_, msg)) {
             write_raw_and_close("HTTP/1.1 431 Request Header Fields Too Large\r\nConnection: close\r\n\r\n");
             return;
         }

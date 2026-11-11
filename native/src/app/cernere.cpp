@@ -253,7 +253,7 @@ Json CernereProjectProxy::mfa_verify(const std::string& mfa_token, const std::st
 
 namespace {
 
-Json body_object(const http::Request& req) {
+Json body_object(http::Request& req) {
     auto b = read_json_body(req);
     return b && b->is_object() ? *b : Json::object();
 }

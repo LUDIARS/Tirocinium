@@ -15,17 +15,27 @@ std::optional<lorica::budget_limits> request_budget_limits(const RequestBudgetSp
     return lorica::budget_limits{*bytes, *elements, *allocations, spec.max_depth};
 }
 
+bool add_header_line(std::size_t& total, std::size_t name_size, std::size_t value_size) {
+    const auto one = lorica::checked_add(name_size, value_size);
+    const auto line = one ? lorica::checked_add(*one, 4) : std::nullopt;  // ": " と CRLF
+    const auto sum = line ? lorica::checked_add(total, *line) : std::nullopt;
+    if (!sum) return false;
+    total = *sum;
+    return true;
+}
+
+bool charge_header_block(lorica::input_budget& budget, std::size_t field_count, std::size_t bytes) {
+    if (field_count > kMaxHeaderFields) return false;
+    return budget.consume(bytes, field_count, 1);
+}
+
 bool charge_headers(lorica::input_budget& budget, const std::vector<std::pair<std::string, std::string>>& fields) {
     if (fields.size() > kMaxHeaderFields) return false;
     std::size_t bytes = 0;
     for (const auto& [name, value] : fields) {
-        const auto one = lorica::checked_add(name.size(), value.size());
-        const auto line = one ? lorica::checked_add(*one, 4) : std::nullopt;  // ": " と CRLF
-        const auto sum = line ? lorica::checked_add(bytes, *line) : std::nullopt;
-        if (!sum) return false;
-        bytes = *sum;
+        if (!add_header_line(bytes, name.size(), value.size())) return false;
     }
-    return budget.consume(bytes, fields.size(), 1);
+    return charge_header_block(budget, fields.size(), bytes);
 }
 
 bool charge_body(lorica::input_budget& budget, std::string_view body) { return budget.consume(body.size(), 0, 1); }

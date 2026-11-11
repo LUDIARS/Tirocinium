@@ -41,7 +41,7 @@ std::optional<std::string> nonempty_query(const Request& req, const char* key) {
     return v;
 }
 
-Json body_or_null(const Request& req) {
+Json body_or_null(Request& req) {
     auto b = read_json_body(req);
     return b ? *b : Json(nullptr);
 }

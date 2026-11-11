@@ -78,6 +78,20 @@ TEST_CASE("server: header over 16 KiB is 431") {
     check(out.rfind("HTTP/1.1 431", 0) == 0, "431: " + out.substr(0, 40));
 }
 
+TEST_CASE("server: header field count at the request budget (1,024) passes, 1,025 is 431 (under 16 KiB)") {
+    // 要求ごとの Lorica 予算 (http/request_budget.hpp の kMaxHeaderFields)。Host と Connection を含めて数える。
+    Fixture f;
+    auto request_with_fields = [](std::size_t total) {
+        std::string raw = "GET /api/health HTTP/1.1\r\nHost: x\r\nConnection: close\r\n";
+        for (std::size_t i = 2; i < total; ++i) raw += "a: 1\r\n";
+        return raw + "\r\n";
+    };
+    const auto at = f.roundtrip(request_with_fields(1024));
+    check(at.rfind("HTTP/1.1 200", 0) == 0, "1024 fields: " + at.substr(0, 40));
+    const auto over = f.roundtrip(request_with_fields(1025));
+    check(over.rfind("HTTP/1.1 431", 0) == 0, "1025 fields: " + over.substr(0, 40));
+}
+
 TEST_CASE("server: body exactly at the limit is accepted, limit+1 is 413") {
     Fixture f;
     const std::size_t limit = 2 * 1024 * 1024;
