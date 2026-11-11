@@ -2,7 +2,7 @@ function(tr_test name)
   add_executable(${name} ${name}.cpp)
   target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   target_link_libraries(${name} PRIVATE ${ARGN})
-  lorica_harden_target(${name})
+  tr_lorica(${name})
   add_test(NAME tirocinium.${name} COMMAND ${name})
   target_compile_definitions(${name} PRIVATE TR_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
   set_tests_properties(tirocinium.${name} PROPERTIES

@@ -38,6 +38,38 @@ else()
   FetchContent_MakeAvailable(lorica)
 endif()
 
+# 自分でコンパイルするビルド単位すべてに Lorica を入れる (指示書 3.3):
+#   Lorica::boundary (PRIVATE)・lorica_harden_target (baseline)・lorica_deprecate_unsafe_apis。
+# EXTENDED は外から入力を受ける常駐サーバ (tirocinium-server とそれを組み立てるライブラリ) で試す。
+#   AUTO: 使える環境なら EXTENDED、使えなければ理由を警告して baseline (configure の出力に必ず出る)。
+#   ON:   EXTENDED を必須にする (使えなければ Lorica が configure を止める)。OFF: baseline だけ。
+set(TR_EXTENDED_HARDENING "AUTO" CACHE STRING "EXTENDED hardening for the resident server (AUTO/ON/OFF)")
+set_property(CACHE TR_EXTENDED_HARDENING PROPERTY STRINGS AUTO ON OFF)
+set(TR_USE_EXTENDED OFF)
+if(TR_EXTENDED_HARDENING STREQUAL "ON")
+  set(TR_USE_EXTENDED ON)
+elseif(TR_EXTENDED_HARDENING STREQUAL "AUTO")
+  lorica_extended_hardening_supported(TR_EXTENDED_OK)
+  if(TR_EXTENDED_OK)
+    set(TR_USE_EXTENDED ON)
+  else()
+    message(WARNING "Tirocinium: EXTENDED hardening is not available here, the server stays baseline: ${TR_EXTENDED_OK_REASON}")
+  endif()
+endif()
+message(STATUS "Tirocinium: EXTENDED hardening for the server: ${TR_USE_EXTENDED}")
+
+# tr_lorica(<target> [SERVER]): 1 つのビルド単位に Lorica を入れる。SERVER は常駐サーバの部品 (EXTENDED の対象)。
+function(tr_lorica target)
+  cmake_parse_arguments(PARSE_ARGV 1 arg "SERVER" "" "")
+  target_link_libraries(${target} PRIVATE Lorica::boundary)
+  if(arg_SERVER AND TR_USE_EXTENDED)
+    lorica_harden_target(${target} EXTENDED)
+  else()
+    lorica_harden_target(${target})
+  endif()
+  lorica_deprecate_unsafe_apis(${target})
+endfunction()
+
 add_library(tr_boost INTERFACE)
 target_include_directories(tr_boost SYSTEM INTERFACE ${boost_SOURCE_DIR})
 target_compile_definitions(tr_boost INTERFACE BOOST_ERROR_CODE_HEADER_ONLY BOOST_ASIO_NO_DEPRECATED
