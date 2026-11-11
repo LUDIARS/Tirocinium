@@ -34,7 +34,7 @@ if(LORICA_SOURCE_DIR)
   add_subdirectory(${LORICA_SOURCE_DIR} ${CMAKE_BINARY_DIR}/_lorica EXCLUDE_FROM_ALL)
 else()
   FetchContent_Declare(lorica GIT_REPOSITORY https://github.com/LUDIARS/Lorica.git
-    GIT_TAG cab4f12086e30484f249d1b4aa479bf7cdec13a9)
+    GIT_TAG 5e8281b0e60fa16f814e16eaa620715937e8618d)
   FetchContent_MakeAvailable(lorica)
 endif()
 

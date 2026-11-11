@@ -78,7 +78,7 @@ worker の数は `native/tools/npm_dep_inventory.py` の関数で上のパッケ
 | nlohmann_json | 3.11.3 | `json.tar.xz` SHA256=d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d | なし |
 | OpenSSL 3 | システム (Ubuntu 24.04: 3.0.13) | `find_package(OpenSSL 3)` | libcrypto / libssl |
 | libpq | システム (16.15) | `find_package(PostgreSQL)` | OpenSSL。Ubuntu の libpq は GSSAPI (krb5)・LDAP (ldap/sasl/gnutls) も引く (ldd で確認)。 |
-| Lorica | cab4f12086e30484f249d1b4aa479bf7cdec13a9 | `LORICA_SOURCE_DIR` か FetchContent | なし |
+| Lorica | 5e8281b0e60fa16f814e16eaa620715937e8618d (2026-11-11 の main。前回は cab4f12) | `LORICA_SOURCE_DIR` か FetchContent | なし |
 | libopus | (未使用) | — | Discord 音声を入れる時だけ (§6)。 |
 
 全 target (ライブラリ 4・実行ファイル 2・テスト 21) に `lorica_harden_target`。
