@@ -4,6 +4,8 @@
 #include <cstring>
 #include <thread>
 
+#include <lorica/checked_size.hpp>
+
 #include "core/text.hpp"
 
 #ifdef _WIN32
@@ -225,7 +227,9 @@ ProcessResult run_process(const ProcessSpec& spec, const std::atomic<bool>* canc
         if (idx_out >= 0 && (fds[idx_out].revents & (POLLIN | POLLHUP | POLLERR))) {
             const ssize_t r = ::read(out_r, buf, sizeof buf);
             if (r > 0) {
-                if (result.out.size() + static_cast<std::size_t>(r) > spec.max_stdout) {
+                // 長さの加算は checked_add (桁あふれは上限超過と同じに扱う)。
+                const auto total = lorica::checked_add(result.out.size(), static_cast<std::size_t>(r));
+                if (!total || *total > spec.max_stdout) {
                     result.output_overflow = true;
                     kill_tree();
                     close_fd(out_r);
@@ -431,7 +435,8 @@ ProcessResult run_process(const ProcessSpec& spec, const std::atomic<bool>* canc
         char buf[16384];
         DWORD n = 0;
         while (ReadFile(out_r, buf, sizeof buf, &n, nullptr) && n > 0) {
-            if (out.size() + n > spec.max_stdout) {
+            const auto total = lorica::checked_add(out.size(), static_cast<std::size_t>(n));
+            if (!total || *total > spec.max_stdout) {
                 overflow = true;
                 break;
             }
