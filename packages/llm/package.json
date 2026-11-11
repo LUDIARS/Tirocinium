@@ -14,8 +14,7 @@
   },
   "dependencies": {
     "@ludiars/one-shot": "file:../../lib/lapilli/packages/one-shot",
-    "@anthropic-ai/sdk": "^0.30.0",
-    "openai": "^4.68.0"
+    "@ludiars/portus": "file:../../lib/portus"
   },
   "devDependencies": {
     "@types/node": "^22.7.0",

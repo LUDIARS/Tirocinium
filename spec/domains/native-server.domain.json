@@ -1,0 +1,15 @@
+{
+  "name": "native-server",
+  "description": "Tirocinium サーバの C++ 実装 (native/)。HTTP / WebSocket の受け口、Cernere 認証、DB (libpq)、LLM の CLI 起動、秘密の読み込みを、Node 実装と同じ経路・JSON の形で提供する。業務判断は native/src/core の副作用のない関数、外部 I/O は native/src/io の adapter に分ける。",
+  "presetRules": [],
+  "templateRules": [],
+  "specRefs": [
+    "native/PORTING.md"
+  ],
+  "rationale": "Node 実装を置き換えるための並行実装。切り替えは本社でのテスト後に catalog で行うため、移行中は Node 実装と同じ契約 (経路・JSON・ポート・health) を一つの境界として持つ。",
+  "membership": [
+    {
+      "pathPattern": "(^|/)native/(?:.*/)?[^/]+$"
+    }
+  ]
+}

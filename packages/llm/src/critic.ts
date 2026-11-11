@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk';
+import type { AnthropicApi } from './anthropic-types.js';
 import { extractText, MODEL } from './anthropic.js';
 import { extractJsonBlock, serializeHistory } from './evaluator.js';
 import { CRITIC_INSTRUCTION } from './prompts.js';
@@ -10,7 +10,7 @@ export type CritiqueInput = {
 };
 
 export async function critique(
-  client: Anthropic,
+  client: AnthropicApi,
   input: CritiqueInput,
 ): Promise<CritiqueDoc> {
   const focus = input.focusTurnNos.join(', ');

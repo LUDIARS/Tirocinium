@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk';
+import type { AnthropicApi } from './anthropic-types.js';
 import { extractText, MODEL } from './anthropic.js';
 import { extractJsonBlock, serializeHistory } from './evaluator.js';
 import { SUMMARY_INSTRUCTION } from './prompts.js';
@@ -13,7 +13,7 @@ export type SummarizeInput = {
 };
 
 export async function summarize(
-  client: Anthropic,
+  client: AnthropicApi,
   input: SummarizeInput,
 ): Promise<SummaryDoc> {
   const body = [

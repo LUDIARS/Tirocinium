@@ -11,7 +11,12 @@ services:
     repo: LUDIARS/Tirocinium
     runtime: node
     cwd: ${ARS_ROOT}/Tirocinium
-    command: npm run dev:server
+    # C++ サーバ (native/)。事前に build する:
+    #   cmake -S native -B native/build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build native/build
+    # DATABASE_URL (postgres://) が必要 (env かローカルの暗号化 config)。無い・SQLite を指す場合は起動しない。
+    # 企業クロールは C++ サーバが子プロセスとして起動する Node の worker (node --import tsx、受け口なし) が行う。
+    # Node 版に戻すときは command を `npm run dev:server` に戻す。
+    command: native/build/bin/tirocinium-server
     autostart: false
     allow_hot_reload: true
     # Cernere 埋め込みログインの代理に使う project credential を起動ごとに発行させる

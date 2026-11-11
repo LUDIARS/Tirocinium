@@ -2,8 +2,7 @@
 // LLM 抽出 (extractCompany) と、 鍵/失敗時の heuristic fallback (heuristicExtract) の 2 系統。
 // LLM 呼び出し以外は純粋関数 (テスト容易性のため parse / heuristic を分離)。
 
-import type Anthropic from '@anthropic-ai/sdk';
-import { extractText, extractJsonBlock } from '@tirocinium/llm';
+import { extractText, extractJsonBlock, type AnthropicApi } from '@tirocinium/llm';
 import { extractMetaDescription, extractTitle } from './html.js';
 import type { CompanyInput, CrawlSeed } from './types.js';
 
@@ -51,7 +50,7 @@ export function parseCompanyExtraction(text: string, seed?: CrawlSeed): CompanyI
 
 /** LLM 抽出。 失敗時は呼び出し側が heuristicExtract に fallback する。 */
 export async function extractCompany(
-  client: Anthropic,
+  client: AnthropicApi,
   model: string,
   pageText: string,
   seed?: CrawlSeed,

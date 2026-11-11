@@ -1,0 +1,31 @@
+{
+  "master": "test-master-key-not-a-secret",
+  "config": {
+    "plain": {
+      "TIROCINIUM_PORT": "8084",
+      "TIROCINIUM_HOST": "127.0.0.1"
+    },
+    "secrets": {
+      "ANTHROPIC_API_KEY": {
+        "v": 1,
+        "salt": "dSXLP5o77iJ5/18k3PIIXA==",
+        "iv": "/e0xNcD5IZ77gN3J",
+        "tag": "rHzhTuh8WB8YERt/rZd2vw==",
+        "data": "CKbHp+nNK2WdU9zSUVgPm5XJV+vhtjS7"
+      },
+      "TIROCINIUM_DISCORD_BOT_TOKEN": {
+        "v": 1,
+        "salt": "EzdBOkb/hznS7pFJ62zpHg==",
+        "iv": "fr2lijgU1d0WQvJC",
+        "tag": "hGZGyt7/mshVrAQv3iLDCQ==",
+        "data": "fsCVy04YQh4NkogEuAAp/MQTeOcodP8w31o="
+      }
+    }
+  },
+  "expected": {
+    "TIROCINIUM_PORT": "8084",
+    "TIROCINIUM_HOST": "127.0.0.1",
+    "ANTHROPIC_API_KEY": "synthetic-test-value-1",
+    "TIROCINIUM_DISCORD_BOT_TOKEN": "日本語のテスト値"
+  }
+}

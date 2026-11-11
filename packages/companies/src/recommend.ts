@@ -2,8 +2,7 @@
 // LLM rerank (recommend) と heuristic-only (recommendHeuristic) の 2 系統。
 // LLM 呼び出し以外は純粋関数。
 
-import type Anthropic from '@anthropic-ai/sdk';
-import { extractText, extractJsonBlock } from '@tirocinium/llm';
+import { extractText, extractJsonBlock, type AnthropicApi } from '@tirocinium/llm';
 import type {
   ApplicantProfile,
   Company,
@@ -134,7 +133,7 @@ function buildHeuristicReasons(b: ScoreBreakdown): string[] {
  * candidate は heuristic で事前に絞り込み (maxCandidates)、 LLM が最終 ranking + 理由づけを担う。
  */
 export async function recommend(
-  client: Anthropic,
+  client: AnthropicApi,
   model: string,
   profile: ApplicantProfile,
   companies: Company[],

@@ -57,7 +57,9 @@ Windows 1 台に Tirocinium を立ち上げ、テキスト入力で面接練習�
 ### 1. 依存インストール
 
 ```powershell
+git submodule update --init lib/lapilli lib/portus
 npm install
+npm run build:portus     # lib/portus (直接 API の通信) の dist を作る。dev:server も先にこれを呼ぶ
 ```
 
 ### 2. マイグレーション

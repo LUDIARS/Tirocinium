@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk';
+import type { AnthropicApi } from './anthropic-types.js';
 import { extractText, MODEL } from './anthropic.js';
 import { EVAL_INSTRUCTION } from './prompts.js';
 import type { SpecialistProfile } from './specialist-profile.js';
@@ -37,7 +37,7 @@ export type EvaluateOptions = {
 };
 
 async function evaluateOnce(
-  client: Anthropic,
+  client: AnthropicApi,
   input: EvaluateInput,
 ): Promise<{ axes: Axes; comment: string; hints: string[] }> {
   const res = await client.messages.create({
@@ -50,7 +50,7 @@ async function evaluateOnce(
 }
 
 export async function evaluate(
-  client: Anthropic,
+  client: AnthropicApi,
   input: EvaluateInput,
   opts: EvaluateOptions = {},
 ): Promise<Evaluation> {

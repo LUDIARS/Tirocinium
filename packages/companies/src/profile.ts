@@ -1,8 +1,7 @@
 // 企業サイトの巡回ページ (理念 / IR / 会社概要) のテキスト → CompanyProfileInput。
 // LLM 抽出 (extractProfile) と parse (純粋) を分離。
 
-import type Anthropic from '@anthropic-ai/sdk';
-import { extractText, extractJsonBlock } from '@tirocinium/llm';
+import { extractText, extractJsonBlock, type AnthropicApi } from '@tirocinium/llm';
 import type { CompanyProfileInput } from './types.js';
 
 export const PROFILE_INSTRUCTION = `
@@ -41,7 +40,7 @@ export function parseProfile(text: string): CompanyProfileInput {
 
 /** 巡回ページ本文 (複数を結合済み) から企業プロフィールを抽出する (LLM)。 */
 export async function extractProfile(
-  client: Anthropic,
+  client: AnthropicApi,
   model: string,
   pagesText: string,
 ): Promise<CompanyProfileInput> {

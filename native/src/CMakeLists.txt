@@ -1,0 +1,94 @@
+# tr_core: 副作用のない業務判断と小さな共通処理 (ネットワーク・DB・環境変数に触れない)。
+add_library(tr_core STATIC
+  core/json.cpp
+  core/text.cpp
+  core/time.cpp
+  core/encoding.cpp
+  core/paseto.cpp
+  core/url.cpp
+  core/ip_policy.cpp
+  core/llm/engine.cpp
+  core/llm/prompts.cpp
+  core/llm/output.cpp
+  core/domain/domain.cpp
+  core/domain/recommend.cpp
+  core/rate_limit.cpp
+  http/message.cpp
+  http/router.cpp
+  http/cors.cpp
+  http/request_budget.cpp
+  db/pg_decode.cpp)
+target_include_directories(tr_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tr_core PUBLIC nlohmann_json::nlohmann_json Lorica::boundary)
+tr_lorica(tr_core SERVER)
+
+# tr_crypto: OpenSSL 3 の薄い包み (ハッシュ・乱数・Ed25519 検証・scrypt・AES-256-GCM)。
+add_library(tr_crypto STATIC
+  crypto/crypto.cpp)
+target_link_libraries(tr_crypto PUBLIC tr_core OpenSSL::Crypto)
+tr_lorica(tr_crypto SERVER)
+
+# tr_io: 外部 I/O の adapter (Beast の HTTP/WS)。
+add_library(tr_io STATIC
+  io/http_server.cpp
+  io/http_client.cpp
+  io/tls_roots.cpp
+  io/pg_pool.cpp
+  io/process.cpp
+  io/file_read.cpp
+  io/ws_client.cpp
+  io/resident_process.cpp)
+target_link_libraries(tr_io PUBLIC tr_core tr_crypto tr_boost OpenSSL::SSL OpenSSL::Crypto PostgreSQL::PostgreSQL
+  Threads::Threads)
+if(WIN32)
+  target_link_libraries(tr_io PUBLIC crypt32)
+endif()
+tr_lorica(tr_io SERVER)
+
+# tr_app: 経路・use case の組み立て。
+add_library(tr_app STATIC
+  app/config.cpp
+  app/auth.cpp
+  app/secrets.cpp
+  app/session_state.cpp
+  app/one_shot.cpp
+  app/llm.cpp
+  app/services.cpp
+  app/interview_repo.cpp
+  app/materials.cpp
+  app/routes/interview_routes.cpp
+  app/alumni_repo.cpp
+  app/routes/alumni_routes.cpp
+  app/cernere.cpp
+  app/brief.cpp
+  app/voice.cpp
+  app/memoria.cpp
+  app/companies_repo.cpp
+  app/session_runtime.cpp
+  app/ws_routes.cpp
+  app/reservation_tick.cpp
+  app/companies_worker.cpp
+  app/routes/companies_routes.cpp
+  app/recommend.cpp
+  app/discord_bridge.cpp
+  app/runtime_extensions.cpp
+  app/version.cpp
+  app/paths.cpp
+  app/migrate.cpp
+  app/pipeline.cpp
+  app/routes/health.cpp
+  app/server_main.cpp)
+target_link_libraries(tr_app PUBLIC tr_io)
+tr_lorica(tr_app SERVER)
+
+add_executable(tirocinium-server main.cpp)
+target_link_libraries(tirocinium-server PRIVATE tr_app)
+set_target_properties(tirocinium-server PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+  RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin" RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin")
+tr_lorica(tirocinium-server SERVER)
+
+add_executable(tirocinium-migrate migrate_main.cpp)
+target_link_libraries(tirocinium-migrate PRIVATE tr_app)
+set_target_properties(tirocinium-migrate PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+  RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin" RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin")
+tr_lorica(tirocinium-migrate)
