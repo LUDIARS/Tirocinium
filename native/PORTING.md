@@ -145,7 +145,7 @@ worker の数は `native/tools/npm_dep_inventory.py` の関数で上のパッケ
 | `middleware/rate-limit.ts` | ユーザ単位の固定窓、429 + Retry-After | `core/rate_limit.cpp`、`app/services.cpp` (`check_session_rate`) |
 | `routes/sessions.ts` bodyLimit | 資料提出 7 MiB で 413 `material_too_large` | `app/pipeline.cpp` (`body_limit_for`)、`io/http_server.cpp` |
 | `materials/material-policy.ts` | 復号前の大きさ見積もり、base64 検査、MIME 許可表、復号後 5 MiB | `core/domain/domain.cpp` (`parse_material_upload`: 見積もりを Lorica の予算に課金) |
-| `materials/material-reader.ts` | 一時フォルダ、固定ファイル名、120 秒、成否に関わらず削除、要点の形と上限 | `app/materials.cpp`。**所見 (material-reader.ts:19) の修正**: Read を `Read(./material.<ext>)` の 1 ファイルに限定し `--strict-mcp-config`。 |
+| `materials/material-reader.ts` | 一時フォルダ、固定ファイル名、120 秒、成否に関わらず削除、要点の形と上限 | `app/materials.cpp`。**所見 (material-reader.ts:19) の修正**: Read を `Read(./material.<ext>)` の 1 ファイルに限定し `--strict-mcp-config`。一時フォルダ 0700・資料 0600 (他の利用者から読めない)、Consult の SKILL.md は読みながら 1 MiB で止める (`materials_tests`)。 |
 | `materials/material-store.ts` / `submit-material.ts` | メモリだけ・TTL 45 分・64 件・持ち主だけ、1 セッション 1 資料・同時提出の排他 | `app/session_state.cpp` (`MaterialStore`)、`app/materials.cpp` |
 | `es-review/*` | 接続コードは SHA-256 で保存・10 分・1 回限り、DM 限定、本文検査、配送の冪等、本文をログに出さない | `app/alumni_repo.cpp`、`app/discord_bridge.cpp` (`handle_review_message`)。**本文検査の正規表現は線形の走査に置換** (`review_body_has_contact`、境界テストあり)。 |
 | `routes/es-requests.ts` / `routes/backdoor.ts` | 社名 200 字・登録済み企業のみ / 項目の許可リスト・本人だけ更新 | `app/routes/alumni_routes.cpp` |
@@ -157,17 +157,27 @@ worker の数は `native/tools/npm_dep_inventory.py` の関数で上のパッケ
 | `companies/ssrf-guard.ts` | 内部アドレスの拒否、リダイレクトを手動追従 | `core/ip_policy.cpp`、`io/http_client.cpp`。**所見 (ssrf-guard.ts:147) の修正**: 名前解決は 1 回、全 IP を検査し、その IP に接続を固定する。 |
 | 二乗時間の正規表現 | LLM 出力の JSON 取り出し、ES 本文の検査、社名正規化 | `core/llm/output.cpp` (`extract_json_block`)、`app/discord_bridge.cpp`、`core/domain/domain.cpp` (`normalize_name`) — すべて前進走査 |
 
-### Lorica で課金している外部入力
+### Lorica で課金している外部入力 (job cpp-lorica-20261111 で更新)
 
-| 入力 | 課金・検査 |
-|---|---|
-| すべての JSON (HTTP 本文・WS フレーム・LLM 出力・Cernere/agent/Memoria/VOICEVOX/Discord の応答・worker の応答行) | `parse_json` / `parse_json_bounded` (`input_budget` で大きさ・要素数・深さ・復号後の文字列) |
-| DB の結果 | `io/pg_pool.cpp` + `db/pg_decode.cpp` (結果全体を `input_budget` で課金) |
-| 資料の base64 | 復号後の大きさの見積もりを `input_budget` に課金してから復号 |
-| WAV (VOICEVOX) | `contains_range` / `checked_add` でチャンクの境界と桁あふれ |
-| HTTP の受信 | ヘッダ 16 KiB、本文は経路ごとの上限 (Content-Length も読む前に検査)、同時接続 512 |
-| 外向き HTTP / WS の受信 | 応答の上限 (呼び出しごと)、WS は 1 メッセージの上限、圧縮は受けない |
-| 子プロセスの出力 | stdout の上限 (超えたら kill)、worker の 1 行 16 MiB (超えた行は読み捨て) |
+| 入力 | 課金・検査 | 上限 |
+|---|---|---|
+| HTTP の受信 (`io/http_server.cpp`、`http/request_budget.cpp`) | 要求 1 つに `input_budget` 1 つ。受信したままのヘッダ (同じ名前を畳む前) を課金し (超えたら 431)、本文を課金し (超えたら 413)、本文の JSON (`app/services.cpp` `read_json_body`) も同じ予算から引く。upgrade 要求もヘッダを課金 | ヘッダ 16 KiB・1,024 フィールド、本文は経路ごと (2 MiB / 資料 7 MiB、Content-Length も読む前に検査)、予算 = ヘッダ + 本文×3 + 64 KiB・要素 201,024 (JSON 200,000 + ヘッダ 1,024)・深さ 64、同時接続 512 |
+| すべての JSON (WS フレーム・LLM 出力・Cernere/agent/Memoria/VOICEVOX/Discord の応答・worker の応答行) | `parse_json` / `parse_json_bounded` (`input_budget` で大きさ・要素数・深さ・復号後の文字列)。予算の計算は `checked_multiply` / `checked_add` (桁あふれする上限は断る) | 呼び出しごと |
+| DB の結果 | `io/pg_pool.cpp` + `db/pg_decode.cpp` (結果全体を `input_budget` で課金) | 呼び出しごと |
+| 資料の base64 | 復号後の大きさの見積もりを `input_budget` に課金してから復号 | 復号後 5 MiB |
+| ファイル (`io/file_read.cpp`) | 読みながら `input_budget` と `checked_add` で数え、上限を 1 バイトでも超えたら止める (大きさを先に見て全部読む形の TOCTOU をなくした)。正規ファイル以外は読まない | Consult の SKILL.md 1 MiB、`data/*.json`・画面の固定ファイル 8 MiB、secrets の config 1 MiB / token 64 KiB、qa-seed 4 MiB (読み取りと JSON を同じ予算)、migration 4 MiB |
+| WAV (VOICEVOX) | `byte_view` (64 MiB) と `byte_reader` でチャンクを読み、位置の計算は `checked_add` | 64 MiB |
+| 外向き HTTP / WS の受信 | 応答の上限 (呼び出しごと)、WS は 1 メッセージの上限、圧縮は受けない。名前解決の結果は `vet_resolved_addresses` (`core/ip_policy.cpp`) で全アドレスを検査し、検査した一覧にそのまま接続 | 呼び出しごと |
+| 子プロセスの出力 (`io/process.cpp`) | stdout の長さの加算を `checked_add` (POSIX・Windows)、超えたら kill。worker の 1 行 16 MiB (超えた行は読み捨て) | 呼び出しごと |
+
+### Lorica の適用 (job cpp-lorica-20261111)
+
+固定 `5e8281b0e60fa16f814e16eaa620715937e8618d`。`tr_lorica()` (native/CMakeLists.txt) で全ビルド単位に
+`Lorica::boundary` (PRIVATE)・`lorica_harden_target`・`lorica_deprecate_unsafe_apis` を入れる。
+常駐サーバ (tr_core / tr_crypto / tr_io / tr_app / tirocinium-server) は EXTENDED (`TR_EXTENDED_HARDENING=AUTO|ON|OFF`)、
+tirocinium-migrate・テスト・fuzz は baseline。検査用の option: `TR_SANITIZE` (`address,undefined` / `thread`)、
+`TR_FUZZ` (Clang の libFuzzer、既定 OFF)。fuzz の入口 7 本 (`native/fuzz/`) は GCC でも固定の入力で 1 回ずつ呼ぶ
+`fuzz_<name>_replay` として ctest に入る。
 
 ## 5. テストの対応表 (TS → ctest)
 
@@ -198,7 +208,10 @@ ctest の名前は `tirocinium.<実行ファイル>`。DB を使うもの (`pg_*
 | `judge-blackbox/judge-blackbox.test.ts` | — | 未移植 (起動拒否) |
 | `companies/*` のクロール・抽出系、`ob-patterns/*`、`packages/companies/*` (HTML/RSS/robots/抽出/ゲーム/OB/geocode)、`packages/training/analyze.test.ts`、`packages/avatar/motion.test.ts`、`apps/desktop/allowed-hosts.test.ts` | — | Node に残る部分 (worker・CLI・デスクトップ)。Node の vitest のまま |
 
-C++ だけの追加テスト: `io_http_server_tests` (ソケット越しの境界)、`db_decode_tests` / `pg_db_tests` (libpq の型変換・migration)、
+C++ だけの追加テスト: `io_http_server_tests` (ソケット越しの境界。ヘッダのフィールド数 1,024 / 1,025 を含む)、
+`input_bounds_tests` (ファイルの上限・要求の予算・JSON の要素数と深さの境界・上限の桁あふれ・WAV・SSRF の検査・前進走査の線形性)、
+`materials_tests` (教材: Read の引数の形・資料 5 MiB ちょうど / +1・巨大 / 壊れた base64・一時フォルダの権限と削除・SKILL.md 1 MiB ちょうど / +1)、
+`fuzz_*_replay` 7 本 (fuzz の入口を合成 corpus で 1 回ずつ)、`db_decode_tests` / `pg_db_tests` (libpq の型変換・migration)、
 `companies_worker_tests` (常駐子プロセスと worker の取り次ぎ)、`pg_runtime_tests` (WS の端から端まで・Discord の偽 gateway・企業/推薦・tick)。
 
 ## 6. 人間の判断が要ること
@@ -236,6 +249,14 @@ cmake --build native/build
 # DB を使うテストには空の Postgres を 1 つ (テストが public schema を作り直す)
 native/tools/pg_test_cluster.sh start      # 一時クラスタ (port 55433)
 TR_TEST_DATABASE_URL=postgres://tirocinium@127.0.0.1:55433/tirocinium_test ctest --test-dir native/build --output-on-failure
+# 守りの確認 (実行ファイルのメタデータ)
+python3 <Lorica>/tools/verify_binary.py native/build/bin/tirocinium-server   # Windows は .exe
+# sanitizer (Linux の GCC / Clang)。DB のテストも同じ一時クラスタで流せる
+cmake -S native -B native/build-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTR_SANITIZE=address,undefined && cmake --build native/build-asan && ctest --test-dir native/build-asan
+cmake -S native -B native/build-tsan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTR_SANITIZE=thread && cmake --build native/build-tsan && ctest --test-dir native/build-tsan
+# fuzz (Clang の libFuzzer)。入口ごとに数十秒の動作確認
+CC=clang CXX=clang++ cmake -S native -B native/build-fuzz -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTR_FUZZ=ON && cmake --build native/build-fuzz
+native/build-fuzz/fuzz/fuzz_json -max_total_time=30 native/fuzz/corpus/json   # 他: http_request material wav url paseto text
 # 本番 DB の migration
 DATABASE_URL=postgres://... native/build/bin/tirocinium-migrate
 # golden の取り直し (Node 側を変えた時)
