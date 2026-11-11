@@ -13,6 +13,7 @@
 #include <boost/beast/http.hpp>
 #include <boost/beast/websocket.hpp>
 
+#include "http/request_budget.hpp"
 #include "io/ws_connection.hpp"
 
 namespace tr::io {
@@ -277,6 +278,13 @@ private:
         if (websocket::is_upgrade(msg)) {
             stream_.expires_never();
             http::Request req = to_request(msg, remote_);
+            // upgrade 要求にも予算を作ってヘッダを課金する (本文は無い。フレームはメッセージごとの予算)。
+            auto limits = http::request_budget_limits({server_->options.header_limit, 0});
+            if (limits) req.budget.emplace(*limits);
+            if (!req.budget || !http::charge_headers(*req.budget, req.headers.items())) {
+                write_raw_and_close("HTTP/1.1 431 Request Header Fields Too Large\r\nConnection: close\r\n\r\n");
+                return;
+            }
             auto up = std::make_shared<Upgrade>(shared_from_this(), std::move(req), parser_->release());
             server_->on_upgrade(up);
             return;
@@ -285,6 +293,13 @@ private:
         std::size_t limit = server_->options.default_body_limit;
         if (server_->options.body_limit_for) limit = server_->options.body_limit_for(probe);
         limit_ = limit;
+        // 要求 1 つに予算 1 つ (Lorica)。ヘッダをここで課金し、本文と本文の JSON も同じ予算から引く。
+        budget_.reset();
+        if (auto limits = http::request_budget_limits({server_->options.header_limit, limit})) budget_.emplace(*limits);
+        if (!budget_ || !http::charge_headers(*budget_, probe.headers.items())) {
+            write_raw_and_close("HTTP/1.1 431 Request Header Fields Too Large\r\nConnection: close\r\n\r\n");
+            return;
+        }
         // Content-Length が上限を超えていれば本文を読まずに上限超過として扱う
         // (Beast の body_limit はヘッダ解析後に設定すると Content-Length には効かないため自前で比べる)。
         if (auto len = parser_->content_length(); len && *len > limit) {
@@ -310,8 +325,11 @@ private:
         stream_.expires_never();
         auto& msg = parser_->get();
         http::Request req = to_request(msg, remote_);
+        if (!too_large && budget_ && !http::charge_body(*budget_, req.body)) too_large = true;
         req.body_too_large = too_large;
         if (too_large) req.body.clear();
+        req.budget = std::move(budget_);
+        budget_.reset();
         const bool keep_alive = !too_large && msg.keep_alive();
         const bool head = req.method == "HEAD";
         head_ = head;
@@ -366,6 +384,7 @@ private:
     bool head_ = false;
     unsigned version_ = 11;
     std::size_t limit_ = 0;
+    std::optional<lorica::input_budget> budget_;
 };
 
 Upgrade::~Upgrade() {

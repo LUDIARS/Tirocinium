@@ -38,6 +38,9 @@ struct Request {
     std::map<std::string, std::string> params;  // ルートの :name
     // 本文が経路の上限を超えた (本文は途中まで)。上位が 413 を返し、接続は応答後に閉じる。
     bool body_too_large = false;
+    // この要求の Lorica 予算 (http/request_budget.hpp)。受け口がヘッダを読んだ時点で作り、ヘッダ・本文・
+    // 本文の JSON の読み取りまで同じ予算から差し引く。要求と一緒に 1 つのスレッドへ渡るだけで、共有しない。
+    std::optional<lorica::input_budget> budget;
 
     // c.req.query('key'): 最初の値 ('+' は空白、%XX を復号)。
     [[nodiscard]] std::optional<std::string> query(std::string_view key) const;

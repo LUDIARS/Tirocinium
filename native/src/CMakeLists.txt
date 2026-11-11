@@ -16,6 +16,7 @@ add_library(tr_core STATIC
   http/message.cpp
   http/router.cpp
   http/cors.cpp
+  http/request_budget.cpp
   db/pg_decode.cpp)
 target_include_directories(tr_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tr_core PUBLIC nlohmann_json::nlohmann_json Lorica::boundary)
@@ -34,6 +35,7 @@ add_library(tr_io STATIC
   io/tls_roots.cpp
   io/pg_pool.cpp
   io/process.cpp
+  io/file_read.cpp
   io/ws_client.cpp
   io/resident_process.cpp)
 target_link_libraries(tr_io PUBLIC tr_core tr_crypto tr_boost OpenSSL::SSL OpenSSL::Crypto PostgreSQL::PostgreSQL

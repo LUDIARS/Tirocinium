@@ -3,6 +3,7 @@
 #include <boost/asio/post.hpp>
 
 #include "core/text.hpp"
+#include "http/request_budget.hpp"
 
 namespace tr::app {
 
@@ -21,12 +22,17 @@ bool BackgroundTasks::submit(std::function<void()> fn) {
     return true;
 }
 
-std::optional<Json> read_json_body(const http::Request& req) {
-    JsonLimits limits;
-    limits.max_bytes = std::max<std::size_t>(req.body.size(), 1);
-    limits.max_elements = 200'000;
-    limits.max_depth = 64;
-    return parse_json(req.body, limits);
+std::optional<Json> read_json_body(http::Request& req) {
+    const http::RequestBudgetSpec spec;  // 要素 200,000・深さ 64 (前回の上限と同じ)
+    if (!req.budget) {
+        // 受け口を通らない要求 (単体テストでの直接呼び出し): 本文の大きさを上限として予算を作る。
+        auto limits = http::request_budget_limits({spec.header_limit, std::max<std::size_t>(req.body.size(), 1)});
+        if (!limits) return std::nullopt;
+        req.budget.emplace(*limits);
+        if (!http::charge_body(*req.budget, req.body)) return std::nullopt;
+    }
+    // 受信時と同じ予算から、JSON の読み取り (入力の大きさ・要素・深さ・復号後の文字列) を差し引く。
+    return parse_json_bounded(req.body, *req.budget, spec.max_depth);
 }
 
 const std::string& user_id(const http::Context& ctx) {

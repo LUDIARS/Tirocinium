@@ -119,6 +119,10 @@ bool blocked_v6(std::string_view ip) {
     bool zero7 = true;
     for (int i = 0; i < 7; ++i) zero7 = zero7 && x[i] == 0;
     if (zero7 && (x[7] == 0 || x[7] == 1)) return true;  // :: / ::1
+    // Node 版より締める: IPv4 互換アドレス (::a.b.c.d、廃止された形式 ::/96) も中の IPv4 で判定する。
+    if (x[0] == 0 && x[1] == 0 && x[2] == 0 && x[3] == 0 && x[4] == 0 && x[5] == 0) {
+        return blocked_v4((static_cast<std::uint32_t>(x[6]) << 16) | x[7]);
+    }
     if ((x[0] & 0xFE00) == 0xFC00) return true;           // fc00::/7 ULA
     if ((x[0] & 0xFFC0) == 0xFE80) return true;           // fe80::/10 link-local
     if ((x[0] & 0xFF00) == 0xFF00) return true;           // ff00::/8 multicast
@@ -134,6 +138,17 @@ bool blocked_v6(std::string_view ip) {
 }
 
 }  // namespace
+
+std::optional<std::vector<std::string>> vet_resolved_addresses(const std::vector<std::string>& addresses,
+                                                               bool public_only) {
+    if (addresses.empty()) return std::nullopt;
+    if (public_only) {
+        for (const auto& a : addresses) {
+            if (is_blocked_ip(a)) return std::nullopt;
+        }
+    }
+    return addresses;
+}
 
 bool is_blocked_ip(std::string_view address) {
     if (address.find(':') != std::string_view::npos) return blocked_v6(address);

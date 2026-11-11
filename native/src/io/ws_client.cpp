@@ -106,10 +106,14 @@ private:
     void on_resolve(beast::error_code ec, tcp::resolver::results_type results) {
         if (ec) return fail("dns");
         std::vector<tcp::endpoint> eps;
+        std::vector<std::string> addresses;
         for (const auto& r : results) {
-            if (options_.public_only && is_blocked_ip(r.endpoint().address().to_string())) return fail("blocked");
             eps.push_back(r.endpoint());
+            addresses.push_back(r.endpoint().address().to_string());
         }
+        if (eps.empty()) return fail("dns");
+        // 全アドレスを検査し、検査した eps にそのまま接続する (再解決しない)。
+        if (!vet_resolved_addresses(addresses, options_.public_only)) return fail("blocked");
         auto self = this->shared_from_this();
         beast::get_lowest_layer(ws_).expires_after(options_.connect_timeout);
         beast::get_lowest_layer(ws_).async_connect(eps, [self](beast::error_code e, const tcp::endpoint&) { self->on_connect(e); });

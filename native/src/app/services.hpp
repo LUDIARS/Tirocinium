@@ -56,7 +56,7 @@ struct Services {
 };
 
 // ---- 要求の読み方 (hono の c.req.json().catch(() => null) と同じ) ----
-std::optional<Json> read_json_body(const http::Request& req);
+std::optional<Json> read_json_body(http::Request& req);
 // 認証済みの利用者 (middleware が埋める)。
 const std::string& user_id(const http::Context& ctx);
 // Number.parseInt(v, 10) (NaN は nullopt)。

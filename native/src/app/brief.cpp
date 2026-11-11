@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 
+#include "io/file_read.hpp"
 #include "app/interview_repo.hpp"
 #include "core/domain/domain.hpp"
 #include "core/text.hpp"
@@ -146,13 +147,13 @@ QaSeed load_qa_seed(const std::filesystem::path& dir, const std::string& stage, 
     if (files.empty()) return out;
     const std::string wanted = role + ".json";
     const std::string target = std::find(files.begin(), files.end(), wanted) != files.end() ? wanted : files.front();
-    if (std::filesystem::file_size(stage_dir / target, ec) > 4 * 1024 * 1024 || ec) throw std::runtime_error("qa-seed file too large");
-    std::ifstream in(stage_dir / target, std::ios::binary);
-    std::stringstream ss;
-    ss << in.rdbuf();
-    JsonLimits limits;
-    limits.max_bytes = 4 * 1024 * 1024;
-    auto parsed = parse_json(ss.str(), limits);
+    // 1 ファイル = 1 依頼の予算で、読み取り (4 MiB まで) と JSON の読み取りを同じ予算から差し引く。
+    constexpr std::size_t kMaxSeedBytes = 4 * 1024 * 1024;
+    lorica::input_budget budget({kMaxSeedBytes * 3 + 64, 200'000, 200'002, 64});
+    auto file = io::read_file_bounded(stage_dir / target, kMaxSeedBytes, budget);
+    if (file.status == io::FileReadStatus::too_large) throw std::runtime_error("qa-seed file too large");
+    if (file.status != io::FileReadStatus::ok) throw std::runtime_error("qa-seed file unreadable");
+    auto parsed = parse_json_bounded(file.data, budget, 64);
     if (!parsed) throw std::runtime_error("invalid qa-seed JSON");
     if (const Json* items = member(*parsed, "items"); items && items->is_array()) {
         for (const auto& i : *items) {

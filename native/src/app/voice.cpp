@@ -1,8 +1,13 @@
 #include "app/voice.hpp"
 
+#include <lorica/byte_reader.hpp>
+#include <lorica/byte_view.hpp>
 #include <lorica/checked_size.hpp>
 
+#include <algorithm>
 #include <cstdint>
+#include <span>
+#include <string_view>
 
 #include "app/config.hpp"
 #include "core/text.hpp"
@@ -56,29 +61,38 @@ VoiceConfig load_voice_config(const EnvList& env) {
 }
 
 std::string extract_wav_data(const std::string& wav) {
-    auto u32 = [&](std::size_t off) {
-        return static_cast<std::uint32_t>(static_cast<unsigned char>(wav[off])) |
-               (static_cast<std::uint32_t>(static_cast<unsigned char>(wav[off + 1])) << 8) |
-               (static_cast<std::uint32_t>(static_cast<unsigned char>(wav[off + 2])) << 16) |
-               (static_cast<std::uint32_t>(static_cast<unsigned char>(wav[off + 3])) << 24);
+    // RIFF のチャンク長は外 (VOICEVOX の応答) から来る値。読み出しはすべて Lorica の byte_view / byte_reader で
+    // 残りの長さを確かめてから行い、位置の計算は checked_add で桁あふれを検出する。
+    const auto bytes = std::as_bytes(std::span<const char>(wav.data(), wav.size()));
+    const auto view = lorica::byte_view::make(bytes.data(), bytes.size(), kMaxWavBytes);
+    if (!view) throw std::runtime_error("voicevox WAV が大きすぎる");
+    lorica::byte_reader in(bytes);
+    auto same = [](std::span<const std::byte> part, std::string_view expected) {
+        return part.size() == expected.size() &&
+               std::equal(part.begin(), part.end(), expected.begin(),
+                          [](std::byte b, char c) { return b == static_cast<std::byte>(c); });
     };
-    if (wav.size() < 12 || wav.compare(0, 4, "RIFF") != 0 || wav.compare(8, 4, "WAVE") != 0) {
+    auto tag = [&](std::string_view expected) {
+        const auto part = in.take(4);
+        return part && same(*part, expected);
+    };
+    if (!tag("RIFF") || !in.skip(4) || !tag("WAVE")) {
         throw std::runtime_error("voicevox synthesis 応答が WAV (RIFF/WAVE) でない");
     }
-    std::size_t off = 12;
-    while (lorica::contains_range(wav.size(), off, 8)) {
-        const std::string id = wav.substr(off, 4);
-        const std::size_t size = u32(off + 4);
-        if (id == "data") {
+    while (in.remaining() >= 8) {
+        const auto id = in.take(4);
+        const auto size = in.read_little_endian<std::uint32_t>();
+        if (!id || !size) break;
+        if (same(*id, "data")) {
             // 宣言された長さがバッファを超えていれば、あるところまでを返す (Node の subarray と同じ)
-            const std::size_t avail = wav.size() - (off + 8);
-            return wav.substr(off + 8, std::min(size, avail));
+            const std::size_t length = std::min<std::size_t>(*size, in.remaining());
+            const auto data = in.take(length);
+            if (!data) break;
+            return std::string(reinterpret_cast<const char*>(data->data()), data->size());
         }
-        // チャンクは 2 byte 境界に padding される。桁あふれは checked_add で検出する。
-        const auto body = lorica::checked_add(size, size % 2);
-        const auto next = body ? lorica::checked_add(off + 8, *body) : std::nullopt;
-        if (!next || *next > wav.size()) break;
-        off = *next;
+        // チャンクは 2 byte 境界に padding される。
+        const auto body = lorica::checked_add(*size, *size % 2);
+        if (!body || !in.skip(*body)) break;
     }
     throw std::runtime_error("voicevox WAV に data チャンクが見つからない");
 }
@@ -110,7 +124,7 @@ std::vector<std::string> voicevox_tts(const VoiceConfig& cfg, const HttpFetch& f
     s.headers = {{"content-type", "application/json"}, {"accept", "audio/wav"}};
     s.body = js_stringify(*query);
     s.timeout = std::chrono::milliseconds(30'000);
-    s.max_response_bytes = 64 * 1024 * 1024;
+    s.max_response_bytes = kMaxWavBytes;
     auto sr = fetch(s);
     if (!sr.ok()) throw std::runtime_error("voicevox synthesis failed: HTTP " + std::to_string(sr.status));
     const std::string pcm = extract_wav_data(sr.body);

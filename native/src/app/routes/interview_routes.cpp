@@ -178,9 +178,8 @@ void sessions(http::Router& r, Services& s) {
             return r;
         };
         if (!owns_active(s, id, uid)) return with_cache(error("not_found", 404));
-        JsonLimits limits;
-        limits.max_bytes = 8 * 1024 * 1024;
-        auto raw = parse_json(req.body, limits);
+        // 本文 (7 MiB まで) を受けた要求の予算で JSON を読む (base64 の文字列 1 つ = 要素は少ない)。
+        auto raw = read_json_body(req);
         SubmitMaterialPorts ports;
         ports.log = s.log;
         ports.load_skills = [&s] { return load_interviewer_skills(consult_root(s.env, std::filesystem::current_path())); };

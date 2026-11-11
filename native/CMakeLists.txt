@@ -70,6 +70,27 @@ function(tr_lorica target)
   lorica_deprecate_unsafe_apis(${target})
 endfunction()
 
+# sanitizer のビルド (検査用。既定は空 = 使わない)。例: -DTR_SANITIZE=address,undefined / -DTR_SANITIZE=thread
+set(TR_SANITIZE "" CACHE STRING "Sanitizers for test builds (address,undefined | thread | empty)")
+if(TR_SANITIZE)
+  if(MSVC)
+    message(FATAL_ERROR "TR_SANITIZE is for GCC/Clang")
+  endif()
+  add_compile_options(-fsanitize=${TR_SANITIZE} -fno-omit-frame-pointer -fno-sanitize-recover=all)
+  add_link_options(-fsanitize=${TR_SANITIZE})
+endif()
+
+# libFuzzer の入口 (Clang だけ。既定 OFF で GCC の CI を壊さない)。回帰用の固定入力の実行は BUILD_TESTING で常に作る。
+option(TR_FUZZ "Build libFuzzer entry points (Clang only)" OFF)
+if(TR_FUZZ AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  message(FATAL_ERROR "TR_FUZZ needs Clang (libFuzzer)")
+endif()
+if(TR_FUZZ)
+  # 入口だけでなく、読み取りの本体 (tr_core / tr_app) にも網羅の計測を入れる。
+  add_compile_options(-fsanitize=fuzzer-no-link,address,undefined -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=address,undefined)
+endif()
+
 add_library(tr_boost INTERFACE)
 target_include_directories(tr_boost SYSTEM INTERFACE ${boost_SOURCE_DIR})
 target_compile_definitions(tr_boost INTERFACE BOOST_ERROR_CODE_HEADER_ONLY BOOST_ASIO_NO_DEPRECATED
@@ -89,4 +110,7 @@ endif()
 add_subdirectory(src)
 if(BUILD_TESTING)
   add_subdirectory(tests)
+endif()
+if(BUILD_TESTING OR TR_FUZZ)
+  add_subdirectory(fuzz)
 endif()

@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <limits>
 
+#include <lorica/checked_size.hpp>
+
 #include "core/text.hpp"
 
 namespace tr {
@@ -49,9 +51,12 @@ std::optional<Json> parse_json_bounded(std::string_view text, lorica::input_budg
 }
 
 std::optional<Json> parse_json(std::string_view text, const JsonLimits& limits) {
-    lorica::input_budget budget({limits.max_bytes * 2 + 64, limits.max_elements, limits.max_elements + 1,
-                                 limits.max_depth});
-    if (text.size() > limits.max_bytes) return std::nullopt;
+    // 入力の大きさ + 復号後の文字列 (入力より長くならない) + 余白 64。桁あふれする上限は断る。
+    const auto twice = lorica::checked_multiply(limits.max_bytes, 2);
+    const auto bytes = twice ? lorica::checked_add(*twice, 64) : std::nullopt;
+    const auto allocations = lorica::checked_add(limits.max_elements, 1);
+    if (!bytes || !allocations || text.size() > limits.max_bytes) return std::nullopt;
+    lorica::input_budget budget({*bytes, limits.max_elements, *allocations, limits.max_depth});
     return parse_json_bounded(text, budget, limits.max_depth);
 }
 

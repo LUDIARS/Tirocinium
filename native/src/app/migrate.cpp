@@ -1,10 +1,11 @@
 #include "app/migrate.hpp"
 
 #include <algorithm>
-#include <fstream>
 #include <set>
-#include <sstream>
+#include <stdexcept>
 #include <vector>
+
+#include "io/file_read.hpp"
 
 namespace tr::app {
 
@@ -30,12 +31,12 @@ int run_migrations(db::Database& database, const std::filesystem::path& dir,
     int count = 0;
     for (const auto& file : files) {
         if (applied.count(file)) continue;
-        std::ifstream in(dir / file, std::ios::binary);
-        std::stringstream text;
-        text << in.rdbuf();
+        // migration はリポ内のファイルだが、外から置かれうるファイルとして上限つきで読む (1 本 4 MiB)。
+        auto text = io::read_file_text(dir / file, 4 * 1024 * 1024);
+        if (!text) throw std::runtime_error("migration unreadable or too large: " + file);
         if (log) log("applying " + file);
         database.transaction([&](db::Database& tx) {
-            tx.exec_script(text.str());
+            tx.exec_script(*text);
             tx.query("INSERT INTO _tirocinium_migrations (name) VALUES ($1)", {std::string(file)});
         });
         ++count;

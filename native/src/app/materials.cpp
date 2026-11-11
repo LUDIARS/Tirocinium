@@ -2,11 +2,11 @@
 
 #include <fstream>
 #include <random>
-#include <sstream>
 
 #include "core/encoding.hpp"
 #include "core/text.hpp"
 #include "crypto/crypto.hpp"
+#include "io/file_read.hpp"
 
 namespace tr::app {
 
@@ -19,14 +19,19 @@ std::filesystem::path consult_root(const EnvList& env, const std::filesystem::pa
 
 namespace {
 
+// Consult の SKILL.md (教材) を 1 MiB まで読む。大きさを見てから全部読むのではなく、読みながら上限で止める
+// (Lorica の予算。見た後に伸びたファイル・FIFO・ディレクトリを読まない)。
+constexpr std::size_t kMaxSkillBytes = 1024 * 1024;
+
 std::string read_text(const std::filesystem::path& p) {
-    std::error_code ec;
-    if (!std::filesystem::is_regular_file(p, ec)) throw std::runtime_error("ENOENT: " + p.filename().string());
-    if (std::filesystem::file_size(p, ec) > 1024 * 1024) throw std::runtime_error("skill file too large");
-    std::ifstream in(p, std::ios::binary);
-    std::stringstream ss;
-    ss << in.rdbuf();
-    return ss.str();
+    auto r = io::read_file_bounded(p, kMaxSkillBytes);
+    switch (r.status) {
+        case io::FileReadStatus::ok: return std::move(r.data);
+        case io::FileReadStatus::not_found: throw std::runtime_error("ENOENT: " + p.filename().string());
+        case io::FileReadStatus::too_large: throw std::runtime_error("skill file too large");
+        case io::FileReadStatus::io_error: break;
+    }
+    throw std::runtime_error("skill file unreadable");
 }
 
 std::filesystem::path skill_path(const std::filesystem::path& root, const std::string& name) {
@@ -49,7 +54,7 @@ std::vector<std::string> reader_cli_args(const std::string& file_name) {
 std::string read_material(const domain::MaterialUpload& upload, const std::string& reader_skill, const MaterialRun& run,
                           std::chrono::milliseconds timeout) {
     const auto dir = std::filesystem::temp_directory_path() / ("tr-material-" + hex_encode(crypto::random_bytes(8)));
-    std::filesystem::create_directory(dir);  // 既にあれば例外 (乱数名の衝突は再試行しない)
+    if (!std::filesystem::create_directory(dir)) throw std::runtime_error("material dir exists");  // 乱数名の衝突は再試行しない
     const std::string file_name = "material." + upload.extension;
     struct Cleanup {
         std::filesystem::path dir;
@@ -58,8 +63,14 @@ std::string read_material(const domain::MaterialUpload& upload, const std::strin
             std::filesystem::remove_all(dir, ec);
         }
     } cleanup{dir};
+    // 資料は個人データ。共有の一時フォルダの中なので、フォルダとファイルを持ち主だけにする
+    // (既定の権限 0755/0644 では同じ機械の他のユーザが読める)。
+    namespace fs = std::filesystem;
+    fs::permissions(dir, fs::perms::owner_all, fs::perm_options::replace);
     {
         std::ofstream out(dir / file_name, std::ios::binary);
+        if (!out) throw std::runtime_error("material write failed");
+        fs::permissions(dir / file_name, fs::perms::owner_read | fs::perms::owner_write, fs::perm_options::replace);
         out.write(upload.bytes.data(), static_cast<std::streamsize>(upload.bytes.size()));
         if (!out) throw std::runtime_error("material write failed");
     }

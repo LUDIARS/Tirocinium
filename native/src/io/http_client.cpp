@@ -60,13 +60,14 @@ asio::awaitable<std::vector<tcp::endpoint>> resolve(const Url& url, bool public_
                                                    asio::redirect_error(asio::use_awaitable, ec));
     if (ec) throw HttpClientError("dns", url.host);
     std::vector<tcp::endpoint> eps;
+    std::vector<std::string> addresses;
     for (const auto& r : results) {
-        const auto addr = r.endpoint().address();
-        // ssrf-guard.ts と同じく、1 つでも内部 IP に解決されたら拒否する。
-        if (public_only && is_blocked_ip(addr.to_string())) throw HttpClientError("blocked", url.host);
         eps.push_back(r.endpoint());
+        addresses.push_back(r.endpoint().address().to_string());
     }
     if (eps.empty()) throw HttpClientError("dns", "empty: " + url.host);
+    // ssrf-guard.ts と同じく、1 つでも内部 IP に解決されたら拒否する。検査した eps にそのまま接続する (再解決しない)。
+    if (!vet_resolved_addresses(addresses, public_only)) throw HttpClientError("blocked", url.host);
     co_return eps;
 }
 

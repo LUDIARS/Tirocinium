@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 
+#include "io/file_read.hpp"
 #include "app/alumni_repo.hpp"
 #include "app/interview_repo.hpp"
 #include "core/llm/output.hpp"
@@ -22,13 +23,7 @@ Response error(const std::string& code, int status) { return json(Json{{"error",
 constexpr std::size_t kMaxStaticBytes = 8 * 1024 * 1024;
 
 std::optional<std::string> read_file(const std::filesystem::path& p) {
-    std::error_code ec;
-    if (!std::filesystem::is_regular_file(p, ec)) return std::nullopt;
-    if (std::filesystem::file_size(p, ec) > kMaxStaticBytes) return std::nullopt;
-    std::ifstream in(p, std::ios::binary);
-    std::stringstream ss;
-    ss << in.rdbuf();
-    return ss.str();
+    return io::read_file_text(p, kMaxStaticBytes);  // 読みながら上限で止める (Lorica の予算)
 }
 
 // c.req.json().catch(() => ({}))。object 以外は空の object として扱う。

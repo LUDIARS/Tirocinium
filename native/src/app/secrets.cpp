@@ -12,6 +12,7 @@
 #include <unistd.h>
 #endif
 
+#include "io/file_read.hpp"
 #include "core/encoding.hpp"
 #include "core/text.hpp"
 #include "crypto/crypto.hpp"
@@ -55,14 +56,7 @@ std::string os_username() {
 }
 
 std::optional<std::string> read_file(const std::filesystem::path& p, std::size_t max_bytes) {
-    std::error_code ec;
-    if (!std::filesystem::is_regular_file(p, ec)) return std::nullopt;
-    const auto size = std::filesystem::file_size(p, ec);
-    if (ec || size > max_bytes) return std::nullopt;
-    std::ifstream in(p, std::ios::binary);
-    std::stringstream ss;
-    ss << in.rdbuf();
-    return ss.str();
+    return io::read_file_text(p, max_bytes);  // 読みながら上限で止める (Lorica の予算)
 }
 
 constexpr std::size_t kMaxConfigBytes = 1024 * 1024;

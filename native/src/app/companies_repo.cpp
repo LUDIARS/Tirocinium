@@ -6,6 +6,7 @@
 #include <map>
 #include <sstream>
 
+#include "io/file_read.hpp"
 #include "app/interview_repo.hpp"
 #include "core/llm/output.hpp"
 #include "http/message.hpp"
@@ -74,12 +75,7 @@ std::string filter_sql(const CompanyFilter& f, db::Params& params) {
 }
 
 std::optional<std::string> read_file(const std::filesystem::path& p) {
-    std::error_code ec;
-    if (!std::filesystem::is_regular_file(p, ec) || std::filesystem::file_size(p, ec) > 8 * 1024 * 1024) return std::nullopt;
-    std::ifstream in(p, std::ios::binary);
-    std::stringstream ss;
-    ss << in.rdbuf();
-    return ss.str();
+    return io::read_file_text(p, 8 * 1024 * 1024);  // 読みながら上限で止める (Lorica の予算)
 }
 
 std::vector<Json> read_array(const std::filesystem::path& p) {

@@ -25,7 +25,10 @@ struct VoiceConfig {
 // api の鍵なし (Node 版の createSttApiProvider と同じ)。
 VoiceConfig load_voice_config(const EnvList& env);
 
+// VOICEVOX の synthesis 応答 (WAV) の上限。外向き HTTP の応答上限と WAV の走査の上限を同じ値にする。
+inline constexpr std::size_t kMaxWavBytes = 64 * 1024 * 1024;
 // WAV (RIFF) の data チャンクを取り出す (44 byte 固定でなくチャンクを辿る)。形が違えば例外。
+// kMaxWavBytes を超える入力も例外。
 std::string extract_wav_data(const std::string& wav);
 
 // VOICEVOX: POST /audio_query → POST /synthesis → WAV → PCM を 8192 byte ごとに返す。
