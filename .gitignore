@@ -57,3 +57,6 @@ review.localbak/
 
 # Anatomia のローカル状態 (ドメイン定義の正本は spec/domains/)
 .anatomia/
+
+# Python のバイトコード (生成物)
+__pycache__/
