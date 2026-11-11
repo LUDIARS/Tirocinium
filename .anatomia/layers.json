@@ -1,0 +1,21 @@
+{
+  "$comment": "Anatomia のプログラムドメイン (二層判定) 用の層宣言。業務ドメインの正本は spec/domains/*.domain.json のまま (native/ は native-server.domain.json が覆う)。glob はリポ相対のファイルパスに完全一致で当たる (`*` = 1 階層)。Anatomia の module 単位はディレクトリなので、ディレクトリ 1 つに 1 本だけ置く。対象は C++ 版 (native/) のみ: 副作用のない業務判断 (core) と HTTP の型・経路表 (http) は domain、外部 I/O の adapter (Beast の受け口とクライアント・子プロセス・libpq・ファイル) と OpenSSL・DB の型変換は infrastructure、HTTP の経路の処理 (app/routes) は presentation、サービスの組み立てと実行ファイルの main は application、テスト・fuzz・golden の記録は verification。Node 版 (apps/ packages/ scripts/ など) は未宣言。確認は `anatomia domains program --repo . --unclassified`。",
+  "layers": [
+    { "glob": "native/fuzz/*", "layer": "verification" },
+    { "glob": "native/src/*", "layer": "application" },
+    { "glob": "native/src/app/*", "layer": "application" },
+    { "glob": "native/src/app/routes/*", "layer": "presentation" },
+    { "glob": "native/src/core/*", "layer": "domain" },
+    { "glob": "native/src/core/domain/*", "layer": "domain" },
+    { "glob": "native/src/core/llm/*", "layer": "domain" },
+    { "glob": "native/src/crypto/*", "layer": "infrastructure" },
+    { "glob": "native/src/db/*", "layer": "infrastructure" },
+    { "glob": "native/src/http/*", "layer": "domain" },
+    { "glob": "native/src/io/*", "layer": "infrastructure" },
+    { "glob": "native/tests/*", "layer": "verification" },
+    { "glob": "native/tests/support/*", "layer": "verification" },
+    { "glob": "native/tools/*", "layer": "verification" },
+    { "glob": "native/tools/golden/*", "layer": "verification" }
+  ],
+  "mergeCouplingThreshold": 1
+}
