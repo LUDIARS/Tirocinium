@@ -83,3 +83,10 @@ Lorica は `/home/user/Lorica` (5e8281b)。
 
 PORTING.md §8 と同じ。共有機械では重いコマンドを `/home/user/.cpp-deps/bin/buildslot` で包み、並列は `-j2` まで。
 DB を使うテストは `native/tools/pg_test_cluster.sh start <dir> <port>` の一時クラスタ (使い終わったら `stop` してディレクトリを消す)。
+
+## (j) 追加: 「Lorica を使っているか」の ctest (COMMON-4 の作業 B)
+
+- `tests/lorica_applied.cmake` の 6 本: `tirocinium.lorica_applied.{baseline,extended}` (翻訳単位の中から強制 include の印・`_GLIBCXX_ASSERTIONS`・`_LIBCPP_HARDENING_MODE` の字句・`_FORTIFY_SOURCE=3`・`checked_add` / `input_budget`)、`.unsafe_api_rejected` (`std::strcpy` の単位のコンパイルが Lorica の文言で止まる)、`.compile_commands` (`cmake -P`、自前の全単位のフラグと打ち消しの有無。EXTENDED は `tr_lorica(... SERVER)` のソースで `-ftrivial-auto-var-init=zero`)、`.verify_binary.{tirocinium-server,tirocinium-migrate}` (python3 があるときだけ)。
+- configure 時の網羅の確認 `tr_check_lorica_coverage` (native/CMakeLists.txt) は無かったので足した: `tr_lorica()` を通らないコンパイルするターゲットで FATAL_ERROR。`CMAKE_EXPORT_COMPILE_COMMANDS` は top-level のとき ON。
+- 壊して確かめた: `tirocinium-migrate` の `tr_lorica` を外す → configure が止まる。テストのターゲットに `-U_GLIBCXX_ASSERTIONS -fno-stack-protector`、`tr_core` に `-fcf-protection=none` → `.baseline` と `.compile_commands` (tr_core の 18 単位とテストの単位を名指し) が落ちる。元に戻した。
+- GCC 13 RelWithDebInfo: ctest 36 本 (前の 30 + 6)。DB あり 36/36、DB なし 32 通過・4 skip。MSVC の枝と Visual Studio の generator での skip は未実行。

@@ -37,3 +37,5 @@ tr_test(voice_brief_tests tr_app)
 tr_test(session_helpers_tests tr_app)
 tr_test(materials_tests tr_app)
 tr_test(input_bounds_tests tr_app)
+
+include(lorica_applied.cmake)
