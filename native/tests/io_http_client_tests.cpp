@@ -32,7 +32,7 @@ struct Local {
             r.headers.set("content-encoding", "br");
             return r;
         });
-        router.get("/redirect", [this](http::Request&, http::Context&) {
+        router.get("/redirect", [](http::Request&, http::Context&) {
             http::Response r;
             r.status = 302;
             r.headers.set("location", "/ok");

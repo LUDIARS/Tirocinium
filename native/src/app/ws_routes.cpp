@@ -316,15 +316,23 @@ void WsRoutes::cernere_relay(const std::shared_ptr<io::PendingUpgrade>& up, std:
         std::deque<std::string> pending;  // client が開く前に上流から届いたもの
         std::shared_ptr<io::WsClient> upstream;
         bool accepted = false;
+        bool closed = false;  // どちらかの側が閉じた (または上流に繋がらなかった)
     };
     auto relay = std::make_shared<Relay>();
     auto log = s.log;
     io::WsClientOptions opts;
     opts.max_message = 1024 * 1024;
-    relay->upstream = io::ws_connect(
+    // relay は両側の接続を持ち、両側の callback は relay を持つ。どちらかが閉じたら relay 側の参照を外して
+    // 循環を切る (切らないと接続ごとに relay と両側の接続が残る。ASan の LeakSanitizer で見つかった)。
+    auto upstream = io::ws_connect(
         *deps_.ioc, *url, opts,
         [relay, up, log](bool ok, const std::string& err) {
             if (!ok) {
+                {
+                    std::lock_guard l(relay->mu);
+                    relay->upstream.reset();
+                    relay->closed = true;
+                }
                 if (log) log("[auth] Cernere composite WS relay failed: " + err);
                 return up->reject(502);
             }
@@ -341,10 +349,24 @@ void WsRoutes::cernere_relay(const std::shared_ptr<io::PendingUpgrade>& up, std:
                 for (auto& m : flush) conn->send_text(std::move(m));
                 conn->start(
                     [relay](std::string data, bool binary) {
-                        if (relay->upstream && relay->upstream->is_open()) relay->upstream->send(std::move(data), binary);
+                        std::shared_ptr<io::WsClient> upstream;
+                        {
+                            std::lock_guard l(relay->mu);
+                            upstream = relay->upstream;
+                        }
+                        if (upstream && upstream->is_open()) upstream->send(std::move(data), binary);
                     },
                     [relay] {
-                        if (relay->upstream) relay->upstream->close(1000, "");
+                        std::shared_ptr<io::WsClient> upstream;
+                        {
+                            std::lock_guard l(relay->mu);
+                            upstream = std::move(relay->upstream);
+                            relay->upstream.reset();
+                            relay->client.reset();
+                            relay->pending.clear();
+                            relay->closed = true;
+                        }
+                        if (upstream) upstream->close(1000, "");
                     });
             });
         },
@@ -364,13 +386,26 @@ void WsRoutes::cernere_relay(const std::shared_ptr<io::PendingUpgrade>& up, std:
             std::shared_ptr<io::WsConnection> client;
             {
                 std::lock_guard l(relay->mu);
-                client = relay->client;
+                client = std::move(relay->client);
+                relay->client.reset();
+                relay->upstream.reset();
+                relay->pending.clear();
+                relay->closed = true;
             }
             if (client) {
                 const bool valid = code >= 1000 && code < 5000 && code != 1005 && code != 1006;
                 client->close(static_cast<std::uint16_t>(valid ? code : 1011), "");
             }
         });
+    {
+        std::lock_guard l(relay->mu);
+        if (!relay->closed) {
+            relay->upstream = std::move(upstream);
+            return;
+        }
+    }
+    // ws_connect から戻る前にどちらかが閉じていた: 上流を持たずに閉じる。
+    if (upstream) upstream->close(1000, "");
 }
 
 }  // namespace tr::app

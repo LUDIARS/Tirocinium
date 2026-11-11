@@ -196,6 +196,11 @@ private:
         timer_.cancel();
         beast::error_code ec;
         beast::get_lowest_layer(ws_).socket().close(ec);
+        // 開けなかった接続には on_message / on_close はもう来ない。呼び出し元の状態を捕まえている
+        // callback をここで捨てる (残すと「呼び出し元 → この接続 → callback → 呼び出し元」の循環が残り、
+        // 上流に繋がらないたびに漏れる。ASan の LeakSanitizer で見つかった)。
+        on_message_ = nullptr;
+        on_close_ = nullptr;
         if (on_open_) {
             auto cb = std::move(on_open_);
             on_open_ = nullptr;

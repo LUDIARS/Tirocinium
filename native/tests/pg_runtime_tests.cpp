@@ -11,6 +11,7 @@
 #include <thread>
 
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/post.hpp>
 #include <boost/asio/thread_pool.hpp>
 
@@ -674,6 +675,19 @@ TEST_CASE("cernere composite relay: ticket parsing, upstream URL, both direction
         Probe off;
         off.connect(srv.ioc, srv.url("/api/auth/cernere/ws?ticket=" + ticket));
         check(off.wait([](Probe& x) { return x.failed || x.opened; }) && off.failed, "no CERNERE_URL → refused (503)");
+        // 回帰: 上流に繋がらない (閉じたポート) → 502 で断り、relay と上流の接続を残さない
+        // (前は上流の callback が relay を持ったままで循環が残った。ASan のビルドの LeakSanitizer が検出する)。
+        std::uint16_t closed_port = 0;
+        {
+            asio::io_context tmp;
+            asio::ip::tcp::acceptor a(tmp, {asio::ip::make_address("127.0.0.1"), 0});
+            closed_port = a.local_endpoint().port();
+        }
+        r.f.config.cernere.url = "http://127.0.0.1:" + std::to_string(closed_port);
+        Probe down;
+        down.connect(srv.ioc, srv.url("/api/auth/cernere/ws?ticket=" + ticket));
+        check(down.wait([](Probe& x) { return x.failed || x.opened; }) && down.failed, "upstream unreachable → refused (502)");
+        r.f.config.cernere.url.clear();
     }
     cernere.stop();
     cguard.reset();

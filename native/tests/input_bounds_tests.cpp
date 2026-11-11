@@ -1,6 +1,7 @@
 // 外から入る入力の上限 (Lorica) の境界テスト: 上限ちょうど・上限 + 1・壊れた入力・巨大な入力。
 // 対象: ファイルの読み込み、HTTP の要求ごとの予算と本文の JSON、JSON の上限の桁あふれ、WAV の走査、
 // SSRF の名前解決結果の検査、正規表現を置き換えた走査の線形性。データはすべて合成。
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -204,31 +205,51 @@ TEST_CASE("ssrf: every resolved address is vetted; one internal address rejects 
 
 // ---- 正規表現の二乗時間 (前進走査の線形性) ----------------------------------------------------------
 
-TEST_CASE("linear scans: 2 MB adversarial inputs finish quickly (no quadratic backtracking)") {
-    const std::string ticks(2'000'000, '`');
-    double t = seconds([&] {
-        try {
-            (void)llm::extract_json_block(ticks);
-        } catch (const std::runtime_error&) {
-        }
-    });
-    check(t < 2.0, "``` without a close");
-    std::string braces(1'000'000, '{');
-    t = seconds([&] {
-        try {
-            (void)llm::extract_json_block(braces);
-        } catch (const std::runtime_error&) {
-        }
-    });
-    check(t < 2.0, "only opening braces");
-    t = seconds([&] { (void)domain::normalize_name(std::string(1'000'000, '(')); });
-    check(t < 2.0, "unclosed parentheses");
-    t = seconds([&] { (void)domain::normalize_name("co." + std::string(1'000'000, ' ')); });
-    check(t < 2.0, "co. followed by spaces");
-    std::string dashes;
-    for (int i = 0; i < 300'000; ++i) dashes += "12-";
-    t = seconds([&] { (void)app::review_body_has_contact(dashes); });
-    check(t < 2.0, "phone-like near misses");
+// 線形かどうかを、入力を倍にした時の時間の比で見る (二乗なら約 4 倍)。秒の絶対値の上限は
+// sanitizer のビルド (Debug + TSan で 10 倍以上遅い) や機械の混み具合で外れるので使わない。
+// 二乗の走査なら 100 万文字で 10^12 回の比較になり、比を測る前に ctest の時間切れで落ちる。
+template <class F>
+void check_linear(F&& run, std::size_t n, const std::string& what) {
+    auto best = [&](std::size_t size) {
+        double t = seconds([&] { run(size); });
+        t = std::min(t, seconds([&] { run(size); }));
+        return t;
+    };
+    const double t1 = best(n);
+    const double t2 = best(2 * n);
+    check(t2 <= 3.0 * t1 + 0.05, what + ": n=" + std::to_string(n) + " " + std::to_string(t1) + "s, 2n " +
+                                     std::to_string(t2) + "s (quadratic would be about 4x)");
+}
+
+TEST_CASE("linear scans: doubling a 1 MB adversarial input at most ~doubles the time (no quadratic backtracking)") {
+    check_linear(
+        [](std::size_t n) {
+            try {
+                (void)llm::extract_json_block(std::string(n, '`'));
+            } catch (const std::runtime_error&) {
+            }
+        },
+        1'000'000, "``` without a close");
+    check_linear(
+        [](std::size_t n) {
+            try {
+                (void)llm::extract_json_block(std::string(n, '{'));
+            } catch (const std::runtime_error&) {
+            }
+        },
+        500'000, "only opening braces");
+    check_linear([](std::size_t n) { (void)domain::normalize_name(std::string(n, '(')); }, 500'000,
+                 "unclosed parentheses");
+    check_linear([](std::size_t n) { (void)domain::normalize_name("co." + std::string(n, ' ')); }, 500'000,
+                 "co. followed by spaces");
+    check_linear(
+        [](std::size_t n) {
+            std::string dashes;
+            dashes.reserve(3 * n);
+            for (std::size_t i = 0; i < n; ++i) dashes += "12-";
+            (void)app::review_body_has_contact(dashes);
+        },
+        150'000, "phone-like near misses");
 }
 
 TEST_MAIN()
