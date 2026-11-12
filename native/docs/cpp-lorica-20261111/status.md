@@ -90,3 +90,9 @@ DB を使うテストは `native/tools/pg_test_cluster.sh start <dir> <port>` �
 - configure 時の網羅の確認 `tr_check_lorica_coverage` (native/CMakeLists.txt) は無かったので足した: `tr_lorica()` を通らないコンパイルするターゲットで FATAL_ERROR。`CMAKE_EXPORT_COMPILE_COMMANDS` は top-level のとき ON。
 - 壊して確かめた: `tirocinium-migrate` の `tr_lorica` を外す → configure が止まる。テストのターゲットに `-U_GLIBCXX_ASSERTIONS -fno-stack-protector`、`tr_core` に `-fcf-protection=none` → `.baseline` と `.compile_commands` (tr_core の 18 単位とテストの単位を名指し) が落ちる。元に戻した。
 - GCC 13 RelWithDebInfo: ctest 36 本 (前の 30 + 6)。DB あり 36/36、DB なし 32 通過・4 skip。MSVC の枝と Visual Studio の generator での skip は未実行。
+
+## (k) 追加: probe の名前をマクロで綴る (COMMON-5、2026-11-12)
+
+- Praesidium の `native.unbounded-copy` (呼び出しの形の文字列の規則) に当たっていた 5 行 (`lorica_applied_tests.cpp` の代役の宣言 2 行と `decltype` 2 行、`lorica_unsafe_api_probe.cpp` の `std::strcpy(...)`) を `TR_PROBE_UNSAFE_NAME(str, cpy)` の形で綴り、使い終わったら `#undef` した。確かめる内容は変えていない。直した後、規則の実物 (`sourceFindings`) での指摘は 0 件。この job が足した・変えた C/C++ のファイル (取り込みの 79afacb で足した・変えた 158 本) でも、当たるのはこの 2 本だけだった (製品のコードは 0 件)。
+- `.unsafe_api_rejected` は直した後も、展開後の `std::strcpy` が Lorica の `[[deprecated]]` (`-Werror=deprecated-declarations`) で拒否されて通過する (コンパイラの出力で確かめた。エラーは `'char* strcpy(char*, const char*)' is deprecated: Lorica: unbounded copy` の 1 件だけ)。
+- GCC 13 RelWithDebInfo + 一時の Postgres (port 55642): ctest 36/36 (lorica_applied の 6 本を含む)。壊して確かめた: 強制 include を外して手でコンパイルすると、`lorica_applied_tests` は `::strcpy is not declared ...` で落ち (4/5)、`lorica_unsafe_api_probe.cpp` はコンパイルが通る (= `.unsafe_api_rejected` の文言が出ず失敗する)。
