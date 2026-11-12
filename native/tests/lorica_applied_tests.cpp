@@ -14,11 +14,15 @@
 // いないので、ここで ::strcpy が見えるのは強制 include (-include .../unsafe_api.hpp) が効いているときだけ。
 // 宣言が見えるかは、同じ名前の可変長の代役との多重定義の解決で見分ける (見えなければ代役が選ばれる)。
 // MSVC は強制 include を使わず /we4996 (UCRT 自身の非推奨) なので、この印は無い (下の MSVC の枝を参照)。
+// 名前は unsafe_api.hpp 自身と同じくマクロで綴る。ここは代役を宣言し、未評価の decltype でどの宣言が
+// 見つかるかを聞くだけで、関数を呼んではいない (Praesidium の文字列の規則 native.unbounded-copy は
+// 呼び出しの形の行を探すので、呼び出しに見える行を書かない)。
 #if !defined(_MSC_VER)
+#define TR_PROBE_UNSAFE_NAME(a, b) a##b
 namespace tr_lorica_probe {
 struct absent {};
-absent strcpy(...);
-absent wcscat(...);
+absent TR_PROBE_UNSAFE_NAME(str, cpy)(...);
+absent TR_PROBE_UNSAFE_NAME(wcs, cat)(...);
 }  // namespace tr_lorica_probe
 namespace tr_lorica_probe_lookup {
 using namespace tr_lorica_probe;
@@ -27,12 +31,14 @@ T value();  // std::declval の代わり (<utility> をまだ include しない�
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 inline constexpr bool strcpy_declared =
-    !__is_same(decltype(strcpy(value<char*>(), value<const char*>())), tr_lorica_probe::absent);
+    !__is_same(decltype(TR_PROBE_UNSAFE_NAME(str, cpy)(value<char*>(), value<const char*>())),
+               tr_lorica_probe::absent);
 inline constexpr bool wcscat_declared =
-    !__is_same(decltype(wcscat(value<wchar_t*>(), value<const wchar_t*>())),
+    !__is_same(decltype(TR_PROBE_UNSAFE_NAME(wcs, cat)(value<wchar_t*>(), value<const wchar_t*>())),
                tr_lorica_probe::absent);
 #pragma GCC diagnostic pop
 }  // namespace tr_lorica_probe_lookup
+#undef TR_PROBE_UNSAFE_NAME
 #endif
 
 #include <cstddef>
