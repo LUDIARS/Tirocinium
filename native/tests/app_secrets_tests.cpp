@@ -8,6 +8,7 @@
 
 #include "check.hpp"
 #include "app/secrets.hpp"
+#include "io/env.hpp"
 
 using namespace tr;
 using trtest::check;
@@ -24,8 +25,7 @@ app::EnvLookup env_of(std::map<std::string, std::string> m) {
 }
 
 std::string fixtures() {
-    const char* d = std::getenv("TR_FIXTURES");
-    return d ? d : "fixtures";
+    return io::read_env("TR_FIXTURES").value_or("fixtures");
 }
 
 std::filesystem::path temp_file(const std::string& name) {
@@ -116,9 +116,12 @@ TEST_CASE("encrypted-config: set/read roundtrip, secrets encrypted on disk, miss
     check(!app::read_local_config(env).has_value(), "missing file");
     app::set_local_config("OPENAI_API_KEY", "value-1", env);
     app::set_local_config("TIROCINIUM_PORT", "9000", env);
-    std::ifstream in(path);
     std::stringstream ss;
-    ss << in.rdbuf();
+    {
+        // Windows は開いたままのファイルを消せないので、remove の前に閉じる。
+        std::ifstream in(path);
+        ss << in.rdbuf();
+    }
     check(ss.str().find("value-1") == std::string::npos, "secret not in plaintext");
     check(ss.str().find("9000") != std::string::npos, "plain stored as-is");
     auto got = *app::read_local_config(env);

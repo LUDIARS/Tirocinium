@@ -16,6 +16,7 @@
 #include "core/llm/prompts.hpp"
 #include "core/text.hpp"
 #include "core/time.hpp"
+#include "io/env.hpp"
 
 using namespace tr;
 using trtest::check;
@@ -23,8 +24,7 @@ using trtest::check;
 namespace {
 
 Json load_fixture() {
-    const char* d = std::getenv("TR_FIXTURES");
-    std::ifstream in(std::string(d ? d : "fixtures") + "/golden_pure.json");
+    std::ifstream in(io::read_env("TR_FIXTURES").value_or("fixtures") + "/golden_pure.json");
     std::stringstream ss;
     ss << in.rdbuf();
     JsonLimits limits;

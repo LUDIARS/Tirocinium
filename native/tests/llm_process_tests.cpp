@@ -13,6 +13,8 @@ using namespace tr;
 using trtest::check;
 using trtest::check_eq;
 
+// 偽の CLI は /bin/sh のスクリプトなので、下の補助関数を使うテストは POSIX だけで動く。
+#ifndef _WIN32
 namespace {
 
 std::filesystem::path temp_dir(const std::string& name) {
@@ -43,6 +45,7 @@ void write_script(const std::filesystem::path& p, const std::string& body) {
 }
 
 }  // namespace
+#endif
 
 #ifndef _WIN32
 TEST_CASE("process: stdin is delivered, stdout captured, exit code reported") {

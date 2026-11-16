@@ -5,6 +5,9 @@
 // 既定のビルド (all) には入らない (EXCLUDE_FROM_ALL)。
 // 名前はマクロで綴るが、展開後は std::strcpy をそのまま呼ぶので、拒否されることは変わらない (わざと失敗させる
 // ためのファイル)。Praesidium の文字列の規則 native.unbounded-copy に、呼び出しの形の行として当たらないようにする。
+// わざと失敗させる本体は、ctest がこのターゲットを作るとき (CMake が TR_LORICA_UNSAFE_API_PROBE を渡す) だけ
+// 有効にする。Praesidium のように単体の翻訳単位として解析するときは、呼び出しを含まない空の main になる。
+#if defined(TR_LORICA_UNSAFE_API_PROBE)
 #include <cstring>
 
 #define TR_PROBE_UNSAFE_NAME(a, b) a##b
@@ -16,3 +19,6 @@ int main(int argc, char** argv) {
 }
 
 #undef TR_PROBE_UNSAFE_NAME
+#else
+int main() { return 0; }
+#endif

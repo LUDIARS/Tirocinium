@@ -1,6 +1,10 @@
 // Postgres の値の変換 (postgres.js の既定 parse と同じ) の単体テスト。DB 不要。
 #include "check.hpp"
 #include "db/pg_decode.hpp"
+#include "db/pg_range.hpp"
+
+#include <climits>
+#include <utility>
 
 using namespace tr;
 using trtest::check;
@@ -46,6 +50,36 @@ TEST_CASE("encode: params follow postgres.js type inference") {
     check(j.text == R"({"k":1})" && j.type_oid == db::oid::kJsonb, "json typed jsonb");
     auto n = db::encode_param(db::Param{db::Null{}});
     check(n.is_null, "null");
+}
+
+TEST_CASE("int4range: half-open and closed bounds become a closed [lo, hi]") {
+    using P = std::pair<int, int>;
+    check(db::parse_int4range_closed("[1,4)") == P{1, 3}, "half-open upper bound is decremented");
+    check(db::parse_int4range_closed("[1,4]") == P{1, 4}, "closed upper bound is kept");
+    check(db::parse_int4range_closed("[3,4)") == P{3, 3}, "single turn");
+    check(db::parse_int4range_closed("[-5,-2)") == P{-5, -3}, "negative bounds");
+    check(db::parse_int4range_closed("[ 1, +4)") == P{1, 3}, "whitespace and '+' as sscanf %d accepted them");
+    check(db::parse_int4range_closed("[1,4)trailing") == P{1, 4}, "text after the second int is not read (last char decides)");
+}
+
+TEST_CASE("int4range: int boundaries") {
+    using P = std::pair<int, int>;
+    check(db::parse_int4range_closed("[-2147483648,2147483647]") == P{INT_MIN, INT_MAX}, "full int range, closed");
+    check(db::parse_int4range_closed("[0,2147483647)") == P{0, INT_MAX - 1}, "max upper, half-open");
+    check(!db::parse_int4range_closed("[0,-2147483648)").has_value(), "decrementing INT_MIN overflows -> rejected");
+    check(!db::parse_int4range_closed("[0,2147483648)").has_value(), "upper bound above INT_MAX");
+    check(!db::parse_int4range_closed("[-2147483649,0)").has_value(), "lower bound below INT_MIN");
+}
+
+TEST_CASE("int4range: unreadable values are rejected") {
+    check(!db::parse_int4range_closed("").has_value(), "empty string");
+    check(!db::parse_int4range_closed("[").has_value(), "bracket only");
+    check(!db::parse_int4range_closed("empty").has_value(), "PG empty range");
+    check(!db::parse_int4range_closed("[1,)").has_value(), "unbounded upper");
+    check(!db::parse_int4range_closed("(,4)").has_value(), "unbounded lower");
+    check(!db::parse_int4range_closed("[1;4)").has_value(), "missing comma");
+    check(!db::parse_int4range_closed("[a,4)").has_value(), "non-numeric lower");
+    check(!db::parse_int4range_closed("[+-1,4)").has_value(), "sign after '+'");
 }
 
 TEST_MAIN()

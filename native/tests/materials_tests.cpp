@@ -2,9 +2,8 @@
 // 資料はすべて合成データ (実在の ES は使わない)。
 #include <filesystem>
 #include <fstream>
+#include <random>
 #include <string>
-
-#include <sys/stat.h>
 
 #include "check.hpp"
 #include "app/materials.hpp"
@@ -33,7 +32,7 @@ const char* kDigest = "## 資料の種類\nES\n## 深掘りしたい点\n- 合�
 struct TempDir {
     fs::path path;
     TempDir() {
-        path = fs::temp_directory_path() / ("tr-test-" + std::to_string(::getpid()) + "-" + std::to_string(rand()));
+        path = fs::temp_directory_path() / ("tr-test-" + std::to_string(std::random_device{}()));
         fs::create_directories(path);
     }
     ~TempDir() {
@@ -48,9 +47,10 @@ void write(const fs::path& p, const std::string& s) {
 }
 
 unsigned mode_of(const fs::path& p) {
-    struct stat st {};
-    if (::stat(p.c_str(), &st) != 0) return 0xFFFF;
-    return st.st_mode & 0777;
+    std::error_code ec;
+    const auto st = fs::status(p, ec);
+    if (ec) return 0xFFFF;
+    return static_cast<unsigned>(st.permissions()) & 0777u;
 }
 
 }  // namespace
@@ -95,8 +95,16 @@ TEST_CASE("material-reader: the work folder is owner-only and removed after succ
     };
     const auto digest = app::read_material(up, "skill", run);
     check(digest.find("## 質問の候補") != std::string::npos, "digest");
+#ifdef _WIN32
+    // Windows の std::filesystem は読み取り専用の属性しか扱わず、0700/0600 は表せない。持ち主だけに絞る
+    // 根拠は置き場所 (利用者ごとの %TEMP%、既定の ACL が本人・SYSTEM・Administrators のみ) なので、それを確かめる。
+    (void)dir_mode;
+    check(file_mode != 0xFFFFu, "material file existed while the CLI ran");
+    check(fs::equivalent(seen_dir.parent_path(), fs::temp_directory_path()), "work folder is in the per-user temp folder");
+#else
     check_eq(dir_mode, 0700u, "folder is owner-only (personal data)");
     check_eq(file_mode, 0600u, "file is owner-only");
+#endif
     check_eq(file_body, up.bytes, "material written as is");
     check(!fs::exists(seen_dir), "removed after success");
 

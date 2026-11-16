@@ -273,12 +273,7 @@ bool ResidentProcess::start() {
         cmd.push_back(L' ');
         append_quoted(cmd, widen(a));
     }
-    std::wstring env_block;
-    for (const auto& [k, v] : spec_.env) {
-        env_block += widen(k) + L"=" + widen(v);
-        env_block.push_back(L'\0');
-    }
-    env_block.push_back(L'\0');
+    std::wstring env_block = windows_environment_block(spec_.env);
     SECURITY_ATTRIBUTES sa{sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
     HANDLE in_r = nullptr, in_w = nullptr, out_r = nullptr, out_w = nullptr, err_r = nullptr, err_w = nullptr;
     if (!CreatePipe(&in_r, &in_w, &sa, 0) || !CreatePipe(&out_r, &out_w, &sa, 0) || !CreatePipe(&err_r, &err_w, &sa, 0)) return false;

@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 
 #include "app/interview_repo.hpp"
 #include "app/materials.hpp"
@@ -11,6 +10,7 @@
 #include "core/llm/prompts.hpp"
 #include "core/text.hpp"
 #include "crypto/crypto.hpp"
+#include "db/pg_range.hpp"
 
 namespace tr::app {
 
@@ -467,14 +467,9 @@ std::string generate_summary_for_session(Services& s, const std::string& session
     }
     std::vector<Json> evaluations;
     for (const auto& r : eval_rows) {
-        // int4range の "[a,b)" を [a, b-1] へ (半開区間)
-        int lo = 0, hi = 0;
-        const std::string range = r["turn_range"].get<std::string>();
-        if (std::sscanf(range.c_str(), "%*c%d,%d", &lo, &hi) == 2) {
-            if (!range.empty() && range.back() == ')') hi -= 1;
-        } else {
-            lo = hi = 0;
-        }
+        // int4range の "[a,b)" を [a, b-1] へ (半開区間)。読めない値は [0, 0]。
+        const auto [lo, hi] =
+            db::parse_int4range_closed(r["turn_range"].get<std::string>()).value_or(std::pair{0, 0});
         evaluations.push_back(Json{{"turn_range", Json::array({lo, hi})},
                                    {"axes", r["axes"]},
                                    {"comment", r["comment"]},

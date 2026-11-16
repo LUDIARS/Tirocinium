@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <string_view>
 #include <thread>
 
 #include <lorica/checked_size.hpp>
@@ -26,6 +27,14 @@ namespace tr::io {
 
 namespace {
 
+// 環境変数の値は UTF-8。Windows の path(std::string) は ANSI コードページとして読むので、
+// 日本語を含む PATH の要素で例外になる。char8_t を経由して UTF-8 として組み立てる。
+std::filesystem::path path_from_utf8(std::string_view s) {
+    std::u8string u8(s.size(), char8_t{});
+    std::transform(s.begin(), s.end(), u8.begin(), [](char c) { return static_cast<char8_t>(c); });
+    return std::filesystem::path(u8);
+}
+
 bool is_executable_file(const std::filesystem::path& p) {
     std::error_code ec;
     if (!std::filesystem::is_regular_file(p, ec)) return false;
@@ -40,7 +49,7 @@ bool is_executable_file(const std::filesystem::path& p) {
 
 std::filesystem::path find_in_path(const std::string& name, const std::string& path_value) {
     if (name.find('/') != std::string::npos || name.find('\\') != std::string::npos) {
-        std::filesystem::path p(name);
+        auto p = path_from_utf8(name);
         return is_executable_file(p) ? p : std::filesystem::path();
     }
 #ifdef _WIN32
@@ -50,14 +59,14 @@ std::filesystem::path find_in_path(const std::string& name, const std::string& p
 #endif
     for (const auto& dir : split(path_value, sep)) {
         if (dir.empty()) continue;
-        std::filesystem::path base(dir);
+        const auto base = path_from_utf8(dir);
 #ifdef _WIN32
         for (const char* ext : {".exe", ""}) {
-            auto p = base / (name + ext);
+            auto p = base / path_from_utf8(name + ext);
             if (is_executable_file(p)) return p;
         }
 #else
-        auto p = base / name;
+        auto p = base / path_from_utf8(name);
         if (is_executable_file(p)) return p;
 #endif
     }
@@ -345,6 +354,33 @@ std::vector<std::pair<std::string, std::string>> current_environment() {
     return out;
 }
 
+std::wstring windows_environment_block(const std::vector<std::pair<std::string, std::string>>& env) {
+    std::vector<std::pair<std::wstring, std::wstring>> wide;
+    wide.reserve(env.size() + 1);
+    bool has_system_root = false;
+    for (const auto& [k, v] : env) {
+        if (_stricmp(k.c_str(), "SystemRoot") == 0) has_system_root = true;
+        wide.emplace_back(widen(k), widen(v));
+    }
+    if (!has_system_root) {
+        wchar_t root[MAX_PATH];
+        const DWORD n = GetEnvironmentVariableW(L"SystemRoot", root, MAX_PATH);
+        if (n > 0 && n < MAX_PATH) wide.emplace_back(L"SystemRoot", std::wstring(root, n));
+    }
+    // 名前順 (大文字小文字を区別しない)。要素は動かさず添字を並べる。
+    std::vector<std::size_t> order(wide.size());
+    for (std::size_t i = 0; i < order.size(); ++i) order[i] = i;
+    std::sort(order.begin(), order.end(),
+              [&wide](std::size_t a, std::size_t b) { return _wcsicmp(wide[a].first.c_str(), wide[b].first.c_str()) < 0; });
+    std::wstring block;
+    for (const std::size_t i : order) {
+        block += wide[i].first + L"=" + wide[i].second;
+        block.push_back(L'\0');
+    }
+    block.push_back(L'\0');
+    return block;
+}
+
 ProcessResult run_process(const ProcessSpec& spec, const std::atomic<bool>* cancel) {
     ProcessResult result;
     std::string path_value;
@@ -364,15 +400,7 @@ ProcessResult run_process(const ProcessSpec& spec, const std::atomic<bool>* canc
         cmd.push_back(L' ');
         append_quoted(cmd, widen(a));
     }
-    auto env_sorted = spec.env;
-    std::sort(env_sorted.begin(), env_sorted.end(),
-              [](const auto& a, const auto& b) { return _stricmp(a.first.c_str(), b.first.c_str()) < 0; });
-    std::wstring env_block;
-    for (const auto& [k, v] : env_sorted) {
-        env_block += widen(k) + L"=" + widen(v);
-        env_block.push_back(L'\0');
-    }
-    env_block.push_back(L'\0');
+    std::wstring env_block = windows_environment_block(spec.env);
 
     SECURITY_ATTRIBUTES sa{sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
     HANDLE in_r = nullptr, in_w = nullptr, out_r = nullptr, out_w = nullptr, err_r = nullptr, err_w = nullptr;

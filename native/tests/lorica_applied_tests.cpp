@@ -12,7 +12,10 @@
 // LORICA_NOTHROW) も最後に #undef するので、#ifdef で見られる印は残らない。残る印は、C ライブラリより前に
 // 置かれる [[deprecated]] つきの ::strcpy / ::wcscat の宣言そのもの。このファイルはここまで何も include して
 // いないので、ここで ::strcpy が見えるのは強制 include (-include .../unsafe_api.hpp) が効いているときだけ。
-// 宣言が見えるかは、同じ名前の可変長の代役との多重定義の解決で見分ける (見えなければ代役が選ばれる)。
+// 宣言が見えるかは、同じ名前・同じ引数の型の代役 (別の名前空間の C++ リンケージの関数) と並べた多重定義の
+// 解決で見分ける。::strcpy が見えれば 2 つは同順位で曖昧になり、SFINAE で代役だけの枝が外れる。見えなければ
+// 代役が選ばれる。曖昧な解決はどの関数も選ばないので、[[deprecated]] の警告は出ない (警告を抑止する
+// 指令を使わない。Praesidium の native.analysis-suppression に当たらず、-Werror の構成でもそのまま通る)。
 // MSVC は強制 include を使わず /we4996 (UCRT 自身の非推奨) なので、この印は無い (下の MSVC の枝を参照)。
 // 名前は unsafe_api.hpp 自身と同じくマクロで綴る。ここは代役を宣言し、未評価の decltype でどの宣言が
 // 見つかるかを聞くだけで、関数を呼んではいない (Praesidium の文字列の規則 native.unbounded-copy は
@@ -21,19 +24,24 @@
 #define TR_PROBE_UNSAFE_NAME(a, b) a##b
 namespace tr_lorica_probe {
 struct absent {};
-absent TR_PROBE_UNSAFE_NAME(str, cpy)(...);
-absent TR_PROBE_UNSAFE_NAME(wcs, cat)(...);
+absent TR_PROBE_UNSAFE_NAME(str, cpy)(char*, const char*);
+absent TR_PROBE_UNSAFE_NAME(wcs, cat)(wchar_t*, const wchar_t*);
 }  // namespace tr_lorica_probe
 namespace tr_lorica_probe_lookup {
 using namespace tr_lorica_probe;
 template <class T>
 T value();  // std::declval の代わり (<utility> をまだ include しないため。未評価の文脈だけで使う)
-inline constexpr bool strcpy_declared =
-    !__is_same(decltype(TR_PROBE_UNSAFE_NAME(str, cpy)(value<char*>(), value<const char*>())),
-               tr_lorica_probe::absent);
-inline constexpr bool wcscat_declared =
-    !__is_same(decltype(TR_PROBE_UNSAFE_NAME(wcs, cat)(value<wchar_t*>(), value<const wchar_t*>())),
-               tr_lorica_probe::absent);
+// 代役だけが候補なら true。::strcpy も見えていれば曖昧になり、既定の引数の置き換えに失敗して (...) の枝になる。
+template <class C, class = decltype(TR_PROBE_UNSAFE_NAME(str, cpy)(value<C*>(), value<const C*>()))>
+constexpr bool strcpy_stand_in_only(int) { return true; }
+template <class C>
+constexpr bool strcpy_stand_in_only(...) { return false; }
+template <class C, class = decltype(TR_PROBE_UNSAFE_NAME(wcs, cat)(value<C*>(), value<const C*>()))>
+constexpr bool wcscat_stand_in_only(int) { return true; }
+template <class C>
+constexpr bool wcscat_stand_in_only(...) { return false; }
+inline constexpr bool strcpy_declared = !strcpy_stand_in_only<char>(0);
+inline constexpr bool wcscat_declared = !wcscat_stand_in_only<wchar_t>(0);
 }  // namespace tr_lorica_probe_lookup
 #undef TR_PROBE_UNSAFE_NAME
 #endif

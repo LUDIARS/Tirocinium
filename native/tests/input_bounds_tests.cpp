@@ -8,9 +8,8 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <random>
 #include <string>
-
-#include <unistd.h>
 
 #include "check.hpp"
 #include "app/discord_bridge.hpp"
@@ -33,7 +32,7 @@ namespace {
 struct TempFile {
     fs::path path;
     explicit TempFile(const std::string& content) {
-        path = fs::temp_directory_path() / ("tr-bounds-" + std::to_string(::getpid()) + "-" + std::to_string(std::rand()));
+        path = fs::temp_directory_path() / ("tr-bounds-" + std::to_string(std::random_device{}()));
         std::ofstream(path, std::ios::binary) << content;
     }
     ~TempFile() {

@@ -299,7 +299,7 @@ std::string parse_interviewer_output(const std::string& model, const std::string
         if (!item_type.empty() && item_type != "reasoning" && item_type != "agent_message") {
             throw std::runtime_error("interviewer_tools_forbidden");
         }
-        if (string_or(e, "type") == "item.completed" && item_type == "agent_message") {
+        if (item && string_or(e, "type") == "item.completed" && item_type == "agent_message") {
             texts.push_back(string_or(*item, "text"));
         }
     }

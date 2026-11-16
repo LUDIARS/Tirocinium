@@ -12,6 +12,7 @@ foreach(name IN LISTS TR_FUZZ_ENTRIES)
     add_executable(fuzz_${name}_replay fuzz_${name}.cpp replay_main.cpp)
     target_link_libraries(fuzz_${name}_replay PRIVATE tr_app)
     tr_lorica(fuzz_${name}_replay)
+    tr_copy_runtime_dlls(fuzz_${name}_replay)
     add_test(NAME tirocinium.fuzz_${name}_replay
              COMMAND fuzz_${name}_replay ${CMAKE_CURRENT_SOURCE_DIR}/corpus/${name})
   endif()

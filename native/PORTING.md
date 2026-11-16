@@ -236,12 +236,13 @@ C++ だけの追加テスト: `io_http_server_tests` (ソケット越しの境�
   Node 実装と package.json は今回は消していない。
 - OB スタジオ (`/ob/studios`) の C++ 化には NFKC 正規化と照合順序 (ICU 相当) が要る。ICU は許可依存に無いので worker のまま。
 - HTTP+JSON だけの運用 CLI (gBizINFO 取り込み・Wikidata・Sheets 同期・重複マージ・系列正規化・技術グラフ) の C++ 化。
-- Windows でのビルドと実行の確認 (コードは Windows 分岐を持つが、クラウドでは Linux しか試していない)。
+- Windows: VS2026 (MSVC 19.52) でビルドと ctest 全件を確認済み (前提・手順・実行時 DLL は [README.md](README.md))。
+  Excubitor から実際に常駐させての確認は未実施。
 
 ## 8. 本社での手順
 
 ```sh
-# 依存: CMake 3.24+、Ninja、GCC 13 か MSVC 2022、OpenSSL 3 と libpq の開発パッケージ
+# 依存: CMake 3.24+、Ninja、GCC 13 か MSVC 2022 以降、OpenSSL 3 と libpq の開発パッケージ (Windows は README.md)
 # 企業 worker (Node) の準備: submodule (lib/lapilli・lib/portus) → npm install → Portus の dist
 git submodule update --init lib/lapilli lib/portus && npm install && npm run build:portus
 cmake -S native -B native/build -G Ninja -DCMAKE_BUILD_TYPE=Release [-DLORICA_SOURCE_DIR=<Lorica>]

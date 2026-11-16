@@ -3,7 +3,8 @@
 // - 期限 (timeout) を過ぎたら kill。cancel が立ったら kill (barge-in)。
 // - stdout は max_stdout まで保持し、超えたら kill して output_overflow を立てる。
 // - stderr は読み捨てる (診断に秘密やソースが混ざりうるため保持しない。末尾 max_stderr だけ残す)。
-// - 環境変数は env で渡したものだけ (親の環境をそのまま継がない)。
+// - 環境変数は env で渡したものだけ (親の環境をそのまま継がない)。例外として Windows では、env に
+//   SystemRoot が無ければ親の値を足す (無いと node などが乱数の初期化で起動直後に落ちる)。
 
 #include <atomic>
 #include <chrono>
@@ -42,5 +43,11 @@ std::vector<std::pair<std::string, std::string>> current_environment();
 
 // PATH から実行ファイルを探す (Windows は .exe を補う)。見つからなければ空。
 std::filesystem::path find_in_path(const std::string& name, const std::string& path_value);
+
+#ifdef _WIN32
+// CreateProcessW (CREATE_UNICODE_ENVIRONMENT) に渡す環境ブロック。名前順 (大文字小文字を区別しない) に並べ、
+// SystemRoot が無ければ親の値を足す。
+std::wstring windows_environment_block(const std::vector<std::pair<std::string, std::string>>& env);
+#endif
 
 }  // namespace tr::io

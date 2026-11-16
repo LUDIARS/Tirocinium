@@ -3,6 +3,7 @@
 #include <mutex>
 #include <optional>
 
+#include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/detached.hpp>
@@ -52,8 +53,9 @@ struct Hop {
 
 using Deadline = std::chrono::steady_clock::time_point;
 
-asio::awaitable<std::vector<tcp::endpoint>> resolve(const Url& url, bool public_only) {
-    auto ex = co_await asio::this_coro::executor;
+// 実行器は呼び出し側から渡す (co_await asio::this_coro::executor は Boost 1.87 の awaitable の中で
+// clang の解析器が「未初期化のポインタの呼び出し」と誤検知するため。http_fetch の io_context の実行器と同じ)。
+asio::awaitable<std::vector<tcp::endpoint>> resolve(asio::any_io_executor ex, const Url& url, bool public_only) {
     tcp::resolver resolver(ex);
     boost::system::error_code ec;
     auto results = co_await resolver.async_resolve(url.host, std::to_string(url.port),
@@ -109,9 +111,8 @@ asio::awaitable<Hop> exchange(Stream& stream, const Url& url, const HttpClientRe
     co_return hop;
 }
 
-asio::awaitable<Hop> one_hop(const Url& url, const HttpClientRequest& req, Deadline deadline) {
-    auto ex = co_await asio::this_coro::executor;
-    const auto eps = co_await resolve(url, req.public_only);
+asio::awaitable<Hop> one_hop(asio::any_io_executor ex, const Url& url, const HttpClientRequest& req, Deadline deadline) {
+    const auto eps = co_await resolve(ex, url, req.public_only);
     boost::system::error_code ec;
     if (url.tls()) {
         beast::ssl_stream<beast::tcp_stream> stream(ex, tls_context());
@@ -138,12 +139,12 @@ asio::awaitable<Hop> one_hop(const Url& url, const HttpClientRequest& req, Deadl
     co_return hop;
 }
 
-asio::awaitable<HttpClientResponse> run(const HttpClientRequest& req, Deadline deadline) {
+asio::awaitable<HttpClientResponse> run(asio::any_io_executor ex, const HttpClientRequest& req, Deadline deadline) {
     auto url = parse_url(req.url);
     if (!url || (url->scheme != "http" && url->scheme != "https")) throw HttpClientError("invalid_url", "");
     for (int i = 0;; ++i) {
         if (req.public_only && url->host_is_ip && is_blocked_ip(url->host)) throw HttpClientError("blocked", url->host);
-        Hop hop = co_await one_hop(*url, req, deadline);
+        Hop hop = co_await one_hop(ex, *url, req, deadline);
         auto location = hop.headers.get("location");
         if (hop.status >= 300 && hop.status < 400 && location && i < req.max_redirects) {
             auto next = resolve_url(*url, *location);
@@ -177,7 +178,7 @@ HttpClientResponse http_fetch(const HttpClientRequest& request) {
         std::lock_guard lock(g_ctx_mu);
         (void)tls_context();  // 初期化は 1 回 (スレッド安全に)
     }
-    asio::co_spawn(ioc, run(request, deadline), [&](std::exception_ptr e, HttpClientResponse r) {
+    asio::co_spawn(ioc, run(ioc.get_executor(), request, deadline), [&](std::exception_ptr e, HttpClientResponse r) {
         if (e) error = e;
         else result = std::move(r);
     });

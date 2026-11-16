@@ -17,7 +17,8 @@ add_library(tr_core STATIC
   http/router.cpp
   http/cors.cpp
   http/request_budget.cpp
-  db/pg_decode.cpp)
+  db/pg_decode.cpp
+  db/pg_range.cpp)
 target_include_directories(tr_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tr_core PUBLIC nlohmann_json::nlohmann_json Lorica::boundary)
 tr_lorica(tr_core SERVER)
@@ -33,6 +34,7 @@ add_library(tr_io STATIC
   io/http_server.cpp
   io/http_client.cpp
   io/tls_roots.cpp
+  io/env.cpp
   io/pg_pool.cpp
   io/process.cpp
   io/file_read.cpp
@@ -89,9 +91,11 @@ target_link_libraries(tirocinium-server PRIVATE tr_app)
 set_target_properties(tirocinium-server PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
   RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin" RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin")
 tr_lorica(tirocinium-server SERVER)
+tr_copy_runtime_dlls(tirocinium-server)
 
 add_executable(tirocinium-migrate migrate_main.cpp)
 target_link_libraries(tirocinium-migrate PRIVATE tr_app)
 set_target_properties(tirocinium-migrate PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
   RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin" RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin")
 tr_lorica(tirocinium-migrate)
+tr_copy_runtime_dlls(tirocinium-migrate)

@@ -64,6 +64,7 @@ tr_lorica_applied_test(lorica_applied_extended_tests extended)
 #    止まることを見る (通ってしまえば文言が出ないので失敗する)。
 add_executable(lorica_unsafe_api_probe EXCLUDE_FROM_ALL lorica_unsafe_api_probe.cpp)
 tr_lorica(lorica_unsafe_api_probe)
+target_compile_definitions(lorica_unsafe_api_probe PRIVATE TR_LORICA_UNSAFE_API_PROBE=1)
 add_test(NAME tirocinium.lorica_applied.unsafe_api_rejected
   COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --config $<CONFIG> --target lorica_unsafe_api_probe)
 if(tr_lorica_toolchain STREQUAL "msvc")

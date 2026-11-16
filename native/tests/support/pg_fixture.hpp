@@ -9,18 +9,24 @@
 #include <string>
 
 #include "app/migrate.hpp"
+#include "io/env.hpp"
 #include "io/pg_pool.hpp"
 
 namespace trtest {
 
 inline std::string test_database_url() {
-    const char* v = std::getenv("TR_TEST_DATABASE_URL");
-    return v ? std::string(v) : std::string();
+    return tr::io::read_env("TR_TEST_DATABASE_URL").value_or(std::string());
 }
 
 inline std::filesystem::path repo_migrations_dir() {
     // tests は native/tests にある。リポ直下は 2 つ上。
-    return std::filesystem::path(TR_SOURCE_DIR).parent_path() / "apps" / "server" / "migrations";
+#ifdef TR_SOURCE_DIR
+    const std::filesystem::path native_dir(TR_SOURCE_DIR);
+#else
+    // CMake 以外で翻訳単位だけ解析するとき (Praesidium) は、このファイルの場所 native/tests/support から求める。
+    const auto native_dir = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path();
+#endif
+    return native_dir.parent_path() / "apps" / "server" / "migrations";
 }
 
 // スキーマを作り直して migration を全部当てたプールを返す。

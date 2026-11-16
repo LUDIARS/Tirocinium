@@ -2,22 +2,219 @@
   "version": 1,
   "native": [
     {
-      "file": "native/src/app/auth.cpp",
+      "file": "native/fuzz/fuzz_http_request.cpp",
       "standard": "c++20",
       "includes": [
-        "native/src"
+        "native/src",
+        "native/fuzz"
       ],
       "defines": [
-        "WIN32_LEAN_AND_MEAN",
         "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
         "_WIN32_WINNT=0x0A00",
         "BOOST_ERROR_CODE_HEADER_ONLY",
         "BOOST_ASIO_NO_DEPRECATED",
         "BOOST_BEAST_USE_STD_STRING_VIEW"
       ],
       "packages": [
-        "odeum-json-3-11-3",
         "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/fuzz/fuzz_json.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/fuzz"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/fuzz/fuzz_material.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/fuzz"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/fuzz/fuzz_paseto.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/fuzz"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/fuzz/fuzz_text.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/fuzz"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/fuzz/fuzz_url.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/fuzz"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/fuzz/fuzz_wav.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/fuzz"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/fuzz/replay_main.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/fuzz"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/alumni_repo.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/auth.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
         "odeum-openssl-3",
         "lorica-5e8281b"
       ]
@@ -44,22 +241,43 @@
       ]
     },
     {
-      "file": "native/src/app/cernere.cpp",
+      "file": "native/src/app/brief.cpp",
       "standard": "c++20",
       "includes": [
         "native/src"
       ],
       "defines": [
-        "WIN32_LEAN_AND_MEAN",
         "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
         "_WIN32_WINNT=0x0A00",
         "BOOST_ERROR_CODE_HEADER_ONLY",
         "BOOST_ASIO_NO_DEPRECATED",
         "BOOST_BEAST_USE_STD_STRING_VIEW"
       ],
       "packages": [
-        "odeum-json-3-11-3",
         "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/cernere.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
         "odeum-openssl-3",
         "lorica-5e8281b"
       ]
@@ -86,22 +304,421 @@
       ]
     },
     {
-      "file": "native/src/app/config.cpp",
+      "file": "native/src/app/companies_repo.cpp",
       "standard": "c++20",
       "includes": [
         "native/src"
       ],
       "defines": [
-        "WIN32_LEAN_AND_MEAN",
         "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
         "_WIN32_WINNT=0x0A00",
         "BOOST_ERROR_CODE_HEADER_ONLY",
         "BOOST_ASIO_NO_DEPRECATED",
         "BOOST_BEAST_USE_STD_STRING_VIEW"
       ],
       "packages": [
-        "odeum-json-3-11-3",
         "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/companies_worker.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/config.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/discord_bridge.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/interview_repo.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/llm.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/materials.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/memoria.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/migrate.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/one_shot.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/paths.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/pipeline.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/recommend.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/reservation_tick.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/routes/alumni_routes.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/routes/companies_routes.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/routes/health.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/routes/interview_routes.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/runtime_extensions.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/secrets.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
         "odeum-openssl-3",
         "lorica-5e8281b"
       ]
@@ -113,16 +730,16 @@
         "native/src"
       ],
       "defines": [
-        "WIN32_LEAN_AND_MEAN",
         "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
         "_WIN32_WINNT=0x0A00",
         "BOOST_ERROR_CODE_HEADER_ONLY",
         "BOOST_ASIO_NO_DEPRECATED",
         "BOOST_BEAST_USE_STD_STRING_VIEW"
       ],
       "packages": [
-        "odeum-json-3-11-3",
         "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
         "odeum-openssl-3",
         "lorica-5e8281b"
       ]
@@ -149,6 +766,850 @@
       ]
     },
     {
+      "file": "native/src/app/services.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/session_runtime.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/session_state.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/version.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/voice.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/app/ws_routes.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/domain/domain.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/domain/recommend.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/encoding.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/ip_policy.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/json.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/llm/engine.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/llm/output.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/llm/prompts.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/paseto.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/rate_limit.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/text.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/time.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/core/url.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/crypto/crypto.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/db/pg_decode.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/db/pg_range.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/http/cors.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/http/message.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/http/request_budget.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/http/router.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/io/env.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/io/file_read.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/io/http_client.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/io/http_server.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/io/pg_pool.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b",
+        "libpq-18"
+      ]
+    },
+    {
+      "file": "native/src/io/process.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/io/resident_process.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/io/tls_roots.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/io/ws_client.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/main.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/src/migrate_main.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/app_config_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/app_secrets_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/auth_paseto_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
       "file": "native/tests/cernere_auth_routes_tests.cpp",
       "standard": "c++20",
       "includes": [
@@ -156,16 +1617,282 @@
         "native/tests"
       ],
       "defines": [
-        "WIN32_LEAN_AND_MEAN",
         "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
         "_WIN32_WINNT=0x0A00",
         "BOOST_ERROR_CODE_HEADER_ONLY",
         "BOOST_ASIO_NO_DEPRECATED",
         "BOOST_BEAST_USE_STD_STRING_VIEW"
       ],
       "packages": [
-        "odeum-json-3-11-3",
         "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/companies_worker_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/core_json_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/core_text_time_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/db_decode_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/discord_relay_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/golden_pure_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/http_router_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/input_bounds_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/io_http_client_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/io_http_server_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/llm_process_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/lorica_applied_extended_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW",
+        "TR_LORICA_EXPECT_FORTIFY=0",
+        "TR_LORICA_EXPECT_EXTENDED=1"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
         "odeum-openssl-3",
         "lorica-5e8281b"
       ]
@@ -178,21 +1905,220 @@
         "native/tests"
       ],
       "defines": [
-        "WIN32_LEAN_AND_MEAN",
         "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
         "_WIN32_WINNT=0x0A00",
         "BOOST_ERROR_CODE_HEADER_ONLY",
         "BOOST_ASIO_NO_DEPRECATED",
         "BOOST_BEAST_USE_STD_STRING_VIEW",
-        "TR_LORICA_EXPECT_EXTENDED=0",
-        "TR_LORICA_EXPECT_FORTIFY=0"
+        "TR_LORICA_EXPECT_FORTIFY=0",
+        "TR_LORICA_EXPECT_EXTENDED=0"
       ],
       "packages": [
-        "odeum-json-3-11-3",
         "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/lorica_unsafe_api_probe.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/materials_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/net_policy_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/pg_alumni_routes_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/pg_db_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/pg_interview_routes_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/pg_runtime_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/session_helpers_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
+        "odeum-openssl-3",
+        "lorica-5e8281b"
+      ]
+    },
+    {
+      "file": "native/tests/voice_brief_tests.cpp",
+      "standard": "c++20",
+      "includes": [
+        "native/src",
+        "native/tests"
+      ],
+      "defines": [
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_WIN32_WINNT=0x0A00",
+        "BOOST_ERROR_CODE_HEADER_ONLY",
+        "BOOST_ASIO_NO_DEPRECATED",
+        "BOOST_BEAST_USE_STD_STRING_VIEW"
+      ],
+      "packages": [
+        "odeum-boost-1-87-0",
+        "odeum-json-3-11-3",
         "odeum-openssl-3",
         "lorica-5e8281b"
       ]
     }
-  ]
+  ],
+  "web": []
 }

@@ -1,7 +1,8 @@
 #include "io/tls_roots.hpp"
 
-#include <cstdlib>
 #include <string>
+
+#include "io/env.hpp"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -30,20 +31,10 @@ void load_system_roots(boost::asio::ssl::context& ctx) {
 #else
     ctx.set_default_verify_paths();
 #endif
-#ifdef _WIN32
-    char* extra = nullptr;
-    std::size_t len = 0;
-    if (_dupenv_s(&extra, &len, "TIROCINIUM_CA_FILE") == 0 && extra) {
+    if (const auto extra = read_env("TIROCINIUM_CA_FILE")) {
         boost::system::error_code ec;
-        ctx.load_verify_file(extra, ec);
-        std::free(extra);
+        ctx.load_verify_file(*extra, ec);
     }
-#else
-    if (const char* extra = std::getenv("TIROCINIUM_CA_FILE")) {
-        boost::system::error_code ec;
-        ctx.load_verify_file(extra, ec);
-    }
-#endif
 }
 
 }  // namespace tr::io

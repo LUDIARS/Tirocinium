@@ -1,24 +1,11 @@
 #include "app/version.hpp"
 
-#include <cstdlib>
+#include "io/env.hpp"
 
 namespace tr::app {
 
 EnvLookup process_env() {
-    return [](const std::string& key) -> std::optional<std::string> {
-#ifdef _WIN32
-        char* value = nullptr;
-        std::size_t len = 0;
-        if (_dupenv_s(&value, &len, key.c_str()) != 0 || value == nullptr) return std::nullopt;
-        std::string out(value);
-        std::free(value);
-        return out;
-#else
-        const char* value = std::getenv(key.c_str());
-        if (value == nullptr) return std::nullopt;
-        return std::string(value);
-#endif
-    };
+    return [](const std::string& key) { return io::read_env(key); };
 }
 
 std::string service_version(const EnvLookup& env) {

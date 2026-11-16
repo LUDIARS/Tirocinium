@@ -18,6 +18,7 @@ find_package(OpenSSL 3 REQUIRED)
 find_package(Threads REQUIRED)
 # libpq only (PostgreSQL client). The server headers are not required.
 find_package(PostgreSQL REQUIRED)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/WindowsRuntimeDlls.cmake)
 
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
 set(JSON_Install OFF CACHE BOOL "" FORCE)
