@@ -3,99 +3,35 @@
 #include <random>
 
 #include "core/text.hpp"
-#include "core/url.hpp"
 #include "app/services.hpp"
 #include "http/message.hpp"
 
 namespace tr::app {
 
-namespace {
-
-std::string base_url(const Config& c) {
-    if (c.cernere.url.empty()) throw CernereSessionError("CERNERE_URL is not configured", 503);
-    return c.cernere.url;
-}
-
-std::string pathname_of(const std::string& url) {
-    auto u = parse_url(url);
-    if (!u) return url;
-    const auto q = u->target.find('?');
-    return u->target.substr(0, q);
-}
-
-Json post(const HttpFetch& fetch, const std::string& url, const Json& body, const std::string& bearer = {}) {
-    io::HttpClientRequest req;
-    req.method = "POST";
-    req.url = url;
-    req.headers = {{"content-type", "application/json"}};
-    if (!bearer.empty()) req.headers.emplace_back("authorization", "Bearer " + bearer);
-    req.body = js_stringify(body);
-    req.timeout = std::chrono::milliseconds(15'000);
-    req.max_response_bytes = 1024 * 1024;
-    auto res = fetch(req);
-    Json data = Json::object();
-    if (auto parsed = parse_json(res.body); parsed) data = *parsed;
-    // Cernere の応答は { data: {...} } で包まれる経路があるので両方を受ける
-    Json payload = data.is_object() && data.contains("data") && data["data"].is_object() ? data["data"] : data;
+std::string fetch_project_credential_token(const Config& config, const HttpFetch& fetch) {
+    const auto& c = config.cernere;
+    if (c.url.empty() || c.project_client_id.empty() || c.project_client_secret.empty()) {
+        throw CernereNotConfiguredError(
+            "Cernere project credentials are not configured (CERNERE_URL / CERNERE_PROJECT_CLIENT_ID / "
+            "CERNERE_PROJECT_CLIENT_SECRET)");
+    }
+    io::HttpClientRequest login;
+    login.method = "POST";
+    login.url = c.url + "/api/auth/login";
+    login.headers = {{"content-type", "application/json"}};
+    login.body = js_stringify(Json{{"grant_type", "project_credentials"},
+                                   {"client_id", c.project_client_id},
+                                   {"client_secret", c.project_client_secret}});
+    login.timeout = std::chrono::milliseconds(10'000);
+    login.max_response_bytes = 64 * 1024;
+    auto res = fetch(login);
     if (!res.ok()) {
-        const std::string reason = payload.is_object() && payload.contains("error") && payload["error"].is_string()
-                                       ? payload["error"].get<std::string>()
-                                       : "HTTP " + std::to_string(res.status);
-        throw CernereSessionError("Cernere " + pathname_of(url) + " failed: " + reason,
-                                  res.status == 401 || res.status == 400 ? 401 : 502);
+        throw CernereSessionError("Cernere project login failed: HTTP " + std::to_string(res.status), 502);
     }
-    return payload.is_object() ? payload : Json::object();
-}
-
-std::string str(const Json& obj, const char* key, const char* what) {
-    const Json* v = member(obj, key);
-    if (!v || !v->is_string() || v->get<std::string>().empty()) {
-        throw CernereSessionError(std::string("Cernere response has no ") + what, 502);
-    }
-    return v->get<std::string>();
-}
-
-struct ProjectToken {
-    std::string token;
-    Json expires_in;
-    std::string user_id;
-    std::string display_name;
-};
-
-ProjectToken project_token(const Config& c, const HttpFetch& fetch, const std::string& access_token) {
-    Json r = post(fetch, base_url(c) + "/api/auth/project-token",
-                  Json{{"project_key", "tirocinium"}, {"hub_url", c.cernere_audience}}, access_token);
-    ProjectToken p;
-    p.token = str(r, "accessToken", "project token");
-    p.expires_in = r.contains("expiresIn") && r["expiresIn"].is_number() ? r["expiresIn"] : Json(900);
-    p.user_id = str(r, "userId", "userId");
-    p.display_name = string_or(r, "displayName");
-    return p;
-}
-
-Json session_json(const ProjectToken& pt, const std::string& refresh) {
-    return Json{{"token", pt.token},
-                {"expiresIn", pt.expires_in},
-                {"refreshToken", refresh},
-                {"user", {{"id", pt.user_id}, {"displayName", pt.display_name}}}};
-}
-
-}  // namespace
-
-Json exchange_auth_code(const Config& c, const HttpFetch& fetch, const std::string& auth_code) {
-    Json ex = post(fetch, base_url(c) + "/api/auth/exchange", Json{{"code", auth_code}});
-    const std::string access = str(ex, "accessToken", "accessToken");
-    const std::string refresh = str(ex, "refreshToken", "refreshToken");
-    return session_json(project_token(c, fetch, access), refresh);
-}
-
-Json refresh_session(const Config& c, const HttpFetch& fetch, const std::string& refresh_token) {
-    Json r = post(fetch, base_url(c) + "/api/auth/refresh", Json{{"refreshToken", refresh_token}});
-    const std::string access = str(r, "accessToken", "accessToken");
-    // Cernere は refresh で refreshToken も回す。返ってこなければ元のものを使い続ける
-    std::string next = string_or(r, "refreshToken");
-    if (next.empty()) next = refresh_token;
-    return session_json(project_token(c, fetch, access), next);
+    auto data = parse_json(res.body, JsonLimits{64 * 1024, 64, 8});
+    const std::string token = data ? string_or(*data, "accessToken") : "";
+    if (token.empty()) throw CernereSessionError("Cernere project login returned no token", 502);
+    return token;
 }
 
 void load_cernere_public_keys(const Config& c, const HttpFetch& fetch, CernereKeys& keys, const LogFn& log) {
@@ -125,28 +61,11 @@ CernereProjectProxy::CernereProjectProxy(const Config& config, HttpFetch fetch, 
 
 void CernereProjectProxy::ensure_connected() {
     const auto& c = config_.cernere;
-    if (c.url.empty() || c.project_client_id.empty() || c.project_client_secret.empty()) {
-        throw CernereNotConfiguredError(
-            "Cernere project credentials are not configured (CERNERE_URL / CERNERE_PROJECT_CLIENT_ID / "
-            "CERNERE_PROJECT_CLIENT_SECRET)");
-    }
     {
         std::lock_guard lock(mu_);
         if (ws_ && ws_->is_open()) return;
     }
-    io::HttpClientRequest login;
-    login.method = "POST";
-    login.url = c.url + "/api/auth/login";
-    login.headers = {{"content-type", "application/json"}};
-    login.body = js_stringify(Json{{"grant_type", "project_credentials"},
-                                   {"client_id", c.project_client_id},
-                                   {"client_secret", c.project_client_secret}});
-    login.timeout = std::chrono::milliseconds(10'000);
-    auto res = fetch_(login);
-    if (!res.ok()) throw std::runtime_error("Cernere project login failed: " + std::to_string(res.status));
-    auto data = parse_json(res.body);
-    const std::string token = data ? string_or(*data, "accessToken") : "";
-    if (token.empty()) throw std::runtime_error("Cernere project login returned no token");
+    const std::string token = fetch_project_credential_token(config_, fetch_);
     std::string ws_url = c.url;
     if (starts_with(ws_url, "http")) ws_url = "ws" + ws_url.substr(4);
     ws_url += "/ws/project?token=" + http::encode_uri_component(token);
@@ -237,99 +156,12 @@ Json CernereProjectProxy::request(const std::string& module, const std::string& 
     return p->payload;
 }
 
-Json CernereProjectProxy::login(const std::string& email, const std::string& password) {
-    return request("auth", "login", Json{{"email", email}, {"password", password}});
+Json CernereProjectProxy::passkey_login_begin(const Json& payload) {
+    return request("auth", "passkey-login-begin", payload);
 }
 
-Json CernereProjectProxy::register_user(const std::string& name, const std::string& email, const std::string& password) {
-    return request("auth", "register", Json{{"name", name}, {"email", email}, {"password", password}});
-}
-
-Json CernereProjectProxy::mfa_verify(const std::string& mfa_token, const std::string& method, const std::string& code) {
-    return request("auth", "mfa-verify", Json{{"mfaToken", mfa_token}, {"method", method}, {"code", code}});
-}
-
-// ---- routes/auth.ts ----
-
-namespace {
-
-Json body_object(http::Request& req) {
-    auto b = read_json_body(req);
-    return b && b->is_object() ? *b : Json::object();
-}
-
-std::string text(const Json& body, const char* key) { return string_or(body, key); }
-
-http::Response fail(const std::exception_ptr& ep) {
-    try {
-        std::rethrow_exception(ep);
-    } catch (const CernereNotConfiguredError&) {
-        return http::Response::json(Json{{"error", "login_not_configured"}}, 503);
-    } catch (const CernereSessionError& e) {
-        return http::Response::json(Json{{"error", e.what()}}, e.status());
-    } catch (const std::exception& e) {
-        // Cernere が返したエラー文 (認証失敗など) はそのまま利用者へ見せる
-        const std::string msg = e.what();
-        return http::Response::json(Json{{"error", msg.empty() ? std::string("login_failed") : msg}}, 400);
-    } catch (...) {
-        return http::Response::json(Json{{"error", "login_failed"}}, 400);
-    }
-}
-
-}  // namespace
-
-void register_auth_routes(http::Router& r, const Config& config, HttpFetch fetch, CompositeAuthProxy& proxy) {
-    r.post("/api/auth/cernere/login", [&proxy](http::Request& req, http::Context&) {
-        const Json b = body_object(req);
-        if (text(b, "email").empty() || text(b, "password").empty()) {
-            return http::Response::json(Json{{"error", "email と password が必要です"}}, 400);
-        }
-        try {
-            return http::Response::json(proxy.login(text(b, "email"), text(b, "password")));
-        } catch (...) {
-            return fail(std::current_exception());
-        }
-    });
-    r.post("/api/auth/cernere/register", [&proxy](http::Request& req, http::Context&) {
-        const Json b = body_object(req);
-        if (text(b, "name").empty() || text(b, "email").empty() || text(b, "password").empty()) {
-            return http::Response::json(Json{{"error", "name と email と password が必要です"}}, 400);
-        }
-        try {
-            return http::Response::json(proxy.register_user(text(b, "name"), text(b, "email"), text(b, "password")));
-        } catch (...) {
-            return fail(std::current_exception());
-        }
-    });
-    r.post("/api/auth/cernere/mfa-verify", [&proxy](http::Request& req, http::Context&) {
-        const Json b = body_object(req);
-        if (text(b, "mfaToken").empty() || text(b, "method").empty() || text(b, "code").empty()) {
-            return http::Response::json(Json{{"error", "mfaToken と method と code が必要です"}}, 400);
-        }
-        try {
-            return http::Response::json(proxy.mfa_verify(text(b, "mfaToken"), text(b, "method"), text(b, "code")));
-        } catch (...) {
-            return fail(std::current_exception());
-        }
-    });
-    r.post("/api/auth/exchange", [&config, fetch](http::Request& req, http::Context&) {
-        const std::string code = text(body_object(req), "authCode");
-        if (code.empty()) return http::Response::json(Json{{"error", "authCode が必要です"}}, 400);
-        try {
-            return http::Response::json(exchange_auth_code(config, fetch, code));
-        } catch (...) {
-            return fail(std::current_exception());
-        }
-    });
-    r.post("/api/auth/refresh", [&config, fetch](http::Request& req, http::Context&) {
-        const std::string token = text(body_object(req), "refreshToken");
-        if (token.empty()) return http::Response::json(Json{{"error", "refreshToken が必要です"}}, 400);
-        try {
-            return http::Response::json(refresh_session(config, fetch, token));
-        } catch (...) {
-            return fail(std::current_exception());
-        }
-    });
+Json CernereProjectProxy::passkey_login_finish(const Json& payload) {
+    return request("auth", "passkey-login-finish", payload);
 }
 
 }  // namespace tr::app

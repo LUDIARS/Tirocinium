@@ -6,22 +6,15 @@ export class ApiError extends Error {
   }
 }
 
-/** 401 のときに新しい token を返す関数 (AuthProvider が登録する)。取り直せなければ null。 */
-type TokenRefresher = () => Promise<string | null>;
-let refresher: TokenRefresher | null = null;
-let refreshing: Promise<string | null> | null = null;
+/**
+ * 401 のときに呼ぶ関数 (AuthProvider が登録する)。セッションは延長しないので、
+ * 期限切れ・失効はログアウトしてログイン画面へ戻すだけにする。
+ */
+type UnauthorizedHandler = () => void;
+let onUnauthorized: UnauthorizedHandler | null = null;
 
-export function setTokenRefresher(fn: TokenRefresher | null): void {
-  refresher = fn;
-}
-
-/** 同時に複数の API が 401 になっても、取り直しは 1 回にまとめる。 */
-function refreshOnce(): Promise<string | null> {
-  if (!refresher) return Promise.resolve(null);
-  refreshing ??= refresher().finally(() => {
-    refreshing = null;
-  });
-  return refreshing;
+export function setUnauthorizedHandler(fn: UnauthorizedHandler | null): void {
+  onUnauthorized = fn;
 }
 
 async function send(url: string, init: RequestInit, token: string | null): Promise<Response> {
@@ -39,13 +32,10 @@ export async function fetchJson<T>(
   init: RequestInit = {},
 ): Promise<T> {
   const url = path.startsWith('http') ? path : `${SERVER_URL}${path}`;
-  let res = await send(url, init, token);
+  const res = await send(url, init, token);
 
-  // token (15 分) が切れたら 1 回だけ取り直して再試行する。dev token は対象外。
-  if (res.status === 401 && token && token !== 'dev') {
-    const next = await refreshOnce();
-    if (next) res = await send(url, init, next);
-  }
+  // セッションが切れた・失効した。dev token は対象外。
+  if (res.status === 401 && token && token !== 'dev') onUnauthorized?.();
 
   if (!res.ok) {
     let body: unknown;

@@ -4,8 +4,10 @@
 // - 鍵が 1 本も無ければ 503 auth_not_configured (黙って素通しにしない)。
 // - dev 認証 (TIROCINIUM_DEV_AUTH=1) は loopback bind の時だけ。それ以外では起動を拒否する。
 
+#include <functional>
 #include <mutex>
 #include <optional>
+#include <string_view>
 #include <string>
 #include <vector>
 
@@ -42,9 +44,21 @@ std::vector<crypto::Ed25519PublicKey> parse_public_key_set(const Json& body);
 std::optional<Json> verify_v4_public(const std::string& token, const crypto::Ed25519PublicKey& key,
                                      const std::string& audience, EpochMs now);
 
+// Cernere の PASETO を鍵の集合で検証し、aud と exp を確かめて sub (空でない文字列) を返す。
+// 鍵が 1 本も無いときは nullopt (呼び出し側で 503 などにする)。
+std::optional<std::string> verify_cernere_subject(const CernereKeys& keys, const std::string& token,
+                                                  const std::string& audience, EpochMs now);
+
+// 自前セッション (service_session) の token を Cernere user id へ引く関数。
+// 形が違う・期限切れ・未知なら nullopt。DB の失敗は例外 (黙って通さない)。
+using SessionResolver = std::function<std::optional<std::string>(std::string_view token)>;
+
 class Authenticator {
 public:
     Authenticator(const Config& config, const CernereKeys& keys) : config_(config), keys_(keys) {}
+
+    // ログイン画面で発行した自前セッションを受け付ける。DB を開いた後に 1 回だけ設定する。
+    void set_session_resolver(SessionResolver resolver) { sessions_ = std::move(resolver); }
 
     // assertSafeAuthConfig: dev 認証が loopback 以外なら例外。
     void assert_safe_config() const;
@@ -54,13 +68,18 @@ public:
     [[nodiscard]] std::optional<http::Response> require(http::Request& req, http::Context& ctx) const;
     [[nodiscard]] http::Middleware middleware() const;
 
-    // ws/handler.ts の authenticate: Bearer か ?token=。鍵は CERNERE_PUBLIC_KEY だけを使う (Node 版と同じ)。
+    // ws/handler.ts の authenticate: Bearer か ?token=。自前セッションの token か、
+    // Cernere の PASETO (鍵は CERNERE_PUBLIC_KEY だけ、Node 版と同じ)。
     // 戻り値: user id / nullopt (401) / 例外 (URI の復号失敗 = 500)。
     [[nodiscard]] std::optional<std::string> authenticate_ws(const http::Request& req) const;
 
 private:
+    // token が自前セッションの形なら照会結果 (見つからなければ空文字)、形が違えば nullopt。
+    [[nodiscard]] std::optional<std::string> resolve_session(const std::string& token) const;
+
     const Config& config_;
     const CernereKeys& keys_;
+    SessionResolver sessions_;
 };
 
 }  // namespace tr::app

@@ -11,6 +11,7 @@
 #include <boost/asio/thread_pool.hpp>
 
 #include "app/auth.hpp"
+#include "app/auth_routes.hpp"
 #include "app/cernere.hpp"
 #include "app/config.hpp"
 #include "app/llm.hpp"
@@ -22,6 +23,7 @@
 #include "app/routes/interview_routes.hpp"
 #include "app/runtime_extensions.hpp"
 #include "app/secrets.hpp"
+#include "app/service_session.hpp"
 #include "app/services.hpp"
 #include "app/version.hpp"
 #include "app/voice.hpp"
@@ -72,6 +74,9 @@ int run_server(int, char**) {
             "(SQLite はこのリポで未許可。native/PORTING.md「人間の判断が要ること」)");
     }
     io::PgPool pool(config.database_url);
+    // ログイン画面で発行する自前セッション (Cernere の token は持たない)。
+    PgServiceSessionStore sessions(pool);
+    auth.set_session_resolver([&sessions](std::string_view token) { return sessions.resolve(token, now_ms()); });
 
     int slot_env = 30;
     if (auto v = env("SLOT_DURATION_MIN")) {
@@ -96,7 +101,7 @@ int run_server(int, char**) {
 
     http::Router router;
     register_health_routes(router, service_version(env), [&pool] { return pool.ping(); });
-    register_auth_routes(router, config, fetch, proxy);
+    register_auth_routes(router, AuthRouteDeps{config, fetch, keys, proxy, sessions, [] { return now_ms(); }});
     register_interview_routes(router, services);
     extensions.register_routes(router);
     register_alumni_routes(router, services);

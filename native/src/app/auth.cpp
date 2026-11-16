@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 
+#include "app/service_session.hpp"
 #include "core/encoding.hpp"
 #include "core/paseto.hpp"
 #include "core/text.hpp"
@@ -80,6 +81,31 @@ std::optional<std::string> Authenticator::dev_auth_user_id() const {
     return config_.dev_user_id;
 }
 
+std::optional<std::string> verify_cernere_subject(const CernereKeys& keys, const std::string& token,
+                                                  const std::string& audience, EpochMs now) {
+    std::optional<Json> payload;
+    for (const auto& key : keys.verification_keys()) {
+        if (!key) continue;
+        payload = verify_v4_public(token, *key, audience, now);
+        if (payload) break;
+    }
+    if (!payload) return std::nullopt;
+    if (const Json* exp = member(*payload, "exp"); exp && exp->is_string() && !exp->get<std::string>().empty()) {
+        auto t = parse_iso_ms(exp->get<std::string>());
+        if (t && *t < now) return std::nullopt;
+    }
+    // Node 版は sub が無いトークンでも user.id = undefined で通していた (後段の SQL で失敗する)。
+    // C++ 版は sub が文字列で空でないことを要求する (締める方向の差)。
+    const Json* sub = member(*payload, "sub");
+    if (!sub || !sub->is_string() || sub->get<std::string>().empty()) return std::nullopt;
+    return sub->get<std::string>();
+}
+
+std::optional<std::string> Authenticator::resolve_session(const std::string& token) const {
+    if (!sessions_ || !is_service_session_token(token)) return std::nullopt;
+    return sessions_(token).value_or(std::string());
+}
+
 std::optional<http::Response> Authenticator::require(http::Request& req, http::Context& ctx) const {
     // dev プロファイル: Cernere を持たない 1 台環境用に固定 dev ユーザで素通し (loopback bind のときのみ)。
     if (auto dev = dev_auth_user_id()) {
@@ -91,30 +117,20 @@ std::optional<http::Response> Authenticator::require(http::Request& req, http::C
         return http::Response::json(Json{{"error", "unauthorized"}}, 401);
     }
     const std::string token = header->substr(7);
-    const auto keys = keys_.verification_keys();
-    if (keys.empty()) {
+    // ログイン画面で発行した自前セッション。形が合えば Cernere の PASETO としては読まない。
+    if (auto session = resolve_session(token)) {
+        if (session->empty()) return http::Response::json(Json{{"error", "invalid_token"}}, 401);
+        ctx.user_id = *session;
+        return std::nullopt;
+    }
+    // 他サービス (GLAB 等) からの下流呼び出しは Cernere の PASETO (aud = CERNERE_AUDIENCE)。
+    if (keys_.verification_keys().empty()) {
         // 鍵未設定なら 503 にして「沈黙の素通し」を防ぐ
         return http::Response::json(Json{{"error", "auth_not_configured"}}, 503);
     }
-    const EpochMs now = now_ms();
-    std::optional<Json> payload;
-    for (const auto& key : keys) {
-        if (!key) continue;
-        payload = verify_v4_public(token, *key, config_.cernere_audience, now);
-        if (payload) break;
-    }
-    if (!payload) return http::Response::json(Json{{"error", "invalid_token"}}, 401);
-    if (const Json* exp = member(*payload, "exp"); exp && exp->is_string() && !exp->get<std::string>().empty()) {
-        auto t = parse_iso_ms(exp->get<std::string>());
-        if (t && *t < now_ms()) return http::Response::json(Json{{"error", "expired"}}, 401);
-    }
-    // Node 版は sub が無いトークンでも user.id = undefined で通していた (後段の SQL で失敗する)。
-    // C++ 版は sub が文字列で空でないことを要求し、無ければ invalid_token にする (締める方向の差)。
-    const Json* sub = member(*payload, "sub");
-    if (!sub || !sub->is_string() || sub->get<std::string>().empty()) {
-        return http::Response::json(Json{{"error", "invalid_token"}}, 401);
-    }
-    ctx.user_id = sub->get<std::string>();
+    auto sub = verify_cernere_subject(keys_, token, config_.cernere_audience, now_ms());
+    if (!sub) return http::Response::json(Json{{"error", "invalid_token"}}, 401);
+    ctx.user_id = *sub;
     return std::nullopt;
 }
 
@@ -142,7 +158,12 @@ std::optional<std::string> Authenticator::authenticate_ws(const http::Request& r
             break;
         }
     }
-    if (!token || token->empty() || config_.cernere_public_key.empty()) return std::nullopt;
+    if (!token || token->empty()) return std::nullopt;
+    if (auto session = resolve_session(*token)) {
+        if (session->empty()) return std::nullopt;
+        return session;
+    }
+    if (config_.cernere_public_key.empty()) return std::nullopt;
     auto key = crypto::Ed25519PublicKey::from_config_string(config_.cernere_public_key);
     if (!key) return std::nullopt;
     auto payload = verify_v4_public(*token, *key, config_.cernere_audience, now_ms());

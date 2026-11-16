@@ -60,6 +60,9 @@ add_library(tr_app STATIC
   app/alumni_repo.cpp
   app/routes/alumni_routes.cpp
   app/cernere.cpp
+  app/cernere_exchange.cpp
+  app/service_session.cpp
+  app/auth_routes.cpp
   app/brief.cpp
   app/voice.cpp
   app/memoria.cpp

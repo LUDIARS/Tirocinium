@@ -88,6 +88,7 @@ std::vector<std::string> apply_server_config(Config& c, const Secrets& secrets) 
     a.set_bool("TIROCINIUM_DEV_AUTH", [&](bool v) { c.dev_auth = v; });
     a.set("CERNERE_PUBLIC_KEY", [&](const std::string& v) { c.cernere_public_key = v; });
     a.set("CERNERE_AUDIENCE", [&](const std::string& v) { c.cernere_audience = v; });
+    a.set("TIROCINIUM_PUBLIC_ORIGIN", [&](const std::string& v) { c.public_origin = strip_trailing_slashes(v); });
     a.set("CERNERE_URL", [&](const std::string& v) { c.cernere.url = strip_trailing_slashes(v); });
     a.set("CERNERE_PROJECT_CLIENT_ID", [&](const std::string& v) { c.cernere.project_client_id = v; });
     a.set("CERNERE_PROJECT_CLIENT_SECRET", [&](const std::string& v) { c.cernere.project_client_secret = v; });
@@ -138,6 +139,7 @@ std::vector<std::string> apply_server_config(Config& c, const Secrets& secrets) 
 const std::vector<std::string>& secret_keys() {
     static const std::vector<std::string> keys = {
         "TIROCINIUM_PORT", "TIROCINIUM_HOST", "TIROCINIUM_DEV_AUTH", "CERNERE_PUBLIC_KEY", "CERNERE_AUDIENCE",
+        "TIROCINIUM_PUBLIC_ORIGIN",
         "CERNERE_URL", "CERNERE_PROJECT_CLIENT_ID", "CERNERE_PROJECT_CLIENT_SECRET", "TIROCINIUM_LLM_BACKEND",
         "TIROCINIUM_INTERVIEWER_MODEL", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CLAUDE_CODE_GIT_BASH_PATH",
         "SLOT_DURATION_MIN", "SLOT_CAPACITY", "NO_SHOW_TIMEOUT_MIN", "NOTIFY_LEAD_MIN", "COMPANY_CRAWL_MAX_PAGES",

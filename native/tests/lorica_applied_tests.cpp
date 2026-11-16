@@ -28,15 +28,12 @@ namespace tr_lorica_probe_lookup {
 using namespace tr_lorica_probe;
 template <class T>
 T value();  // std::declval の代わり (<utility> をまだ include しないため。未評価の文脈だけで使う)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 inline constexpr bool strcpy_declared =
     !__is_same(decltype(TR_PROBE_UNSAFE_NAME(str, cpy)(value<char*>(), value<const char*>())),
                tr_lorica_probe::absent);
 inline constexpr bool wcscat_declared =
     !__is_same(decltype(TR_PROBE_UNSAFE_NAME(wcs, cat)(value<wchar_t*>(), value<const wchar_t*>())),
                tr_lorica_probe::absent);
-#pragma GCC diagnostic pop
 }  // namespace tr_lorica_probe_lookup
 #undef TR_PROBE_UNSAFE_NAME
 #endif

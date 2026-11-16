@@ -1,29 +1,34 @@
 # Cernere 埋め込みログイン (Tirocinium Web)
 
 指示: neco「正式なログインまで実装」(2026-10-09)。旧画面 (#21) は Cernere の PASETO token を手で貼る仮実装だった。
+2026-11-14 改訂: Cernere の交換契約の変更 (Cernere `spec/plan/2026-10-30-authcode-service-binding.md`、main 455c7bc 以降) に合わせ、
+PKCE + project credential での交換と自前セッションへ切り替えた。互換経路 (旧 `{code}` だけの交換・project-token・refresh・パスワード) は残さない。
 
 ## 流れ
 
-1. 画面 `apps/desktop/src/auth/LoginGate.tsx` が `@ludiars/cernere-composite/ui` の `<CompositeLogin>` を出す。
-   authApi は Tirocinium サーバの `/api/auth/cernere/{login,register,mfa-verify}` を呼ぶ (ブラウザから Cernere を直接呼ばない。CORS 回避、Actio と同じ形)。
-2. サーバは project credential で Cernere の `/ws/project` に接続し、`auth.login` 等を代理する (`apps/server/src/auth/cernere-project-client.ts`)。
-   応答は次のいずれか。画面の authApi (`apps/desktop/src/auth/session-api.ts` の `TrCompositeAuthApi`) がどれも扱う。
-   - `authCode`: そのまま 3 へ。
-   - `mfaRequired` + `mfaToken`: SDK の MFA 画面 → `/api/auth/cernere/mfa-verify`。
-   - `ticket` + `wsPath` (パスワードは通り、端末の本人確認が残っている。通常のログインはこれ):
-     画面が `/api/auth/cernere/ws?ticket=` に WebSocket を張り、サーバがそれを Cernere の `/auth/composite-ws?ticket=` へ素通しする
-     (`apps/server/src/auth/cernere-composite-ws-relay.ts`。ブラウザは Cernere の内部 URL に届かないため)。
-     画面は端末 fingerprint を送り、Cernere が確認コードを求めれば SDK の確認コード画面を出す。完了すると WS で authCode が届く。
-   どれにも当たらない応答はエラーとして画面に出す (SDK 0.3 はこの場合に黙って何もしなかった。2026-10-10「ログイン押しても反応ない」)。
-3. 画面は authCode を `POST /api/auth/exchange` へ送る。サーバは Cernere `/api/auth/exchange` でユーザーの accessToken / refreshToken を得て、
-   `POST /api/auth/project-token` (`project_key=tirocinium`、`hub_url=CERNERE_AUDIENCE`) で Tirocinium 向けの user×project token (PASETO V4、15 分) を取り、
-   `{token, expiresIn, refreshToken, user}` を返す (`apps/server/src/auth/cernere-session.ts`)。
-4. 画面は token と refreshToken をこのブラウザの localStorage に置く。API が 401 を返したら `POST /api/auth/refresh` で 1 回だけ取り直して再試行し、失敗ならログイン画面へ戻す。
-5. 認証ミドルウェア (`auth/cernere.ts`) は token を Cernere の公開鍵で検証する。鍵は `CERNERE_PUBLIC_KEY` があればそれ、無ければ起動時に
-   `{CERNERE_URL}/.well-known/cernere-public-key` (現行 + 旧鍵) を取得する。鍵が無ければ 503 (黙って素通しにしない)。
+1. 画面 `apps/desktop/src/auth/LoginGate.tsx` が試行ごとに PKCE (S256) の `code_verifier` / `code_challenge` と `state` を作る
+   (`apps/desktop/src/auth/pkce.ts`。verifier はメモリにだけ置く)。`@ludiars/cernere-composite/ui` (0.6.0) の `<CompositeLogin>` を出す。
+   ログインは**パスキーのみ** (Cernere がメール+パスワードのログイン・登録を廃止した)。
+2. authApi (`session-api.ts` の `TrCompositeAuthApi`) は begin/finish を Tirocinium サーバへ送る。ブラウザから Cernere を直接呼ばない。
+   - `POST /api/auth/cernere/passkey-login-begin { code_challenge, state }`
+   - `POST /api/auth/cernere/passkey-login-finish { challengeOwner, response, code_challenge, state }`
+   サーバ (`native/src/app/auth_routes.cpp`) は `client_id` (project credential の client id) と `target` (`TIROCINIUM_PUBLIC_ORIGIN`) を
+   **設定から**足し、project WS (`/ws/project`) の `auth.passkey-login-begin` / `finish` へ中継する。送り先をブラウザから受け取らない。
+   Cernere は authCode を `{ project, origin, code_challenge }` に束縛して発行する (60 秒・1 回きり)。
+3. 画面は authCode と verifier を `POST /api/auth/exchange { code, code_verifier }` へ送る (余分な項目は 400)。
+   サーバ (`native/src/app/cernere_exchange.cpp`) は project credential で Cernere にログインして project token を得て、
+   `POST {CERNERE_URL}/api/auth/exchange { code, code_verifier }` を `Authorization: Bearer <project token>` で呼ぶ。
+   応答 `{ user, projectToken }` の projectToken を Cernere の公開鍵で検証し (aud = `CERNERE_AUDIENCE` = 登録した hub_url、sub = user.id)、
+   通れば自前セッション (`native/src/app/service_session.cpp`) を発行して `{ sessionToken, expiresAt, user }` を返す。
+   Cernere の user token / refresh token は受け取らず、保存もしない。
+4. 画面は sessionToken を localStorage に置き、API に Bearer で付ける。セッションは 12 時間の固定期限で延長しない。
+   API が 401 を返したらログイン画面へ戻り、パスキーでログインし直す。`POST /api/auth/logout` はサーバ側のセッションも消す。
+5. 認証ミドルウェア (`native/src/app/auth.cpp`) は、自前セッションの形 (43 文字の base64url) の token を DB で引く。
+   それ以外は従来どおり Cernere の PASETO として検証する (GLAB などからの下流呼び出し、aud = `CERNERE_AUDIENCE`)。
 
-Tirocinium のサーバはトークンを保存しない (個人データ・認証トークンは Cernere の責務)。トークンとパスワードはログに出さない。
-開発用の `TIROCINIUM_DEV_AUTH` / `VITE_DEV_AUTH` は従来どおり。
+ログイン口 (begin / finish / exchange / logout) はブラウザの `Origin` が `TIROCINIUM_PUBLIC_ORIGIN` と一致するときだけ受ける。
+セッションの DB (`tirocinium_service_sessions`、migration 028) は token の SHA-256 だけを持ち、token 本体は持たない。
+トークンはログに出さない。開発用の `TIROCINIUM_DEV_AUTH` / `VITE_DEV_AUTH` は従来どおり。
 
 ## 設定
 
@@ -31,8 +36,17 @@ Tirocinium のサーバはトークンを保存しない (個人データ・認�
 |---|---|
 | `CERNERE_URL` | Excubitor の topology (`<CODE>_URL`) |
 | `CERNERE_PROJECT_CLIENT_ID` / `CERNERE_PROJECT_CLIENT_SECRET` | catalog の `cernere_launch_credentials.target_project: tirocinium` で Excubitor が起動ごとに発行・注入 |
-| `CERNERE_AUDIENCE` | 既定 `tirocinium` (project-token の aud と一致させる) |
+| `TIROCINIUM_PUBLIC_ORIGIN` | 画面を配る公開オリジン (https、ループバック不可、末尾 `/` 無し)。未設定・不正ならログイン口は 503 |
+| `CERNERE_AUDIENCE` | Cernere に登録した tirocinium の `hub_url` と同じ値 (projectToken の aud) |
 | `CERNERE_PUBLIC_KEY` | 任意。無ければ well-known から取得 |
 
-Cernere 側の前提: `managed_projects` に `tirocinium`、`project_credential_issuers` に (tirocinium, excubitor) (Cernere migration 062、PR #2619)。
-migration は Cernere の再起動で適用される。
+Cernere 側の前提 (管理者が登録する。Tirocinium からは触らない):
+- `managed_projects` に `tirocinium`、`project_credential_issuers` に (tirocinium, excubitor) (Cernere migration 062)。
+- project `tirocinium` の `schema_definition.composite_origins` に `TIROCINIUM_PUBLIC_ORIGIN` と同じオリジン、
+  `schema_definition.hub_url` に `CERNERE_AUDIENCE` と同じ値。どちらも https かつループバック以外しか登録できない。
+
+## 使えない形
+
+- Tauri の webview (`tauri://localhost` / `http://tauri.localhost`) と `http://localhost:5178` の Vite 直アクセスは、
+  Cernere の composite_origins に登録できないためログインできない。Tunnel 等で https 公開したオリジンから開く。
+  回避策 (登録できないオリジンの代用・送り先の差し替え) は作らない。

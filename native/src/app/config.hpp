@@ -52,6 +52,9 @@ struct Config {
     std::string database_url;
     std::string cernere_public_key;
     std::string cernere_audience = "tirocinium";
+    // 画面を配る公開オリジン (https、ループバック不可)。Cernere の project (tirocinium) の
+    // composite_origins に登録した値と同じにする。パスキーの送り先 (target) とログイン口の Origin 検査に使う。
+    std::string public_origin;
     struct {
         std::string url;
         std::string project_client_id;

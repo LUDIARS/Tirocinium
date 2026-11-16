@@ -1,6 +1,7 @@
 #pragma once
-// Cernere との連携 (auth/cernere-session.ts, cernere-project-client.ts, cernere-public-keys.ts, routes/auth.ts)。
-// トークン・パスワードはログに出さない。返すだけで保存しない。
+// Cernere との連携: 公開鍵の取得、project credential token の取得、project WS (/ws/project) の代理。
+// ログイン口 (/api/auth) は auth_routes、authCode の交換は cernere_exchange が持つ。
+// トークンはログに出さない。
 
 #include <chrono>
 #include <condition_variable>
@@ -16,7 +17,6 @@
 
 #include "app/auth.hpp"
 #include "app/secrets.hpp"
-#include "http/router.hpp"
 #include "io/ws_client.hpp"
 
 namespace tr::app {
@@ -34,20 +34,20 @@ public:
     using std::runtime_error::runtime_error;
 };
 
-// authCode → ユーザー token → Tirocinium 向け user×project token。返り値 {token, expiresIn, refreshToken, user}。
-Json exchange_auth_code(const Config& config, const HttpFetch& fetch, const std::string& auth_code);
-Json refresh_session(const Config& config, const HttpFetch& fetch, const std::string& refresh_token);
+// project credential (CERNERE_PROJECT_CLIENT_ID / SECRET) で Cernere にログインし、project token を得る。
+// 未設定なら CernereNotConfiguredError、Cernere が拒めば CernereSessionError。
+std::string fetch_project_credential_token(const Config& config, const HttpFetch& fetch);
 
 // CERNERE_PUBLIC_KEY が無く CERNERE_URL があれば well-known から鍵を取得する (失敗しても起動は続ける)。
 void load_cernere_public_keys(const Config& config, const HttpFetch& fetch, CernereKeys& keys, const LogFn& log);
 
-// 埋め込みログイン (composite) の代理。応答は {authCode} か MFA の続き。
+// 埋め込みログイン (composite) の代理。ログインはパスキーのみ (Cernere がパスワードを廃止した)。
+// payload は Cernere の project WS の auth.passkey-login-begin / finish にそのまま渡す。
 class CompositeAuthProxy {
 public:
     virtual ~CompositeAuthProxy() = default;
-    virtual Json login(const std::string& email, const std::string& password) = 0;
-    virtual Json register_user(const std::string& name, const std::string& email, const std::string& password) = 0;
-    virtual Json mfa_verify(const std::string& mfa_token, const std::string& method, const std::string& code) = 0;
+    virtual Json passkey_login_begin(const Json& payload) = 0;
+    virtual Json passkey_login_finish(const Json& payload) = 0;
 };
 
 // Cernere の project WS (/ws/project) に module_request を送る代理。接続は 1 本を使い回し、切れたら次の要求で張り直す。
@@ -55,9 +55,8 @@ public:
 class CernereProjectProxy final : public CompositeAuthProxy {
 public:
     CernereProjectProxy(const Config& config, HttpFetch fetch, boost::asio::io_context& ioc);
-    Json login(const std::string& email, const std::string& password) override;
-    Json register_user(const std::string& name, const std::string& email, const std::string& password) override;
-    Json mfa_verify(const std::string& mfa_token, const std::string& method, const std::string& code) override;
+    Json passkey_login_begin(const Json& payload) override;
+    Json passkey_login_finish(const Json& payload) override;
 
 private:
     Json request(const std::string& module, const std::string& action, const Json& payload);
@@ -78,7 +77,5 @@ private:
     std::shared_ptr<io::WsClient> ws_;
     std::map<std::string, std::shared_ptr<Pending>> pending_;
 };
-
-void register_auth_routes(http::Router& router, const Config& config, HttpFetch fetch, CompositeAuthProxy& proxy);
 
 }  // namespace tr::app

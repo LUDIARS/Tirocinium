@@ -1,12 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { setTokenRefresher } from '../api/client.js';
-import { refreshTrSession, type TrSession } from './session-api.js';
+import { setUnauthorizedHandler } from '../api/client.js';
+import { logoutTrSession, type TrSession } from './session-api.js';
 
-// token = Cernere が発行した Tirocinium 向け user×project token (15 分)。
-// refreshToken = Cernere のユーザー refresh token。token が切れたら /api/auth/refresh で取り直す。
-// どちらもこのブラウザの localStorage にだけ置く (Tirocinium のサーバには保存しない)。
+// token = Tirocinium サーバが発行した自前セッションの token (固定期限、延長しない)。
+// Cernere の token は持たない。期限切れ・失効 (401) ならログイン画面へ戻り、パスキーでログインし直す。
 const STORAGE_KEY = 'tirocinium.token';
-const REFRESH_KEY = 'tirocinium.refreshToken';
+// 旧方式 (Cernere の refresh token) の残りを消すためだけに名前を持つ。
+const LEGACY_REFRESH_KEY = 'tirocinium.refreshToken';
 
 export type AuthState = {
   token: string | null;
@@ -45,14 +45,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setSession = useCallback((s: TrSession) => {
-    write(REFRESH_KEY, s.refreshToken);
-    setToken(s.token);
+    setToken(s.sessionToken);
   }, [setToken]);
 
+  // サーバ側のセッションも消す (失敗してもこの端末からは消す)。
   const logout = useCallback(() => {
-    write(REFRESH_KEY, null);
+    const current = read(STORAGE_KEY);
+    if (current && current !== 'dev') void logoutTrSession(current).catch(() => undefined);
     setToken(null);
   }, [setToken]);
+
+  // 旧方式で保存された Cernere の refresh token を残さない。
+  useEffect(() => write(LEGACY_REFRESH_KEY, null), []);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
@@ -62,22 +66,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // API が 401 を返したときの取り直し。refreshToken が無い・失敗したらログアウトしてログイン画面へ戻す。
+  // API が 401 を返したら (期限切れ・失効) この端末のセッションを捨ててログイン画面へ戻す。
   useEffect(() => {
-    setTokenRefresher(async () => {
-      const refreshToken = read(REFRESH_KEY);
-      if (!refreshToken) return null;
-      try {
-        const s = await refreshTrSession(refreshToken);
-        setSession(s);
-        return s.token;
-      } catch {
-        logout();
-        return null;
-      }
-    });
-    return () => setTokenRefresher(null);
-  }, [setSession, logout]);
+    setUnauthorizedHandler(() => setToken(null));
+    return () => setUnauthorizedHandler(null);
+  }, [setToken]);
 
   const value = useMemo<AuthState>(
     () => ({ token, setToken, setSession, logout, isAuthed: Boolean(token) }),
