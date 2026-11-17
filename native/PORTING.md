@@ -218,7 +218,7 @@ C++ だけの追加テスト: `io_http_server_tests` (ソケット越しの境�
 
 1. **常駐サーバの DB (SQLite → Postgres)**: Node 版は実際には `data/tirocinium.sqlite` を使っている。C++ 版は Postgres だけ。
    切り替えには Postgres の用意 (`DATABASE_URL`)、migration の適用 (`tirocinium-migrate`)、既存 SQLite のデータの移し替えが要る
-   (SQLite はこのリポで未許可なので C++ では読まない)。企業 worker も同じ Postgres を使う。
+   (SQLite はこのリポで未許可なので C++ では読まない)。Postgres へ移すと決めた。移し替えは §8-1 の Node のスクリプトで行う。企業 worker も同じ Postgres を使う。
 2. **Discord の音声面接**: UDP + 暗号 (AEAD) + Opus に加え、Discord の DAVE (E2EE) への対応要否で規模が大きく変わる。
    現状はテキスト面接で始めて伝える。音声が要るなら libopus を足して実装するか、音声だけ Node に残すかの判断が要る
    (同じ bot token で 2 つの gateway を張れないので、分けるなら token を分ける)。
@@ -269,3 +269,37 @@ node --experimental-transform-types --import ./native/tools/golden/ts-loader.mjs
 `claude -p` / `codex exec` の実呼び出し (面接・judge・評価・サマリ・推薦・資料読解)、OpenAI refine、Memoria・Nuntius・VOICEVOX、
 Discord の本物の gateway (テキスト面接・ES 相談の仲介)、企業 worker (tsx あり) でのクロール・enrich・求人ニュース、
 Excubitor からの起動と health。
+
+### 8-1. 旧 Node 版の SQLite から Postgres へ移す (§6-1)
+
+C++ 版は Postgres だけを読む。Node 版のデータ (`data/tirocinium.sqlite` と `data/companies.sqlite`) は、
+Node のスクリプト (`scripts/site/`、Node 24 の `node:sqlite` と既存の `postgres` パッケージ) で一度だけ移す。
+移す作業は人間の指示で行う (スクリプトは実データを勝手に開かない)。
+
+```sh
+# 0. Node 版を止める (SQLite に書き込み中のまま写さない)。移し先は空の Postgres に migration だけを当てたもの
+DATABASE_URL=postgres://... native/build/bin/tirocinium-migrate
+# 1. 2 つの SQLite を 1 つの移行 bundle (SQLite のファイル) にまとめる。入力は読み取り専用。最後に sha256 を出す
+node scripts/site/pack-legacy-sqlite.mjs --output <絶対パス>/tirocinium-legacy.bundle.sqlite
+# 2. dry-run: 表ごとの件数・除いた行・変換できない値 (表 / rowid / 列 / 理由) だけを出す。何も書かない
+DATABASE_URL=postgres://... node scripts/site/import-data.mjs --input <bundle> --sha256 <hex> --dry-run
+# 3. 本番: 移し先の表がすべて空のときだけ、1 トランザクションで入れる (失敗したら何も残らない)
+DATABASE_URL=postgres://... node scripts/site/import-data.mjs --input <bundle> --sha256 <hex>
+# テスト (一時の Postgres と合成の SQLite だけ。Windows は TR_PG_BIN か C:/Program Files/PostgreSQL/18/bin の initdb を使う)
+npm run test:site
+```
+
+- 引数は Castra の service-bootstrap の import 契約 (`--input <絶対パス> --sha256 <hex>`) に合わせた。bundle の所有サービス・形式版
+  (`tirocinium_bundle_meta`: service=tirocinium / format=legacy-sqlite / version=1) を確かめ、不変 (immutable) の読み取り専用で開く。
+  `excubitor.bootstrap.json` (setup と Postgres 版の export) はまだ無いので、Excubitor の data-import からは呼ばれない。手で流す。
+- 表の対応は `scripts/site/legacy-sqlite/table-plan.mjs` に明示した (同じ名前の表・列へ移す)。一覧に無い表、Postgres に無い列、
+  変換を持たない型、NULL 不可で既定値の無い列があれば、件数を数える前に一覧を出して止める。
+- 移さない表: `_tirocinium_migrations` (Postgres 側は tirocinium-migrate の記録を使う)、`backdoor_tokens` (廃止したマジックリンクの
+  揮発トークン。秘密なので複製しない)、`sqlite_sequence` (SQLite の内部の表)。どれも行数は報告に出す。
+- 値の変換は Postgres の列の型で決める (`convert.mjs`)。真偽 = 0/1 だけ、日時 = `datetime('now')` の形 (時差なし = UTC) か ISO 8601、
+  jsonb = JSON として読めること、text[] = 文字列の JSON 配列、int4range = `[a,b]` の形、uuid・整数は形と範囲を確かめる。
+  NULL は NULL を許す列にだけ入れる (既定値には置き換えない)。1 つでも変換できなければ何も書かない。
+- serial の id は元の値のまま入れ、sequence を入れた最大値に合わせる (次の採番は最大値 + 1)。
+- `companies.sqlite` は旧 seed の DB。同じ企業 (id か normalized_name) が `tirocinium.sqlite` にあればそちらを採り、
+  重ならない企業とその `company_profiles` だけを足す (除いた行数は報告に出す)。
+- dry-run は外部キーの不整合 (親の無い行) を見ない。本番の投入で外部キーに当たれば、トランザクションごと取り消して止まる。

@@ -27,7 +27,8 @@
     "export:newgrad-data": "tsx scripts/export-newgrad-data/index.ts",
     "ob-patterns": "tsx scripts/ob-patterns/index.ts",
     "judge-blackbox": "tsx scripts/judge-blackbox/index.ts",
-    "replay": "tsx scripts/replay/index.ts"
+    "replay": "tsx scripts/replay/index.ts",
+    "test:site": "node --test \"scripts/site/test/*.test.mjs\""
   },
   "engines": {
     "node": ">=22"
