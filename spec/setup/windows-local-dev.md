@@ -36,7 +36,8 @@ Windows 1 台に Tirocinium を立ち上げ、テキスト入力で面接練習�
 | 機能 | dev プロファイル | 理由 |
 |---|---|---|
 | 面接官応答 (Sonnet) | ✅ テキストで一周 | claude CLI 経由 (鍵不要) |
-| Opus 評価 / GPT 補正 | ⚠️ `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` を agent に登録した時だけ | dev は既定で skip |
+| Opus 評価 | ⚠️ `ANTHROPIC_API_KEY` を agent に登録した時だけ | dev は既定で skip |
+| 深掘り補正 | Codex CLI の購読認証と役割マップを使用 | 既定は `luna` |
 | 音声 STT/TTS | ❌ | `iv-client` が未結線 (stub)。入力はテキスト欄 |
 | RAG (Memoria) | ❌ (任意) | `MEMORIA_URL` 未登録なら skip |
 | 予約通知 (Nuntius) | ❌ (任意) | stub |
@@ -120,7 +121,6 @@ secret-agent の `tirocinium` サービスに追加登録:
 ```
 TIROCINIUM_LLM_BACKEND = api
 ANTHROPIC_API_KEY      = sk-ant-...
-OPENAI_API_KEY         = sk-...        # GPT 補正も使う場合
 ```
 
-これで Sonnet ストリーム応答 + Opus 評価 (5 turn) + GPT 補正 (10 turn) + サマリが全て有効になる。
+これで Anthropic API を使う評価とサマリが有効になる。深掘り補正には Codex CLI の購読認証と Concordia の役割マップを設定する。

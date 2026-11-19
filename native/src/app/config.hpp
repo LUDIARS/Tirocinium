@@ -101,7 +101,6 @@ struct Config {
     // 子プロセスへ渡す必要がある値と、LLM の有効判定 (Node 版で process.env に注入していたもの)。
     // ANTHROPIC_API_KEY は C++ 版では Anthropic を呼ばない (claude -p に置換)。有無は機能の有効判定だけに使う。
     std::string anthropic_api_key;
-    std::string openai_api_key;
     std::string claude_code_git_bash_path;
 };
 

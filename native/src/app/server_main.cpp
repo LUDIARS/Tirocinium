@@ -86,7 +86,7 @@ int run_server(int, char**) {
     CallTickets tickets;
     MaterialStore materials;
     FixedWindowLimiter limiter(config.session_rate_limit.window_ms, config.session_rate_limit.max);
-    LlmGateway gateway(config, env_list, fetch);
+    LlmGateway gateway(config, env_list);
     Services services{config,     pool,      auth,       repo_root(env), fetch, [] { return now_ms(); }, log, tickets,
                       materials,  limiter,   background, &gateway,       env_list, slot_env};
     // TIROCINIUM_BRAIN / TIROCINIUM_INTERVIEWER_MODEL の不正は起動時に止める。

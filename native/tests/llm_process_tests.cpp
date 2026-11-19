@@ -125,9 +125,7 @@ OneShotFixture one_shot_fixture() {
     for (const char* name : {"claude.exe", "codex.exe"}) std::ofstream(bin / name, std::ios::binary) << "MZ";
 #else
     for (const char* name : {"claude", "codex"}) {
-        std::ofstream(bin / name) << "#!/bin/sh
-exit 0
-";
+        std::ofstream(bin / name) << "#!/bin/sh\nexit 0\n";
         std::filesystem::permissions(bin / name, std::filesystem::perms::owner_all);
     }
 #endif
@@ -221,8 +219,40 @@ TEST_CASE("brain: TIROCINIUM_BRAIN selects llm or stub; invalid value is rejecte
     check(!s1.synthesis_reached && !s2.synthesis_reached && s3.synthesis_reached, "every third answer reaches synthesis");
     check_eq(stub->compose_utterance("", {}, Json{{"question", "スロットの質問"}}, nullptr), std::string("スロットの質問"), "slot question");
     auto llm_brain = app::create_brain(gw, {});
-    check(!llm_brain->can_assess() && !llm_brain->can_evaluate() && !llm_brain->can_refine(), "no keys → disabled roles");
+    check(!llm_brain->can_assess() && !llm_brain->can_evaluate(), "no Anthropic key disables API roles");
+    check(llm_brain->can_refine(), "REFINE uses CLI authentication");
     trtest::check_throws([&] { app::create_brain(gw, {{"TIROCINIUM_BRAIN", "gpt"}}); }, "invalid brain");
+}
+
+TEST_CASE("brain: REFINE uses Codex One-Shot, accepts an explicit model and rejects tools") {
+    const auto fx = one_shot_fixture();
+    const app::EnvList env{{"PATH", fx.bin.string()}, {"LUDIARS_MODEL_ROLES_FILE", fx.roles.string()}};
+    const app::Config cfg;
+    std::vector<io::ProcessSpec> calls;
+    bool tool_output = false;
+    const app::ProcessRunner runner = [&](const io::ProcessSpec& spec, const std::atomic<bool>*) {
+        calls.push_back(spec);
+        io::ProcessResult result;
+        result.exit_code = 0;
+        result.out = R"({"type":"item.completed","item":{"type":"agent_message","text":"理由を深掘りする"}})" "\n"
+                     R"({"type":"turn.completed"})" "\n";
+        if (tool_output) result.out += R"({"type":"item.completed","item":{"type":"command_execution"}})" "\n";
+        return result;
+    };
+    app::LlmGateway defaults(cfg, env, runner);
+    auto brain = app::create_brain(defaults, env);
+    const auto focus = brain->refine_focus({{1, "user", "技術を選びました"}});
+    check(focus == "理由を深掘りする", "Codex text is the focus");
+    check_eq(calls.at(0).args.at(2), std::string("gpt-test-luna"), "luna resolved by Lapilli");
+    check(calls.at(0).stdin_data.find("技術を選びました") != std::string::npos, "history passed via stdin");
+
+    auto overridden = env;
+    overridden.emplace_back("OPENAI_MODEL_REFINE", "codex-explicit");
+    app::LlmGateway explicit_model(cfg, overridden, runner);
+    explicit_model.refine({});
+    check_eq(calls.at(1).args.at(2), std::string("codex-explicit"), "explicit model preserved");
+    tool_output = true;
+    trtest::check_throws([&] { explicit_model.refine({}); }, "tool events rejected");
 }
 
 TEST_CASE("resolveModels: env role > profile > default") {

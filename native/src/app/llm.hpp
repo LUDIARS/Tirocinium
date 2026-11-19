@@ -1,10 +1,10 @@
 #pragma once
-// LLM 呼び出しの唯一の出口 (packages/llm の cli.ts / interviewer-cli.ts / anthropic.ts / openai.ts / brain.ts)。
+// LLM 呼び出しの唯一の出口 (packages/llm の cli.ts / interviewer-cli.ts / anthropic.ts / refine.ts / brain.ts)。
 // - C++ 版は Anthropic の API キーを使わない。judge・評価・サマリ・推薦・要点・資料読解は claude -p を
 //   one-shot の規則で起動する。機能の有効/無効は Node 版と同じく ANTHROPIC_API_KEY の有無で決める
 //   (キーは子に渡さない。subscription_environment が外す)。
 // - 面接官の発話は Node 版と同じく codex exec (sol) / claude -p (opus) をツール無しで起動する。
-// - refine は OpenAI の chat.completions を HTTPS で 1 回呼ぶ (キーは既存の秘密の経路)。
+// - refine は codex exec (luna) をツール無しで 1 回呼ぶ。
 // - 同時に起動する CLI の数に上限を置き、空きを 30 秒待っても無ければ llm_busy で拒否する。
 
 #include <atomic>
@@ -53,7 +53,7 @@ using ProcessRunner = std::function<io::ProcessResult(const io::ProcessSpec&, co
 
 class LlmGateway {
 public:
-    LlmGateway(const Config& config, EnvList base_env, HttpFetch fetch, ProcessRunner runner = nullptr,
+    LlmGateway(const Config& config, EnvList base_env, ProcessRunner runner = nullptr,
                std::size_t max_concurrent = 4);
 
     // runClaudeCliWith: 標準入力にプロンプト、成功 (exit 0) なら stdout を trim して返す。失敗は LlmError。
@@ -61,23 +61,23 @@ public:
     // composeInterviewerCli: 'sol' (codex) / 'opus' (claude)。出力は parse_interviewer_output で検証。
     std::string compose_interviewer(const std::string& model, const std::string& system_prompt,
                                     const std::vector<llm::Turn>& turns, const std::atomic<bool>* cancel);
-    // refine (OpenAI chat.completions)。キーが無ければ LlmError。
-    std::string openai_refine(const std::vector<llm::Turn>& turns);
+    std::string refine(const std::vector<llm::Turn>& turns);
 
     [[nodiscard]] bool anthropic_enabled() const { return !config_.anthropic_api_key.empty(); }
-    [[nodiscard]] bool openai_enabled() const { return !config_.openai_api_key.empty(); }
     [[nodiscard]] const std::map<std::string, std::string>& models() const { return models_; }
     [[nodiscard]] const Config& config() const { return config_; }
     [[nodiscard]] const EnvList& env() const { return base_env_; }
 
 private:
+    std::string run_text_cli(const std::string& file, std::vector<std::string> args, const std::string& prompt,
+                             std::chrono::milliseconds timeout, const std::string& error_prefix,
+                             const std::atomic<bool>* cancel);
     io::ProcessResult launch(const std::string& file, std::vector<std::string> args, const std::string& stdin_data,
                              const std::filesystem::path& cwd, std::chrono::milliseconds timeout, std::size_t max_out,
                              const std::atomic<bool>* cancel);
 
     const Config& config_;
     EnvList base_env_;
-    HttpFetch fetch_;
     ProcessRunner runner_;
     std::map<std::string, std::string> models_;
     std::mutex mu_;

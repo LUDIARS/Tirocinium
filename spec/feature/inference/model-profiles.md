@@ -47,7 +47,9 @@ Haiku judge の 3 機種分担」を必要に応じて collapse できるよう�
   `@ludiars/one-shot` の `resolveModel` を呼ぶ。HTTP API は別名を受け付けないため、map が無ければ
   `model_role_unresolved:<role>` で止める。
 - native: `lapilli::one_shot::resolve_model` / `prepare`。`app/one_shot.cpp` は Lapilli への委譲だけを持つ。
-- 深掘り誘導 (OpenAI REFINE) の既定は Codex 役割 `luna`。`OPENAI_MODEL_REFINE` で明示 ID に上書きできる。
+- 深掘り誘導 (REFINE) は TypeScript で `@ludiars/one-shot`、C++ で `Lapilli::one_shot` を経由して、購読認証済みの Codex CLI を起動する。既定は Codex 役割 `luna`。`OPENAI_MODEL_REFINE` で Codex の役割名または明示 ID を指定できる。
+- 面接履歴は標準入力に渡す。起動はツールなしの JSON 出力モードで行い、完了したテキスト応答だけを論点に使う。REFINE の失敗時は既存の面接進行を継続する。
+- 関連タスク `actio:75f80b0b-f16f-44dd-a8b2-f8a2c84e7e69`
 - STT の API バックエンドは Concordia の役割に当たらないため既定を持たず、`TIROCINIUM_STT_API_MODEL` を必須とする。
 
 ## 3 機種分担の是非 (decision-metrics)

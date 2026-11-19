@@ -43,6 +43,14 @@
       "file": "packages/llm/src/model-resolution.ts",
       "module": "packages/llm/src/contracts/model-resolution.contract.ts",
       "sample": 1
+    },
+    {
+      "id": "C-6",
+      "criterion": "C-6 refineLaunch(env): REFINE は luna を既定とし、明示モデルを保持して Codex One-Shot に渡す",
+      "symbol": "refineLaunch",
+      "file": "packages/llm/src/refine.ts",
+      "module": "packages/llm/src/contracts/refine.contract.ts",
+      "sample": 1
     }
   ]
 }

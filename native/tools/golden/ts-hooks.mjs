@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const STUBS = {
-  '@ludiars/portus/ai': 'export class AnthropicClient {} export class OpenAIClient {}',
+  '@ludiars/portus/ai': 'export class AnthropicClient {}',
   '@ludiars/portus/net': 'export class HttpError extends Error {}',
   '@ludiars/one-shot': 'export function spawnOneShot() { throw new Error("stub"); }',
   '@ludiars/blackbox': 'export function makeSqliteBlackBox() { throw new Error("stub"); }',

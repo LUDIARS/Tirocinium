@@ -1,6 +1,6 @@
 import { HttpError } from '@ludiars/portus/net';
 
-// 直接 API (Anthropic / OpenAI) の再試行。旧 SDK が既定で行っていた再試行 (最大 2 回、
+// Anthropic の直接 API の再試行。旧 SDK が既定で行っていた再試行 (最大 2 回、
 // 408 / 409 / 429 / 5xx と接続失敗・タイムアウト、指数バックオフ + ゆらぎ) を同じ条件で残す。
 // Portus のクライアントは再試行しないので、ここで包む。
 

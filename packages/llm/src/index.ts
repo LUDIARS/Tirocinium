@@ -27,7 +27,6 @@ export {
   buildWeaknessBlock,
   asMessages,
 } from './response.js';
-export { createOpenAIClient, OPENAI_MODEL, type OpenAIApi, type ChatCompletionParams, type ChatCompletion } from './openai.js';
 export { refine } from './refine.js';
 export { runClaudeCli, runClaudeCliWith, streamResponseCli, type ClaudeCliModel, type ClaudeCliRunOptions } from './cli.js';
 export {

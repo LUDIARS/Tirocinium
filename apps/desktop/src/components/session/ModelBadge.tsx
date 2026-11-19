@@ -5,7 +5,7 @@ type Props = {
 const SERVER_MODELS = [
   { label: 'Sonnet', role: '応答' },
   { label: 'Opus', role: '評価' },
-  { label: 'GPT-5.5', role: '深掘り' },
+  { label: 'Luna', role: '深掘り' },
 ];
 
 const LOCAL_MODELS = [

@@ -4,7 +4,6 @@
 // SessionRuntime は本 interface にのみ依存し、SDK / CLI / API キーの都合を知らない。
 
 import { createAnthropicClient } from './anthropic.js';
-import { createOpenAIClient } from './openai.js';
 import { streamResponse } from './response.js';
 import { runClaudeCli } from './cli.js';
 import { composeInterviewerCli, interviewerModel, type InterviewerModel } from './interviewer-cli.js';
@@ -53,7 +52,7 @@ export interface InterviewerBrain {
   evaluate(ctx: EvalContext): Promise<Evaluation>;
   /** 専門面接の「聞きたい要点」(シニア / 現場)。生成できなければ null (呼び出し側が既定の要点を使う)。 */
   listFocusPoints(ctx: FocusPromptInput): Promise<FocusPoints | null>;
-  /** 鍵の有無による機能単位の有効/無効は Brain 内に閉じる。 */
+  /** 機能単位の有効/無効は Brain 内に閉じる。 */
   canCompose(): boolean;
   canAssess(): boolean;
   canRefine(): boolean;
@@ -110,7 +109,7 @@ export class LlmBrain implements InterviewerBrain {
     return Boolean(this.env['ANTHROPIC_API_KEY']);
   }
   canRefine(): boolean {
-    return Boolean(this.env['OPENAI_API_KEY']);
+    return true;
   }
   canEvaluate(): boolean {
     return Boolean(this.env['ANTHROPIC_API_KEY']);
@@ -134,9 +133,7 @@ export class LlmBrain implements InterviewerBrain {
   }
 
   async refineFocus(ctx: RefineContext): Promise<string | null> {
-    const text = await refine(createOpenAIClient({ apiKey: this.env['OPENAI_API_KEY'] }), {
-      turns: ctx.turns,
-    });
+    const text = await refine(ctx, this.env);
     return coerceFocus(text);
   }
 

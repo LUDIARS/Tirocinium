@@ -120,8 +120,7 @@ export function applyServerConfig(
   setNum('SESSION_RATELIMIT_WINDOW_MS', (v) => { cfg.sessionRateLimit.windowMs = v; });
   setNum('SESSION_RATELIMIT_MAX', (v) => { cfg.sessionRateLimit.max = v; });
 
-  // 子プロセス (claude CLI / Anthropic SDK / OpenAI SDK) が直接 process.env を読むキーは
-  // config への書込みに加え process.env にも注入する。
+  // Anthropic API、STT API の互換キー、Claude CLI の Bash 設定を process.env に渡す。
   const envPassthrough: Record<string, string> = {};
   for (const key of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'CLAUDE_CODE_GIT_BASH_PATH']) {
     const v = secrets[key];

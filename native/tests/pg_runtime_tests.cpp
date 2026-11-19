@@ -107,7 +107,7 @@ struct Runtime {
     http::Router no_worker;  // worker を持たない構成 (TIROCINIUM_COMPANIES_WORKER=0)
     app::LlmGateway gateway;
     app::EnvList brain_env{{"TIROCINIUM_BRAIN", "stub"}};
-    Runtime() : gateway(f.config, {}, [](const io::HttpClientRequest&) { return io::HttpClientResponse{}; }) {
+    Runtime() : gateway(f.config, {}) {
         f.services->root = synthetic_root();
         worker = make_worker();
         app::register_interview_routes(f.router, *f.services);

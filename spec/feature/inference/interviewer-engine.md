@@ -115,7 +115,7 @@ Opus 評価 (`evaluate`, 5 turn ごと) の出力を:
 |---|---|---|
 | `ANTHROPIC_API_KEY` (api backend) | 応答不可 | `llmBackend=cli` なら claude CLI 経由で応答可 |
 | 同上 | judge / evaluate skip | フェーズは `DEFAULT_SIGNALS` の time-box 駆動に退化 |
-| `OPENAI_API_KEY` | refine skip | refineBlock 無しで継続 |
+| Codex One-Shot の REFINE が失敗 | 失敗を記録 | 面接を継続 |
 | `MEMORIA_URL` | RAG skip | ragBlock 無し (ペルソナ + 弱点のみで面接) |
 | Iv (音声) | STT 不可 | クライアントが `stt_final` を直接送る |
 

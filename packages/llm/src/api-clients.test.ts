@@ -1,7 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAnthropicClient, extractText } from './anthropic.js';
-import { createOpenAIClient } from './openai.js';
-import { refine } from './refine.js';
 import { streamResponse } from './response.js';
 
 // Portus のクライアントは標準 fetch を使うので、global fetch を偽物に差し替える (外部には繋がない)。
@@ -84,28 +82,5 @@ describe('createAnthropicClient (Portus)', () => {
     }
     expect(out).toEqual(['志望', '動機は?']);
     expect(JSON.parse(calls[0]!.init.body as string).stream).toBe(true);
-  });
-});
-
-describe('createOpenAIClient (Portus)', () => {
-  it('chat.completions.create は Bearer で送り、max_tokens / temperature を保つ', async () => {
-    const calls = stubFetch(json({ choices: [{ message: { content: ' 次は技術選定の理由 ' } }] }));
-    const client = createOpenAIClient({ apiKey: 'sk-test' });
-    const text = await refine(client, { turns: [] });
-    expect(text).toBe('次は技術選定の理由');
-    const call = calls[0]!;
-    expect(call.url).toBe('https://api.openai.com/v1/chat/completions');
-    expect(call.init.redirect).toBe('error');
-    expect((call.init.headers as Record<string, string>)['Authorization']).toBe('Bearer sk-test');
-    const body = JSON.parse(call.init.body as string);
-    expect(body.max_tokens).toBe(200);
-    expect(body.temperature).toBe(0.5);
-    expect(body.messages[0].role).toBe('system');
-  });
-
-  it('choices の無い応答は例外にする', async () => {
-    stubFetch(json({ object: 'error' }));
-    const client = createOpenAIClient({ apiKey: 'k' });
-    await expect(client.chat.completions.create({ model: 'm', messages: [] })).rejects.toThrow('unexpected completion');
   });
 });

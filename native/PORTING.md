@@ -18,7 +18,7 @@ job `cpp-node-20261030` (WP-Tirocinium)。目的は脆弱性の受け口 (npm �
 | 実行時の DB | `apps/server/src/index.ts` は `hydrateSecrets()` 後に `initSql()` を呼ぶが、`config.databaseUrl` を設定する経路が無い (`DATABASE_URL` は scripts だけが読む)。常駐サーバは常に `node:sqlite` (Node 同梱の SQLite) で `data/tirocinium.sqlite` を開く。 | C++ 版は libpq (Postgres) だけで動く。`DATABASE_URL` (postgres://) を env かローカルの暗号化 config から読み、無い・SQLite を指す場合は起動を拒否する。既存の SQLite のデータの移し替えは §6 (人間の判断)。 |
 | Postgres 用 migration | `migrations/` に 017 (analytics) が無く、`analytics/store.ts` の SQL は SQLite 専用。Node 版は Postgres では analytics が動かない。 | `apps/server/migrations/017_analytics.sql` (SQLite 版と同じ列) を追加した。既存の migration は変えていない。 |
 | PASETO の版・用途 | Cernere は **v4.public** (Ed25519) で署名。claims は `sub/aud/iat/exp(ISO 8601)/kind/jti`、footer は `{"kid":…}`。公開鍵は `/.well-known/cernere-public-key` が raw 32 byte の base64。`CERNERE_PUBLIC_KEY` は PASERK (`k4.public.`) か PEM。 | OpenSSL 3 の Ed25519 で検証 (公式テストベクタ 4-S-1 で確認)。v4.local は使われていない。 |
-| LLM の経路 | 面接官の発話は `codex exec --model sol` / `claude -p --model opus` を引数配列で起動 (`@ludiars/one-shot`)。judge・評価・サマリ・推薦は Anthropic の直接 API (API キー)、refine は OpenAI の chat.completions を 1 回。Node 側の直接 API は SDK をやめ Portus (`lib/portus`) で通信する (`spec/feature/inference/direct-api-portus.md`)。 | C++ 版は Anthropic の API を呼ばず `claude -p` (ツール無し) に置換。機能の有効判定は Node 版と同じく `ANTHROPIC_API_KEY` の有無 (キーは子に渡さない)。OpenAI は HTTPS の 1 リクエスト。 |
+| LLM の経路 | 面接官の発話は `sol` / `opus`、refine は `luna` を `@ludiars/one-shot` に渡して購読 CLI を起動する。judge・評価・サマリ・推薦は Anthropic の直接 API を Portus 経由で呼ぶ。 | 面接官の発話と refine は `Lapilli::one_shot` を経由する。judge・評価などは `claude -p` (ツール無し) を使い、機能の有効判定には `ANTHROPIC_API_KEY` の有無を使う。キーは子に渡さない。 |
 | gRPC STT | `packages/voice` の gRPC は Imperativus stt-service の `StreamingRecognize` (双方向ストリーム) 1 本。既定は off。 | gRPC C++ は入れない。設定されていれば C++ 版は起動を拒否する (§6)。 |
 | 外部 HTML / フィード | 企業クロール (listing / enrich / contribute / job-news / AI 調査) は HTML・RSS・Atom を解析し、LLM で抽出する。 | 共通規約により C++ で HTML パーサーを自作しない → Node の企業 worker に残す (受け口は持たない)。 |
 | 本番の起動方法 | catalog は `npm run dev:server` (= `tsx watch src/index.ts`)。tsx (esbuild を含む) は本番で動いている。 | 企業 worker も `node --import tsx` で起動する (既存と同じ)。dist から起動する案は §7。 |
@@ -43,7 +43,7 @@ job `cpp-node-20261030` (WP-Tirocinium)。目的は脆弱性の受け口 (npm �
 | apps/server | `@ludiars/canalis` | 0.1.0 | 1 | 残す (Node CLI) | `companies:notion-import` だけ (ブラウザ操作)。 |
 | apps/server | `@tirocinium/llm` | — | 43 → 2 | 置き換え済み (サーバ) / 残す (worker) | 純関数は `core/llm/*` (golden で一致)。Node 側は SDK 2 つを Portus に替え、閉包は `@ludiars/one-shot` と `@ludiars/portus` の 2 つ。 |
 | packages/llm | `@anthropic-ai/sdk` | 0.30.1 | 39 | 置き換え済み (サーバ) / Portus に置き換え (Node) | サーバは `claude -p`。Node 側 (worker の抽出・Node 版サーバ・scripts) は Portus の `AnthropicClient` (stream は `packages/llm/src/anthropic-stream.ts`)。依存から外した。 |
-| packages/llm | `openai` | 4.104.0 | 39 | 置き換え済み (サーバ) / Portus に置き換え (Node) | refine は HTTPS 1 回 (`app/llm`)。Node 側は Portus の `OpenAIClient`。依存から外した。 |
+| packages/llm | `openai` | 4.104.0 | 39 | Codex One-Shot に置き換え済み | Node 版と C++ 版で refine は Codex の購読 CLI を起動する。 |
 | packages/llm | `@ludiars/portus` (追加) | 0.1.0 (`lib/portus` submodule、タグ v0.1.0 = af663ded) | 1 | Node に追加 | 実行時依存ゼロ (`node:` 標準と fetch だけ)。`npm run build:portus` で dist を作る。 |
 | packages/llm | `@ludiars/one-shot` | 0.1.0 | 1 | 置き換え済み | `app/one_shot` + `io/process`。 |
 | apps/server | `@tirocinium/secrets` | — | 1 | 置き換え済み (サーバ) / 残す (worker) | `app/secrets` (agent クライアント・ローカル暗号化 config)。 |
@@ -232,7 +232,7 @@ C++ だけの追加テスト: `io_http_server_tests` (ソケット越しの境�
 
 - 切り替え後 (C++ サーバ + worker) に `apps/server` から外せる直接依存: `hono`, `@hono/node-server`, `ws`, `paseto`
   (音声・STT を移した後なら `@discordjs/voice`, `opusscript`, `prism-media`, `@grpc/grpc-js`, `@grpc/proto-loader`、
-  blackbox を捨てるなら `@ludiars/blackbox`)。`@anthropic-ai/sdk` と `openai` は Portus に置き換えて外した。
+  blackbox を捨てるなら `@ludiars/blackbox`)。Anthropic の直接 API は Portus を使い、refine は Codex One-Shot を使う。
   Node 実装と package.json は今回は消していない。
 - OB スタジオ (`/ob/studios`) の C++ 化には NFKC 正規化と照合順序 (ICU 相当) が要る。ICU は許可依存に無いので worker のまま。
 - HTTP+JSON だけの運用 CLI (gBizINFO 取り込み・Wikidata・Sheets 同期・重複マージ・系列正規化・技術グラフ) の C++ 化。
@@ -266,7 +266,7 @@ node --experimental-transform-types --import ./native/tools/golden/ts-loader.mjs
 ```
 
 実サービスでの確認 (クラウドでは未実施): Cernere の本物の token での `/api/v1/*` と session WS、composite ログイン、
-`claude -p` / `codex exec` の実呼び出し (面接・judge・評価・サマリ・推薦・資料読解)、OpenAI refine、Memoria・Nuntius・VOICEVOX、
+`claude -p` / `codex exec` の実呼び出し (面接・judge・評価・サマリ・推薦・資料読解・refine)、Memoria・Nuntius・VOICEVOX、
 Discord の本物の gateway (テキスト面接・ES 相談の仲介)、企業 worker (tsx あり) でのクロール・enrich・求人ニュース、
 Excubitor からの起動と health。
 

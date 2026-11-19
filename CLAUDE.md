@@ -9,7 +9,7 @@
   生の ES / 面接トランスクリプトの保管先は別途決める (Memoria? Curare?)。
 - 音声入出力経路は **Imperativus (Iv)** を流用する。STT を Tirocinium 内に再実装しない。
 - LLM 呼び出しはサーバーモードのみ。ローカルモードは ollama 等の軽量モデルで完結。
-- AI モデル選定 (GPT-5.5 / Opus / Sonnet) は spec/feature/inference/model-profiles.md で確定する。
+- AI モデルの役割と解決規則は spec/feature/inference/model-profiles.md に定義する。
 
 ## アプリ構成 (3 面)
 

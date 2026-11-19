@@ -131,7 +131,6 @@ std::vector<std::string> apply_server_config(Config& c, const Secrets& secrets) 
     a.set_num("SESSION_RATELIMIT_MAX", [&](int v) { c.session_rate_limit.max = v; });
     // 子プロセス (claude CLI) に渡す値 / LLM の有効判定 (Node 版は process.env へ注入していた)。
     a.set("ANTHROPIC_API_KEY", [&](const std::string& v) { c.anthropic_api_key = v; });
-    a.set("OPENAI_API_KEY", [&](const std::string& v) { c.openai_api_key = v; });
     a.set("CLAUDE_CODE_GIT_BASH_PATH", [&](const std::string& v) { c.claude_code_git_bash_path = v; });
     return applied;
 }

@@ -90,7 +90,7 @@
       </div>
       <div class="card">
         <h3><span class="ico">☁️</span>サーバーモード</h3>
-        <p>LUDIARS サーバ群を使い複合 LLM (GPT-5.5 + Opus + Sonnet) で本番面接体験。認証は Cernere、音声は Imperativus、生データ永続化は Memoria を検討。枠が埋まると予約に誘導。</p>
+        <p>LUDIARS サーバ群を使い複合 LLM (Luna + Opus + Sonnet) で本番面接体験。認証は Cernere、音声は Imperativus、生データ永続化は Memoria を検討。枠が埋まると予約に誘導。</p>
       </div>
     </div>
     <p class="muted small">起動時にサーバ到達性 (<code>/health</code>) と認証トークン有効性で自動判定。失敗すればローカルへフォールバック。明示切替 UI もある。</p>
@@ -103,7 +103,7 @@
       <thead><tr><th>層</th><th>モデル</th><th>役割</th></tr></thead>
       <tbody>
         <tr><td>応答生成 (主)</td><td><strong>Sonnet</strong></td><td>面接官の応答。<strong>ストリームで</strong>即返す (TTS と並走)。</td></tr>
-        <tr><td>質問選定 / 深掘り誘導</td><td><strong>GPT-5.5</strong></td><td>5-10 turn ごとに次に聞くべきことを判断、Sonnet の system prompt を裏で補正。</td></tr>
+        <tr><td>質問選定 / 深掘り誘導</td><td><strong>Luna</strong></td><td>次に聞くべき論点を Codex One-Shot で生成。</td></tr>
         <tr><td>ペルソナ評価</td><td><strong>Opus</strong></td><td>一定 turn ごとに過去会話を読みペルソナを評価。別 channel で UI 横に出す。</td></tr>
         <tr><td>回答 judge</td><td><strong>Haiku</strong></td><td>turn 後に非同期で品質判定 → phase signals を供給。</td></tr>
       </tbody>
@@ -127,7 +127,7 @@
     <p class="muted small">評価は 0-5 スコア + 一言コメント + 改善 hint で返す。</p>
     <h3>5 段重ね system prompt</h3>
     <p>
-      ① 静的 root → ② 面接官ペルソナ → ②.5 弱点プロファイル → ③ session 開始時 RAG (role + stage tag) → ④ GPT-5.5 補正。
+      ① 静的 root → ② 面接官ペルソナ → ②.5 弱点プロファイル → ③ session 開始時 RAG (role + stage tag) → ④ Luna 補正。
       <code>pressure</code> は「聞き返しの粘り」「沈黙挿入」に変換、<code>tics</code> はそのまま転記。
     </p>
   </section>

@@ -8,7 +8,6 @@ import {
   createAnthropicClient,
   MODEL,
   resolveRequestModel,
-  createOpenAIClient,
   critique,
   evaluate,
   examineeSystemPrompt,
@@ -143,7 +142,6 @@ async function main() {
   if (!process.env['ANTHROPIC_API_KEY']) {
     throw new Error('ANTHROPIC_API_KEY required for ft-loop run');
   }
-  const refineEnabled = Boolean(process.env['OPENAI_API_KEY']);
 
   await mkdir(args.output, { recursive: true });
   const sessionId = args.output.split(/[/\\]/).pop() ?? 'unknown';
@@ -167,7 +165,6 @@ async function main() {
   await writeFile(join(args.output, 'meta.json'), JSON.stringify(meta, null, 2));
 
   const anthropic = createAnthropicClient();
-  const openai = refineEnabled ? createOpenAIClient() : null;
 
   const turns: Turn[] = [];
   const evaluations: EvaluationRecord[] = [];
@@ -250,9 +247,9 @@ async function main() {
     }
 
     // 10 turn ごとに refine
-    if (refineEnabled && openai && turnNo % REFINE_EVERY_N_TURNS === 0) {
+    if (turnNo % REFINE_EVERY_N_TURNS === 0) {
       try {
-        const block = await refine(openai, { turns });
+        const block = await refine({ turns });
         if (block) {
           refineBlock = block;
           console.log(`[ft-loop] refine @${turnNo}: ${block.slice(0, 60)}…`);
