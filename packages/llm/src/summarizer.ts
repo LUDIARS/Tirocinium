@@ -1,5 +1,6 @@
 import type { AnthropicApi } from './anthropic-types.js';
-import { extractText, MODEL } from './anthropic.js';
+import { extractText } from './anthropic.js';
+import { MODEL } from './model-profiles.js';
 import { extractJsonBlock, serializeHistory } from './evaluator.js';
 import { SUMMARY_INSTRUCTION } from './prompts.js';
 import type { SpecialistProfile } from './specialist-profile.js';
@@ -10,6 +11,7 @@ export type SummarizeInput = {
   specialist?: SpecialistProfile;
   turns: Turn[];
   evaluations: Evaluation[];
+  model?: string;
 };
 
 export async function summarize(
@@ -25,7 +27,7 @@ export async function summarize(
   ].join('\n');
 
   const res = await client.messages.create({
-    model: MODEL.SUMMARIZER,
+    model: input.model ?? MODEL.SUMMARIZER,
     max_tokens: 2048,
     system: SUMMARY_INSTRUCTION + specialistEvaluationPrompt(input.specialist, true),
     messages: [{ role: 'user', content: body }],

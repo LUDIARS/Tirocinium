@@ -15,7 +15,7 @@ export type SttApiConfig = {
   apiKey: string;
   /** 例: https://api.openai.com/v1 */
   baseUrl: string;
-  /** 例: gpt-4o-mini-transcribe / whisper-1 */
+  /** Transcription model accepted by the configured endpoint. */
   model: string;
   language: string;
 };
@@ -45,10 +45,14 @@ export function createSttApiProvider(env: NodeJS.ProcessEnv = process.env): ApiS
       'TIROCINIUM_STT_BACKEND=api requires TIROCINIUM_STT_API_KEY (or OPENAI_API_KEY).',
     );
   }
+  const model = env['TIROCINIUM_STT_API_MODEL'];
+  if (!model?.trim()) {
+    throw new Error('TIROCINIUM_STT_BACKEND=api requires TIROCINIUM_STT_API_MODEL.');
+  }
   return new ApiSttProvider({
     apiKey,
     baseUrl: env['TIROCINIUM_STT_API_URL'] || 'https://api.openai.com/v1',
-    model: env['TIROCINIUM_STT_API_MODEL'] || 'gpt-4o-mini-transcribe',
+    model,
     language: env['TIROCINIUM_STT_LANGUAGE'] || 'ja',
   });
 }

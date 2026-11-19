@@ -1,4 +1,5 @@
 import { OpenAIClient } from '@ludiars/portus/ai';
+import { resolveRequestModel } from './model-resolution.js';
 import { withRetry } from './api-retry.js';
 
 export type OpenAIConfig = {
@@ -34,7 +35,10 @@ export function createOpenAIClient(opts: OpenAIConfig = {}): OpenAIApi {
   return {
     chat: {
       completions: {
-        create: async (params) => asChatCompletion(await withRetry(() => client.chatCompletions(params))),
+        create: async (params) => {
+          const request = { ...params, model: resolveRequestModel(params.model, 'codex') };
+          return asChatCompletion(await withRetry(() => client.chatCompletions(request)));
+        },
       },
     },
   };
@@ -47,7 +51,6 @@ function asChatCompletion(res: unknown): ChatCompletion {
   return res as ChatCompletion;
 }
 
-/** 既定モデル。 GPT-5.5 が公開されたら env で差し替える。 暫定は gpt-4o */
 export const OPENAI_MODEL = {
-  REFINE: process.env['OPENAI_MODEL_REFINE'] ?? 'gpt-4o',
+  REFINE: process.env['OPENAI_MODEL_REFINE'] || 'luna',
 } as const;

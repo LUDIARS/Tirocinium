@@ -3,7 +3,9 @@
   "include": [
     "packages/companies/src/html.ts",
     "packages/companies/src/links.ts",
-    "packages/companies/src/rss.ts"
+    "packages/companies/src/rss.ts",
+    "packages/llm/src/model-profiles.ts",
+    "packages/llm/src/model-resolution.ts"
   ],
   "rules": {
     "contract-wrap": true

@@ -121,8 +121,12 @@ public:
 // TIROCINIUM_BRAIN=llm|stub (既定 llm)。不正値は例外 (無言の縮退をしない)。
 std::unique_ptr<InterviewerBrain> create_brain(LlmGateway& gateway, const EnvList& env);
 
-// summarizer.ts / evaluator.ts の 1 回呼び出し (CLI)。
-Json summarize_with_cli(LlmGateway& gateway, const std::optional<llm::SpecialistProfile>& specialist,
+struct SummaryWithModel {
+    Json doc;
+    std::string model;
+};
+
+SummaryWithModel summarize_with_cli(LlmGateway& gateway, const std::optional<llm::SpecialistProfile>& specialist,
                         const std::vector<llm::Turn>& turns, const std::vector<Json>& evaluations);
 
 }  // namespace tr::app

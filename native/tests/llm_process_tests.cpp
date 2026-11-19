@@ -31,6 +31,12 @@ app::EnvList base_env_with_path(const std::filesystem::path& extra) {
         if (k == "PATH") path += ":" + v;
     }
     env.emplace_back("PATH", path);
+    // codex の役割 (sol) は role map が無いと解決できない。テスト用の架空 ID の map を渡す。
+    const auto roles = extra / "model-roles.json";
+    std::ofstream(roles, std::ios::binary)
+        << R"({"schemaVersion":1,"roles":{"claude":{"opus":"claude-opus-test","sonnet":"claude-sonnet-test",)"
+           R"("haiku":"claude-haiku-test"},"codex":{"sol":"gpt-test-sol"}}})";
+    env.emplace_back("LUDIARS_MODEL_ROLES_FILE", roles.string());
     env.emplace_back("ANTHROPIC_API_KEY", "must-not-leak");
     env.emplace_back("LICTOR_TOKEN", "must-not-leak");
     env.emplace_back("KEEP_ME", "yes");
@@ -102,25 +108,65 @@ TEST_CASE("process: the child sees only the given environment") {
 }
 #endif
 
-TEST_CASE("one-shot: provider detection, model roles, env stripping, cmd wrapper") {
-    app::EnvList env = {{"PATH", "/usr/bin"}, {"ANTHROPIC_API_KEY", "x"}, {"OpenAI_Api_Key", "y"}, {"LICTOR_X", "z"},
-                        {"CLAUDECODE", "1"}, {"HOME", "/h"}, {"LUDIARS_ONESHOT_MODEL_SONNET", "claude-sonnet-custom"}};
+namespace {
+
+// 偽の CLI 置き場と偽の role map。モデル ID はテスト用の架空の値で、本物の ID をここに持たない。
+struct OneShotFixture {
+    std::filesystem::path bin;
+    std::filesystem::path roles;
+};
+
+OneShotFixture one_shot_fixture() {
+    static const auto tag = std::to_string(std::random_device{}());
+    const auto dir = std::filesystem::temp_directory_path() / ("tr-oneshot-" + tag);
+    const auto bin = dir / "bin";
+    std::filesystem::create_directories(bin);
+#ifdef _WIN32
+    for (const char* name : {"claude.exe", "codex.exe"}) std::ofstream(bin / name, std::ios::binary) << "MZ";
+#else
+    for (const char* name : {"claude", "codex"}) {
+        std::ofstream(bin / name) << "#!/bin/sh
+exit 0
+";
+        std::filesystem::permissions(bin / name, std::filesystem::perms::owner_all);
+    }
+#endif
+    const auto roles = dir / "model-roles.json";
+    std::ofstream(roles, std::ios::binary)
+        << R"({"schemaVersion":1,"roles":{"claude":{"opus":"claude-opus-test","sonnet":"claude-sonnet-test",)"
+           R"("haiku":"claude-haiku-test","fable":"claude-fable-test"},"codex":{"astra":"gpt-test-astra",)"
+           R"("sol":"gpt-test-sol","luna":"gpt-test-luna"}}})";
+    return {bin, roles};
+}
+
+}  // namespace
+
+TEST_CASE("one-shot: delegates to Lapilli (role map, env stripping, cmd wrapper)") {
+    const auto fx = one_shot_fixture();
+    app::EnvList env = {{"PATH", fx.bin.string()}, {"LUDIARS_MODEL_ROLES_FILE", fx.roles.string()},
+                        {"ANTHROPIC_API_KEY", "x"}, {"OpenAI_Api_Key", "y"}, {"LICTOR_X", "z"}, {"CLAUDECODE", "1"},
+                        {"HOME", "/h"}};
     auto l = app::prepare_one_shot("claude", {"-p", "--model", "opus", "--tools", ""}, env);
-    check_eq(l.args[2], std::string("claude-opus-5-5"), "opus role");
+    check_eq(l.args[2], std::string("claude-opus-test"), "opus role resolved through the role map");
     bool leaked = false;
     for (const auto& [k, v] : l.env) leaked = leaked || k == "ANTHROPIC_API_KEY" || k == "OpenAI_Api_Key" || k == "LICTOR_X" || k == "CLAUDECODE";
     check(!leaked, "API keys and parent session binding removed (case-insensitive)");
     auto def = app::prepare_one_shot("claude", {"-p"}, env);
-    check(def.args.size() == 3 && def.args[0] == "--model" && def.args[1] == "claude-sonnet-custom", "default role with override");
+    check(def.args.size() == 3 && def.args[0] == "--model" && def.args[1] == "claude-sonnet-test", "default role is sonnet");
+    auto pinned = app::prepare_one_shot("claude", {"-p", "--model", "claude-explicit-id"}, env);
+    check_eq(pinned.args[2], std::string("claude-explicit-id"), "explicit id kept");
     auto codex = app::prepare_one_shot("codex", {"exec", "--json", "-"}, env);
-    check(codex.args[1] == "--model" && codex.args[2] == "gpt-6-sol", "codex default inserted after exec");
+    check(codex.args[1] == "--model" && codex.args[2] == "gpt-test-sol", "codex default inserted after exec");
     auto wrapped = app::prepare_one_shot("cmd.exe", {"/c", "claude", "-p"}, env);
-    check_eq(wrapped.file, std::string("claude"), "cmd wrapper unwrapped");
+    check(std::filesystem::path(wrapped.file).parent_path() == fx.bin, "cmd wrapper unwrapped to the real CLI");
     trtest::check_throws([&] { app::prepare_one_shot("cmd", {"/c", "claude && evil", "-p"}, env); }, "shell text rejected");
     trtest::check_throws([&] { app::prepare_one_shot("claude", {"--version"}, env); }, "not print mode");
-    trtest::check_throws([&] { app::prepare_one_shot("claude", {"-p", "--model", "gpt-6-sol"}, env); }, "claude needs claude model");
-    trtest::check_throws([&] { app::prepare_one_shot("codex", {"exec", "--model", "claude-x"}, env); }, "codex needs gpt");
+    trtest::check_throws([&] { app::prepare_one_shot("claude", {"-p", "--model", "sol"}, env); }, "claude needs claude model");
+    trtest::check_throws([&] { app::prepare_one_shot("codex", {"exec", "--model", "claude-x"}, env); }, "codex needs codex model");
     trtest::check_throws([&] { app::prepare_one_shot("claude", {"-p", "--model", "bad model"}, env); }, "invalid id");
+    app::EnvList no_map = env;
+    no_map[1].second = (fx.roles.parent_path() / "missing.json").string();
+    trtest::check_throws([&] { app::prepare_one_shot("codex", {"exec"}, no_map); }, "codex role without a map is unresolved");
 }
 
 #ifndef _WIN32
@@ -181,9 +227,12 @@ TEST_CASE("brain: TIROCINIUM_BRAIN selects llm or stub; invalid value is rejecte
 
 TEST_CASE("resolveModels: env role > profile > default") {
     auto m = app::resolve_models({{"TIROCINIUM_MODEL_PROFILE", "Economy"}, {"TIROCINIUM_MODEL_JUDGE", "claude-x"}});
-    check_eq(m["EVALUATOR"], std::string("claude-sonnet-4-6"), "profile");
+    check_eq(m["EVALUATOR"], std::string("sonnet"), "profile");
     check_eq(m["JUDGE"], std::string("claude-x"), "env role");
-    check_eq(m["RESPONSE"], std::string("claude-sonnet-4-6"), "default");
+    check_eq(m["RESPONSE"], std::string("sonnet"), "default");
+    check_eq(m["SUMMARIZER"], std::string("sonnet"), "profile summarizer");
+    auto d = app::resolve_models({});
+    check(d["EVALUATOR"] == "opus" && d["JUDGE"] == "haiku" && d["RESPONSE"] == "sonnet", "defaults are role names");
 }
 
 TEST_MAIN()

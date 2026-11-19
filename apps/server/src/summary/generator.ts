@@ -1,4 +1,4 @@
-import { createAnthropicClient, summarize, specialistFromMetadata, type Evaluation, type Turn } from '@tirocinium/llm';
+import { createAnthropicClient, MODEL, resolveRequestModel, summarize, specialistFromMetadata, type Evaluation, type Turn } from '@tirocinium/llm';
 import { sql } from '../db/index.js';
 import { upsertSummary } from './repo.js';
 
@@ -44,7 +44,8 @@ export async function generateSummaryForSession(sessionId: string): Promise<{ ok
   `;
   if (!sessions[0]) return { ok: false, reason: 'session_not_found' };
   const specialist = specialistFromMetadata(sessions[0].metadata);
-  const doc = await summarize(client, { turns, evaluations, specialist });
+  const model = resolveRequestModel(MODEL.SUMMARIZER, 'claude');
+  const doc = await summarize(client, { turns, evaluations, specialist, model });
 
   await upsertSummary({
     session_id: sessionId,
@@ -54,7 +55,7 @@ export async function generateSummaryForSession(sessionId: string): Promise<{ ok
     growth_points: doc.growth_points,
     carry_over: doc.carry_over,
     interviewer_note: doc.interviewer_note,
-    model: 'claude-opus-4-7',
+    model,
   });
   return { ok: true };
 }

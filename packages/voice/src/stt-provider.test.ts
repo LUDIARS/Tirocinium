@@ -22,8 +22,17 @@ describe('createSttProvider', () => {
   });
 
   it('selects api when key present', () => {
-    const p = createSttProvider({ TIROCINIUM_STT_BACKEND: 'api', OPENAI_API_KEY: 'sk-test' });
+    const p = createSttProvider({
+      TIROCINIUM_STT_BACKEND: 'api',
+      OPENAI_API_KEY: 'sk-test',
+      TIROCINIUM_STT_API_MODEL: 'fixture-transcription-model',
+    });
     expect(p).not.toBeNull();
+  });
+
+  it('requires a transcription model for the API backend', () => {
+    expect(() => createSttProvider({ TIROCINIUM_STT_BACKEND: 'api', OPENAI_API_KEY: 'sk-test' }))
+      .toThrow(/requires TIROCINIUM_STT_API_MODEL/);
   });
 
   it('throws for api without a key', () => {

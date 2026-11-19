@@ -3,7 +3,9 @@ export { selectTechnicalTopic, type ExperienceLevel } from './technical-topics.j
 export { interviewerModel, interviewerLaunch, type InterviewerModel } from './interviewer-cli.js';
 export * from './specialist-profile.js';
 export * from './specialist-focus.js';
-export { createAnthropicClient, extractText, MODEL, resolveModels, type ModelRole } from './anthropic.js';
+export { createAnthropicClient, extractText } from './anthropic.js';
+export { MODEL, resolveModels, type ModelRole } from './model-profiles.js';
+export { resolveRequestModel } from './model-resolution.js';
 export type { AnthropicApi, MessageParam, MessageCreateParams, Message, ContentBlock, TextBlock, MessageStreamEvent } from './anthropic-types.js';
 export {
   evaluate,

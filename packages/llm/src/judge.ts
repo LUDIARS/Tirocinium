@@ -4,7 +4,8 @@
 // 面接官応答とは別経路で非同期に走らせるため、知覚レイテンシを増やさない。
 
 import type { AnthropicApi } from './anthropic-types.js';
-import { extractText, MODEL } from './anthropic.js';
+import { extractText } from './anthropic.js';
+import { MODEL } from './model-profiles.js';
 import { coerceSignals } from './coerce.js';
 import { extractJsonBlock, serializeHistory } from './evaluator.js';
 import type { Turn } from './types.js';

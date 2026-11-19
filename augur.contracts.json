@@ -27,6 +27,22 @@
       "file": "packages/companies/src/rss.ts",
       "module": "packages/companies/src/contracts/feed.contract.ts",
       "sample": 1
+    },
+    {
+      "id": "C-4",
+      "criterion": "C-4 resolveModels(env): 役割別設定、プロファイル、既定値の優先順で役割を選択する",
+      "symbol": "resolveModels",
+      "file": "packages/llm/src/model-profiles.ts",
+      "module": "packages/llm/src/contracts/model-profiles.contract.ts",
+      "sample": 1
+    },
+    {
+      "id": "C-5",
+      "criterion": "C-5 resolveRequestModel(selection, provider, env): 役割を Concordia のモデル ID に解決し、明示 ID を保持する",
+      "symbol": "resolveRequestModel",
+      "file": "packages/llm/src/model-resolution.ts",
+      "module": "packages/llm/src/contracts/model-resolution.contract.ts",
+      "sample": 1
     }
   ]
 }

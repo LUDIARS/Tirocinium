@@ -12,7 +12,7 @@ Codex/Claude CLI インストール・既存認証が必要。失敗時は明示
 面接推論エンジンのモデル割当を env で切り替え可能にし、「Sonnet 応答 / Opus 評価 /
 Haiku judge の 3 機種分担」を必要に応じて collapse できるようにする。
 
-## 役割と既定 (`packages/llm/src/anthropic.ts`)
+## 役割と既定 (`packages/llm/src/model-profiles.ts` / `native/src/app/llm.cpp`)
 
 | 役割 (ModelRole) | 既定 | 用途 |
 |---|---|---|
@@ -34,7 +34,21 @@ Haiku judge の 3 機種分担」を必要に応じて collapse できるよう�
   - `default` — 3 機種分担 (既定)
   - `opus-only` — 応答/受験者/judge も Opus に寄せる (最高品質・高コスト)
   - `economy` — 評価/サマリ/critic を Sonnet に寄せる (低コスト)
-- `TIROCINIUM_MODEL_<ROLE>` — 役割を個別に上書き (例 `TIROCINIUM_MODEL_EVALUATOR=claude-opus-4-8`)
+- `TIROCINIUM_MODEL_<ROLE>` — 役割を個別に上書き。役割名 (`opus` / `sonnet` / `haiku` / `fable`) か、
+  明示のモデル ID (そのまま使う) を書く。
+
+## モデル ID の解決 (2026-11-19)
+
+コードと設定例はモデル ID を持たず、役割名だけを持つ。役割名 → モデル ID は Concordia が
+書き出す role map ファイル (`LUDIARS_MODEL_ROLES_FILE`、既定は `%LOCALAPPDATA%/LUDIARS/model-roles.json`
+または `$XDG_STATE_HOME/ludiars/model-roles.json`) を Lapilli one-shot が読んで決める。
+
+- Node: `resolveRequestModel(selection, 'claude' | 'codex')` (`packages/llm/src/model-resolution.ts`) が
+  `@ludiars/one-shot` の `resolveModel` を呼ぶ。HTTP API は別名を受け付けないため、map が無ければ
+  `model_role_unresolved:<role>` で止める。
+- native: `lapilli::one_shot::resolve_model` / `prepare`。`app/one_shot.cpp` は Lapilli への委譲だけを持つ。
+- 深掘り誘導 (OpenAI REFINE) の既定は Codex 役割 `luna`。`OPENAI_MODEL_REFINE` で明示 ID に上書きできる。
+- STT の API バックエンドは Concordia の役割に当たらないため既定を持たず、`TIROCINIUM_STT_API_MODEL` を必須とする。
 
 ## 3 機種分担の是非 (decision-metrics)
 

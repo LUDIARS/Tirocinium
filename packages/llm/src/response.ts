@@ -1,5 +1,5 @@
 import type { AnthropicApi, MessageParam } from './anthropic-types.js';
-import { MODEL } from './anthropic.js';
+import { MODEL } from './model-profiles.js';
 import type { ExamineePersonaInput, InterviewerPersonaInput, Turn } from './types.js';
 import type { Phase } from './phase.js';
 import { PHASE_GUIDANCE, DIALECTIC_PROBE } from './prompts.js';

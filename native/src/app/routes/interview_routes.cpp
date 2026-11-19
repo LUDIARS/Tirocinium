@@ -479,8 +479,8 @@ std::string generate_summary_for_session(Services& s, const std::string& session
     auto session = s.db.query("SELECT metadata FROM sessions WHERE id = $1", {session_id});
     if (session.empty()) return "session_not_found";
     const auto specialist = llm::specialist_from_metadata(session[0]["metadata"]);
-    const Json doc = summarize_with_cli(*s.llm, specialist, turns, evaluations);
-    upsert_summary(s.db, session_id, doc, "claude-opus-4-7");
+    const auto [doc, model] = summarize_with_cli(*s.llm, specialist, turns, evaluations);
+    upsert_summary(s.db, session_id, doc, model);
     return "ok";
 }
 

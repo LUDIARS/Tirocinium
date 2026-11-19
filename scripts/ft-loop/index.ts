@@ -6,6 +6,8 @@ import matter from 'gray-matter';
 import {
   buildSystemPrompt,
   createAnthropicClient,
+  MODEL,
+  resolveRequestModel,
   createOpenAIClient,
   critique,
   evaluate,
@@ -154,9 +156,9 @@ async function main() {
     models: {
       interviewer: 'claude-cli (sonnet)',
       examinee: 'claude-cli (haiku)',
-      evaluator: 'claude-opus-4-7',
-      summarizer: 'claude-opus-4-7',
-      critic: 'claude-opus-4-7',
+      evaluator: resolveRequestModel(MODEL.EVALUATOR, 'claude'),
+      summarizer: resolveRequestModel(MODEL.SUMMARIZER, 'claude'),
+      critic: resolveRequestModel(MODEL.CRITIC, 'claude'),
     },
     started_at: new Date().toISOString(),
     ended_at: null,

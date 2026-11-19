@@ -150,6 +150,11 @@ else()
   add_compile_options(-Wall -Wextra -Wpedantic -ffp-contract=off)
 endif()
 
+set(LAPILLI_NATIVE_CRYPTO OFF)
+set(LAPILLI_NATIVE_NET OFF)
+set(LAPILLI_NATIVE_TESTS OFF)
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../lib/lapilli/native" "${CMAKE_CURRENT_BINARY_DIR}/_lapilli" EXCLUDE_FROM_ALL)
+
 add_subdirectory(src)
 if(BUILD_TESTING)
   add_subdirectory(tests)

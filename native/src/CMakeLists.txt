@@ -83,7 +83,7 @@ add_library(tr_app STATIC
   app/pipeline.cpp
   app/routes/health.cpp
   app/server_main.cpp)
-target_link_libraries(tr_app PUBLIC tr_io)
+target_link_libraries(tr_app PUBLIC tr_io PRIVATE Lapilli::one_shot)
 tr_lorica(tr_app SERVER)
 
 add_executable(tirocinium-server main.cpp)

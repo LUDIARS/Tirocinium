@@ -25,7 +25,7 @@ window.TIROCINIUM_GRAPH = {
     { id: 'ext-excubitor', label: 'Excubitor', cat: 'external', desc: 'secret-agent。env を使わず memory-only で秘密を hydrate。', status: 'ok' },
     { id: 'ext-canalis', label: 'Canalis', cat: 'external', desc: '@ludiars/canalis。依存ゼロの Notion fetch ソース。', status: 'ok' },
     { id: 'ext-anthropic', label: 'Anthropic', cat: 'external', desc: 'Sonnet (応答) / Opus (評価) / Haiku (judge・受験者)。', status: 'ok' },
-    { id: 'ext-openai', label: 'OpenAI', cat: 'external', desc: 'GPT-5.5 で深掘り誘導 (現状 gpt-4o 代替で待機)。', status: 'partial' },
+    { id: 'ext-openai', label: 'OpenAI', cat: 'external', desc: '深掘り誘導 (Codex 役割 luna を Concordia の role map で解決)。', status: 'partial' },
     { id: 'ext-discord', label: 'Discord', cat: 'external', desc: 'Bot A (本体/面接) と Bot B (裏口) を別 token・別 gateway で運用。', status: 'ok' },
 
     // ===== Domains =====

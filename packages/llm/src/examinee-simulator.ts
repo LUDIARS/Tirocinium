@@ -1,5 +1,6 @@
 import type { AnthropicApi } from './anthropic-types.js';
-import { extractText, MODEL } from './anthropic.js';
+import { extractText } from './anthropic.js';
+import { MODEL } from './model-profiles.js';
 import { serializeHistory } from './evaluator.js';
 import type { ExamineePersonaInput, Turn } from './types.js';
 

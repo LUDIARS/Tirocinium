@@ -1,6 +1,7 @@
 #include "app/llm.hpp"
 
 #include <cmath>
+#include <lapilli/one_shot.hpp>
 
 #include "core/text.hpp"
 
@@ -19,17 +20,17 @@ std::optional<std::string> env_value(const EnvList& env, const std::string& key)
 
 std::map<std::string, std::string> resolve_models(const EnvList& env) {
     static const std::vector<std::pair<std::string, std::string>> defaults = {
-        {"RESPONSE", "claude-sonnet-4-6"},           {"EVALUATOR", "claude-opus-4-7"},
-        {"SUMMARIZER", "claude-opus-4-7"},           {"CRITIC", "claude-opus-4-7"},
-        {"EXAMINEE", "claude-haiku-4-5-20251001"},   {"JUDGE", "claude-haiku-4-5-20251001"},
-        {"EXTRACTOR", "claude-haiku-4-5-20251001"},  {"RECOMMENDER", "claude-sonnet-4-6"},
+        {"RESPONSE", "sonnet"},           {"EVALUATOR", "opus"},
+        {"SUMMARIZER", "opus"},           {"CRITIC", "opus"},
+        {"EXAMINEE", "haiku"},   {"JUDGE", "haiku"},
+        {"EXTRACTOR", "haiku"},  {"RECOMMENDER", "sonnet"},
     };
     static const std::map<std::string, std::map<std::string, std::string>> profiles = {
         {"default", {}},
         {"opus-only",
-         {{"RESPONSE", "claude-opus-4-7"}, {"EXAMINEE", "claude-opus-4-7"}, {"JUDGE", "claude-opus-4-7"},
-          {"EXTRACTOR", "claude-opus-4-7"}, {"RECOMMENDER", "claude-opus-4-7"}}},
-        {"economy", {{"EVALUATOR", "claude-sonnet-4-6"}, {"SUMMARIZER", "claude-sonnet-4-6"}, {"CRITIC", "claude-sonnet-4-6"}}},
+         {{"RESPONSE", "opus"}, {"EXAMINEE", "opus"}, {"JUDGE", "opus"},
+          {"EXTRACTOR", "opus"}, {"RECOMMENDER", "opus"}}},
+        {"economy", {{"EVALUATOR", "sonnet"}, {"SUMMARIZER", "sonnet"}, {"CRITIC", "sonnet"}}},
     };
     const std::string profile_name = js_to_lower(env_value(env, "TIROCINIUM_MODEL_PROFILE").value_or("default"));
     auto pit = profiles.find(profile_name);
@@ -154,7 +155,12 @@ std::string LlmGateway::compose_interviewer(const std::string& model, const std:
 
 std::string LlmGateway::openai_refine(const std::vector<llm::Turn>& turns) {
     if (config_.openai_api_key.empty()) throw LlmError("OPENAI_API_KEY is required");
-    const std::string model = env_value(base_env_, "OPENAI_MODEL_REFINE").value_or("gpt-4o");
+    const auto configured = env_value(base_env_, "OPENAI_MODEL_REFINE").value_or("");
+    const std::string selection = configured.empty() ? "luna" : configured;
+    const auto codex = lapilli::one_shot::Provider::codex;
+    const std::string model = lapilli::one_shot::role_provider(selection) == codex
+                                  ? lapilli::one_shot::resolve_model(selection, codex, base_env_)
+                                  : selection;
     io::HttpClientRequest req;
     req.method = "POST";
     req.url = "https://api.openai.com/v1/chat/completions";
@@ -239,10 +245,12 @@ public:
         const std::string prompt = std::string(llm::kEvalInstruction) + llm::specialist_evaluation_prompt(specialist) +
                                    "\n\n" + llm::serialize_history(turns);
         return retry_once<EvaluationResult>([&] {
+            const auto model = lapilli::one_shot::resolve_model(gw_.models().at("EVALUATOR"),
+                                                               lapilli::one_shot::Provider::claude, gw_.env());
             std::vector<llm::ParsedEvaluation> samples;
             for (int i = 0; i < eval_samples_; ++i) {
                 CliRunOptions o;
-                o.model = gw_.models().at("EVALUATOR");
+                o.model = model;
                 o.extra_args = claude_text_args();
                 samples.push_back(llm::parse_evaluation(gw_.run_claude(prompt, o)));
             }
@@ -265,7 +273,7 @@ public:
             auto d = llm::dedup_hints(hints);
             if (d.size() > 3) d.resize(3);
             r.hints = d;
-            r.model = gw_.models().at("EVALUATOR");
+            r.model = model;
             return r;
         });
     }
@@ -349,7 +357,7 @@ std::unique_ptr<InterviewerBrain> create_brain(LlmGateway& gateway, const EnvLis
     throw std::runtime_error("TIROCINIUM_BRAIN が不正: \"" + raw + "\" (llm | stub のみ)");
 }
 
-Json summarize_with_cli(LlmGateway& gateway, const std::optional<llm::SpecialistProfile>& specialist,
+SummaryWithModel summarize_with_cli(LlmGateway& gateway, const std::optional<llm::SpecialistProfile>& specialist,
                         const std::vector<llm::Turn>& turns, const std::vector<Json>& evaluations) {
     std::vector<std::string> evs;
     for (std::size_t i = 0; i < evaluations.size(); ++i) {
@@ -359,10 +367,11 @@ Json summarize_with_cli(LlmGateway& gateway, const std::optional<llm::Specialist
     const std::string prompt =
         std::string(llm::kSummaryInstruction) + llm::specialist_evaluation_prompt(specialist, true) + "\n\n" + body;
     CliRunOptions o;
-    o.model = gateway.models().at("SUMMARIZER");
+    o.model = lapilli::one_shot::resolve_model(gateway.models().at("SUMMARIZER"),
+                                              lapilli::one_shot::Provider::claude, gateway.env());
     o.extra_args = claude_text_args();
     o.timeout = std::chrono::milliseconds(300'000);
-    return llm::parse_summary(gateway.run_claude(prompt, o));
+    return {llm::parse_summary(gateway.run_claude(prompt, o)), *o.model};
 }
 
 }  // namespace tr::app
